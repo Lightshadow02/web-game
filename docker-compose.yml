@@ -1,0 +1,15 @@
+services:
+  game-hub:
+    build: .
+    image: game-hub:latest
+    container_name: game-hub
+    restart: unless-stopped
+    ports:
+      - "${HOST_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      MAX_PLAYERS_PER_ROOM: 8
+      RECONNECT_GRACE_MS: 60000
+      # CORS_ORIGIN: "https://jeux.mondomaine.fr"   # uniquement si le front est servi ailleurs
+    init: true   # transmet SIGTERM correctement à Node (arrêt propre)

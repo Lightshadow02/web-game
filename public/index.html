@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Game Hub</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <!-- ===================================================== ACCUEIL -->
+  <section id="screen-home" class="screen">
+    <div class="home-card">
+      <h1 class="logo">♠ ♥ <span>Game Hub</span> ♦ ♣</h1>
+      <p class="tagline">Des jeux de cartes entre amis, en temps réel.</p>
+
+      <label class="field">
+        <span>Votre pseudo</span>
+        <input id="input-name" maxlength="20" autocomplete="nickname" placeholder="ex. Lancelot" />
+      </label>
+
+      <button id="btn-create" class="btn btn-primary btn-block">Créer un salon</button>
+
+      <div class="divider"><span>ou</span></div>
+
+      <form id="form-join" class="join-row">
+        <input id="input-code" maxlength="5" placeholder="CODE" autocomplete="off" spellcheck="false" />
+        <button class="btn">Rejoindre</button>
+      </form>
+
+      <p id="home-error" class="error" role="alert"></p>
+    </div>
+  </section>
+
+  <!-- ===================================================== SALON + JEU -->
+  <section id="screen-room" class="screen hidden">
+    <header class="topbar">
+      <div class="room-code">
+        Salon <strong id="room-code"></strong>
+        <button id="btn-copy" class="btn btn-ghost btn-small" title="Copier le lien d'invitation">Copier le lien</button>
+      </div>
+      <div class="topbar-actions">
+        <button id="btn-end-game" class="btn btn-small hidden">Retour au salon</button>
+        <button id="btn-leave" class="btn btn-danger btn-small">Quitter</button>
+      </div>
+    </header>
+
+    <div class="room-layout">
+      <main class="room-main">
+        <!-- Lobby -->
+        <div id="lobby" class="lobby">
+          <div class="panel">
+            <h2>Joueurs <span id="player-count" class="muted"></span></h2>
+            <ul id="player-list" class="player-list"></ul>
+          </div>
+
+          <div class="panel">
+            <h2>Choix du jeu</h2>
+            <p id="game-hint" class="muted"></p>
+            <div id="game-list" class="game-list"></div>
+            <button id="btn-start" class="btn btn-primary btn-block">Lancer la partie</button>
+            <p id="start-hint" class="muted center"></p>
+          </div>
+        </div>
+
+        <!-- Conteneur dans lequel le module du jeu se monte -->
+        <div id="game-root" class="game-root hidden"></div>
+      </main>
+
+      <aside class="chat panel">
+        <h2>Chat</h2>
+        <ul id="chat-messages" class="chat-messages"></ul>
+        <form id="form-chat" class="chat-form">
+          <input id="input-chat" maxlength="300" placeholder="Votre message..." autocomplete="off" />
+          <button class="btn btn-small">Envoyer</button>
+        </form>
+      </aside>
+    </div>
+  </section>
+
+  <div id="toasts" class="toasts"></div>
+  <div id="connection-banner" class="connection-banner hidden">Connexion au serveur perdue, reconnexion...</div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,181 @@
+/* =====================================================================
+ * Thème du Hub — variables réutilisables par les modules de jeu.
+ * ===================================================================== */
+:root {
+  --bg: #0f1a14;
+  --bg-elev: #17261d;
+  --panel: #1c2e23;
+  --border: #2e4a39;
+  --felt: #1d5b3a;
+  --felt-dark: #154530;
+  --text: #ecf2ee;
+  --muted: #93aa9c;
+  --gold: #e3b341;
+  --gold-dark: #b98b1e;
+  --danger: #e5534b;
+  --success: #3fb96f;
+  --card-bg: #fbf8f1;
+  --card-red: #c62f3a;
+  --card-black: #1b1f23;
+  --radius: 10px;
+  --shadow: 0 6px 20px rgb(0 0 0 / 0.35);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: radial-gradient(ellipse at top, #1a3326 0%, var(--bg) 60%);
+  color: var(--text);
+  line-height: 1.4;
+}
+h1, h2, h3 { margin: 0 0 0.6rem; }
+h2 { font-size: 1.05rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gold); }
+.hidden { display: none !important; }
+.muted { color: var(--muted); font-size: 0.9rem; }
+.center { text-align: center; }
+.error { color: var(--danger); min-height: 1.2em; margin: 0.8rem 0 0; text-align: center; }
+
+/* ------------------------------------------------------------- boutons/champs */
+.btn {
+  font: inherit; font-weight: 600;
+  padding: 0.6rem 1.1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text);
+  cursor: pointer;
+  transition: transform 0.08s, background 0.15s, opacity 0.15s;
+}
+.btn:hover:not(:disabled) { background: #22392b; }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-primary { background: var(--gold); border-color: var(--gold-dark); color: #1b1405; }
+.btn-primary:hover:not(:disabled) { background: #f0c454; }
+.btn-danger { border-color: #7a2c28; color: #ffb4ae; }
+.btn-ghost { background: transparent; }
+.btn-small { padding: 0.35rem 0.7rem; font-size: 0.85rem; }
+.btn-block { width: 100%; }
+
+input {
+  font: inherit;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  min-width: 0;
+}
+input:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+
+.field { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 1rem; }
+.field span { font-size: 0.9rem; color: var(--muted); }
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  box-shadow: var(--shadow);
+}
+
+.badge {
+  font-size: 0.72rem; font-weight: 700;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: rgb(227 179 65 / 0.18);
+  color: var(--gold);
+}
+.badge-me { background: rgb(63 185 111 / 0.18); color: var(--success); }
+
+/* ------------------------------------------------------------- accueil */
+#screen-home { min-height: 100%; display: grid; place-items: center; padding: 1rem; }
+.home-card {
+  width: min(420px, 100%);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 2rem 1.6rem;
+  box-shadow: var(--shadow);
+}
+.logo { text-align: center; font-size: 1.6rem; color: var(--muted); }
+.logo span { color: var(--gold); }
+.tagline { text-align: center; color: var(--muted); margin: 0 0 1.6rem; }
+.divider { display: flex; align-items: center; gap: 0.8rem; color: var(--muted); margin: 1.2rem 0; font-size: 0.85rem; }
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.join-row { display: flex; gap: 0.5rem; }
+.join-row input { flex: 1; width: 0; text-transform: uppercase; letter-spacing: 0.3em; text-align: center; font-weight: 700; }
+
+/* ------------------------------------------------------------- salon */
+#screen-room { min-height: 100%; display: flex; flex-direction: column; }
+.topbar {
+  display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+  padding: 0.6rem 1rem;
+  background: var(--bg-elev);
+  border-bottom: 1px solid var(--border);
+}
+.room-code { display: flex; align-items: center; gap: 0.6rem; }
+.room-code strong { font-size: 1.3rem; letter-spacing: 0.25em; color: var(--gold); }
+.topbar-actions { display: flex; gap: 0.5rem; }
+
+.room-layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 1rem;
+  padding: 1rem;
+  min-height: 0;
+}
+.room-main { min-width: 0; }
+
+.lobby { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(0, 2fr); gap: 1rem; align-items: start; }
+
+.player-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.player { display: flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0.6rem; border-radius: 8px; background: var(--bg-elev); }
+.player-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--success); flex-shrink: 0; }
+.player.offline { opacity: 0.55; }
+.player.offline .status-dot { background: var(--danger); }
+
+.game-list { display: grid; gap: 0.6rem; margin-bottom: 1rem; }
+.game-card {
+  font: inherit; color: inherit; text-align: left;
+  display: grid; grid-template-columns: 1fr auto; gap: 0.2rem 0.6rem;
+  padding: 0.8rem 1rem;
+  border-radius: var(--radius);
+  border: 2px solid var(--border);
+  background: var(--bg-elev);
+  cursor: pointer;
+}
+.game-card:disabled { cursor: default; }
+.game-card:hover:not(:disabled) { border-color: var(--gold-dark); }
+.game-card.selected { border-color: var(--gold); background: rgb(227 179 65 / 0.08); }
+.game-card p { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 0.88rem; }
+.players-range { font-size: 0.8rem; color: var(--muted); }
+.players-range.warn { color: var(--danger); }
+
+/* ------------------------------------------------------------- chat */
+.chat { display: flex; flex-direction: column; min-height: 0; max-height: calc(100vh - 6rem); position: sticky; top: 1rem; }
+.chat-messages { list-style: none; margin: 0 0 0.6rem; padding: 0; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 0.35rem; min-height: 200px; }
+.chat-msg { display: flex; flex-direction: column; background: var(--bg-elev); padding: 0.35rem 0.6rem; border-radius: 8px; word-break: break-word; }
+.chat-msg.mine { background: rgb(227 179 65 / 0.12); }
+.chat-meta { font-size: 0.72rem; color: var(--muted); }
+.chat-system { font-size: 0.8rem; color: var(--muted); font-style: italic; text-align: center; }
+.chat-form { display: flex; gap: 0.4rem; }
+.chat-form input { flex: 1; width: 0; }
+
+/* ------------------------------------------------------------- notifications */
+.toasts { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 0.4rem; z-index: 100; pointer-events: none; }
+.toast { padding: 0.6rem 1rem; border-radius: var(--radius); background: var(--bg-elev); border: 1px solid var(--border); box-shadow: var(--shadow); transition: opacity 0.4s; }
+.toast-error { border-color: var(--danger); color: #ffb4ae; }
+.toast-success { border-color: var(--success); }
+.toast.fade { opacity: 0; }
+.connection-banner { position: fixed; top: 0; left: 0; right: 0; padding: 0.4rem; text-align: center; background: var(--danger); color: white; font-weight: 600; z-index: 200; }
+
+/* ------------------------------------------------------------- responsive */
+@media (max-width: 900px) {
+  .room-layout { grid-template-columns: minmax(0, 1fr); padding: 0.6rem; }
+  .lobby { grid-template-columns: minmax(0, 1fr); }
+  .chat { position: static; max-height: 45vh; }
+}
