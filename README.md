@@ -6,11 +6,9 @@ plusieurs mini-jeux de société / cartes. Premier jeu : **La Chute des Rois** (
 ## Démarrage
 
 ```bash
-# Docker (recommandé) — guide complet, mise en ligne HTTPS incluse : DEPLOIEMENT.md
+# Docker (recommandé) — reverse proxy Nginx : voir DEPLOIEMENT.md
 cp .env.example .env
 docker compose up -d --build                     # http://localhost:3000
-docker compose --profile https up -d --build     # + HTTPS automatique (Caddy)
-docker compose --profile tunnel up -d --build    # + tunnel Cloudflare
 
 # Local
 npm install
@@ -45,7 +43,6 @@ web-game/
 │           ├── index.js          mount(root, ctx) -> { update, unmount }
 │           └── style.css
 ├── test/
-├── deploy/Caddyfile              reverse proxy HTTPS (profil « https »)
 ├── Dockerfile · docker-compose.yml · .env.example
 └── DEPLOIEMENT.md                guide de mise en ligne
 ```

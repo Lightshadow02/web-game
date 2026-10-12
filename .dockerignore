@@ -5,6 +5,5 @@ npm-debug.log*
 test
 *.md
 .env
-deploy
 docker-compose.yml
 .env.example
