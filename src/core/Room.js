@@ -100,7 +100,6 @@ class Room {
     const game = this.registry.get(gameId);
     if (!game) throw new UserError('Jeu inconnu.');
     this.selectedGameId = gameId;
-    this.systemMessage(`Jeu sélectionné : ${game.name}.`);
     this.broadcastState();
   }
 
@@ -124,7 +123,6 @@ class Room {
       players: players.map(({ id, name }) => ({ id, name })),
     });
     this.game = { id: gameModule.id, instance, recorded: false };
-    this.systemMessage(`La partie de ${gameModule.name} commence !`);
     this.broadcastState();
     this.broadcastGame();
   }

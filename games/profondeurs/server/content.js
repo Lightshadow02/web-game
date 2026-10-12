@@ -29,18 +29,18 @@ const COLORS = {
 // ------------------------------------------------------------------ compétences
 // Utilisables une fois par salle (ou par round de boss) par leur propriétaire.
 const SKILLS = {
-  coup_puissant: { name: 'Coup puissant', text: '+2 à un de vos dés de Force.', effect: 'boost', color: 'F', amount: 2 },
-  visee: { name: 'Visée', text: '+2 à un de vos dés d’Agilité.', effect: 'boost', color: 'A', amount: 2 },
-  focalisation: { name: 'Focalisation', text: '+2 à un de vos dés de Magie.', effect: 'boost', color: 'M', amount: 2 },
-  coup_bas: { name: 'Coup bas', text: 'Un de vos dés d’Agilité devient un 6.', effect: 'six', color: 'A' },
-  frappe_titan: { name: 'Frappe du titan', text: 'Un de vos dés de Force devient un 6.', effect: 'six', color: 'F' },
-  eclair: { name: 'Éclair', text: 'Un de vos dés de Magie devient un 6.', effect: 'six', color: 'M' },
-  transmutation: { name: 'Transmutation', text: 'Un de vos dés devient un dé d’or (toute couleur).', effect: 'gold' },
-  second_souffle: { name: 'Second souffle', text: 'Relancez tous vos dés non placés.', effect: 'reroll' },
-  ballade: { name: 'Ballade', text: 'Chaque héros relance ses dés non placés de valeur 1 ou 2.', effect: 'ballad' },
+  coup_puissant: { name: 'Coup puissant', text: '+2 à un de tes dés de Force.', effect: 'boost', color: 'F', amount: 2 },
+  visee: { name: 'Visée', text: '+2 à un de tes dés d’Agilité.', effect: 'boost', color: 'A', amount: 2 },
+  focalisation: { name: 'Focalisation', text: '+2 à un de tes dés de Magie.', effect: 'boost', color: 'M', amount: 2 },
+  coup_bas: { name: 'Coup bas', text: 'Un de tes dés d’Agilité devient un 6.', effect: 'six', color: 'A' },
+  frappe_titan: { name: 'Frappe du titan', text: 'Un de tes dés de Force devient un 6.', effect: 'six', color: 'F' },
+  eclair: { name: 'Éclair', text: 'Un de tes dés de Magie devient un 6.', effect: 'six', color: 'M' },
+  transmutation: { name: 'Transmutation', text: 'Un de tes dés devient un dé d’Or (il va sur toutes les cases).', effect: 'gold' },
+  second_souffle: { name: 'Second souffle', text: 'Relance tous tes dés non placés.', effect: 'reroll' },
+  ballade: { name: 'Ballade', text: 'Chaque héros relance ses dés non placés qui montrent 1 ou 2.', effect: 'ballad' },
   priere: { name: 'Prière', text: 'Soigne 3 PV au héros le plus blessé (relève un héros à terre).', effect: 'heal', amount: 3 },
-  egide: { name: 'Égide', text: 'Le groupe ignore 3 dégâts dans cette salle.', effect: 'shield', amount: 3 },
-  raccourci: { name: 'Raccourci', text: 'Ignore les pertes de torche de cette salle.', effect: 'notime' },
+  egide: { name: 'Égide', text: 'Le groupe ignore 3 {hp} dans cette salle.', effect: 'shield', amount: 3 },
+  raccourci: { name: 'Raccourci', text: 'Cette salle ne coûte aucune {torch}.', effect: 'notime' },
 };
 
 // ------------------------------------------------------------------ héros
@@ -58,13 +58,13 @@ const ITEMS = {
   epee_batarde: { name: 'Épée bâtarde', text: '+1 dé de Force', bonus: { F: 1 } },
   dague_ombre: { name: 'Dague de l’ombre', text: '+1 dé d’Agilité', bonus: { A: 1 } },
   baton_runique: { name: 'Bâton runique', text: '+1 dé de Magie', bonus: { M: 1 } },
-  bouclier_chene: { name: 'Bouclier de chêne', text: 'Armure 1 (−1 dégât par salle)', bonus: { armor: 1 } },
-  cotte_mailles: { name: 'Cotte de mailles', text: 'Armure 1, +2 PV', bonus: { armor: 1, pv: 2 } },
+  bouclier_chene: { name: 'Bouclier de chêne', text: 'Armure 1 : −1 {hp} à chaque résolution', bonus: { armor: 1 } },
+  cotte_mailles: { name: 'Cotte de mailles', text: 'Armure 1 et +2 PV', bonus: { armor: 1, pv: 2 } },
   amulette_doree: { name: 'Amulette dorée', text: '+1 dé d’or', bonus: { gold: 1 } },
   cape_elfique: { name: 'Cape elfique', text: '+1 dé d’Agilité, +1 PV', bonus: { A: 1, pv: 1 } },
   gantelets: { name: 'Gantelets cloutés', text: '+1 dé de Force, +1 PV', bonus: { F: 1, pv: 1 } },
   grimoire: { name: 'Grimoire ancien', text: '+1 dé de Magie, +1 PV', bonus: { M: 1, pv: 1 } },
-  lanterne: { name: 'Lanterne du mineur', text: '+2 de torche à chaque étage (groupe)', bonus: { torch: 2 } },
+  lanterne: { name: 'Lanterne du mineur', text: '+2 {torch} à chaque étage pour le groupe', bonus: { torch: 2 } },
   anneau_vigueur: { name: 'Anneau de vigueur', text: '+4 PV', bonus: { pv: 4 } },
 };
 
@@ -106,7 +106,7 @@ const DUNGEONS = [
     text: 'Des morts qui ne dorment plus, gardés par un roi glacé.',
     guardians: [
       { id: 'gardien_os', name: 'Le Gardien d’os', pv: 4, xp: 4, boxes: [s('F', 4, 'd2', 2), s('A', 4, 'd1', 1), t('M', 6, 'd2', 2)] },
-      { id: 'dame_voilee', name: 'La Dame Voilée', pv: 6, xp: 5, ability: { type: 'curse', color: 'F', text: 'Malédiction : vos dés de Force perdent 1.' },
+      { id: 'dame_voilee', name: 'La Dame Voilée', pv: 6, xp: 5, ability: { type: 'curse', color: 'F', text: 'Malédiction : tes dés de Force perdent 1.' },
         boxes: [s('M', 5, 'd2', 2), t('A', 7, 'd2', 2), s('F', 4, 'd1', 1)] },
     ],
     boss: { id: 'morvhal', name: 'Morvhal, le Roi-Liche', pv: 10, ability: { type: 'aoe', amount: 1, text: 'Vague de froid : chaque héros perd 1 PV par round.' },
@@ -130,7 +130,7 @@ const DUNGEONS = [
     text: 'Des racines géantes, des crocs, et une reine tisseuse.',
     guardians: [
       { id: 'meute', name: 'La Meute de Crocs-Gris', pv: 5, xp: 4, boxes: [s('A', 4, 'd1', 1), s('A', 4, 'd1', 1), t('F', 7, 'd2', 2)] },
-      { id: 'sorciere', name: 'La Sorcière des racines', pv: 6, xp: 5, ability: { type: 'curse', color: 'A', text: 'Ronces : vos dés d’Agilité perdent 1.' },
+      { id: 'sorciere', name: 'La Sorcière des racines', pv: 6, xp: 5, ability: { type: 'curse', color: 'A', text: 'Ronces : tes dés d’Agilité perdent 1.' },
         boxes: [t('M', 8, 'd2', 3), s('A', 4, 'd1', 1), s('F', 4, 'd2', 1)] },
     ],
     boss: { id: 'yshka', name: 'Ysh’ka, la Reine Araignée', pv: 10, ability: { type: 'summon', text: 'Toiles : une case de plus à chaque round.', box: s('A', 5, 'd2') },

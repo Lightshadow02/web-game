@@ -78,6 +78,7 @@ class Profondeurs {
     this.eventSeq = 0;
     this.log = [];
     this.diceSeq = 0;
+    this.resolutionSeq = 0;
     this.stats = { rooms: 0, guardians: 0 };
   }
 
@@ -129,7 +130,7 @@ class Profondeurs {
       // préparation
       picks: this.picks,
       dungeonId: this.dungeonId,
-      catalog: this.phase === 'setup' ? { heroes: HEROES, dungeons: DUNGEONS.map(({ id, name, text, boss }) => ({ id, name, text, boss: boss.name })) } : null,
+      catalog: this.phase === 'setup' ? { heroes: HEROES, skills: SKILLS, dungeons: DUNGEONS.map(({ id, name, text, boss }) => ({ id, name, text, boss: boss.name })) } : null,
       // groupe
       dungeon: this.heroes.length ? { id: this.dungeon().id, name: this.dungeon().name } : null,
       floor: this.floor,
@@ -137,6 +138,8 @@ class Profondeurs {
       torch: this.torch,
       torchMax: this.torchMax,
       roomsLeft: this.deck?.length ?? 0,
+      cleared: this.cleared ?? [],
+      guardian: this.heroes.length && !this.isOver() ? this.guardianPreview() : null,
       level: this.level,
       xp: this.xp,
       xpNext: XP_LEVELS[this.level] ?? null,
@@ -146,8 +149,12 @@ class Profondeurs {
       doors: this.doors?.map((d) => this.preview(d)) ?? [],
       encounter: enc && {
         kind: enc.kind,
+        id: enc.room?.id ?? enc.def?.id ?? null,
         name: enc.name,
-        options: enc.options?.map((o) => ({ label: o.label, box: o.box })),
+        xp: enc.room?.xp ?? enc.def?.xp ?? 0,
+        loot: enc.room?.loot ?? null,
+        chosen: enc.chosen ?? null,
+        options: enc.options?.map((o) => ({ label: o.label, box: scaleBoxes([o.box], this.heroes.length, this.floor)[0] })),
         boxes: enc.boxes,
         round: enc.round,
         bossPv: enc.bossPv,
@@ -221,6 +228,7 @@ class Profondeurs {
     this.deck = this.shuffle(pool).slice(0, ROOMS_PER_FLOOR).map((room) => ({ ...room, loot: this.randomLoot() }));
     this.torchMax = BALANCE.torch + this.heroes.reduce((n, h) => n + this.heroStats(h).torch, 0);
     this.torch = this.torchMax;
+    this.cleared = [];
     this.doors = null;
     this.encounter = null;
     this.dice = null;
@@ -231,7 +239,7 @@ class Profondeurs {
 
   openDoors() {
     this.assertPhase('explore');
-    if (!this.canExplore()) throw new GameError('Plus de torche ni de salle : affrontez le gardien.');
+    if (!this.canExplore()) throw new GameError('Plus de torche ni de salle : affronte le gardien.');
     this.torch -= 1;
     this.doors = this.deck.splice(0, Math.min(2, this.deck.length));
     this.phase = 'doors';
@@ -355,9 +363,9 @@ class Profondeurs {
   /** Fusion : deux de ses dés non placés deviennent un dé d'or (valeur du plus fort). */
   fuse(playerId, dieIds) {
     this.assertPhase('dice');
-    if (!Array.isArray(dieIds) || dieIds.length !== 2 || dieIds[0] === dieIds[1]) throw new GameError('Choisissez deux dés.');
+    if (!Array.isArray(dieIds) || dieIds.length !== 2 || dieIds[0] === dieIds[1]) throw new GameError('Choisis deux dés.');
     const [a, b] = dieIds.map((id) => this.die(playerId, id));
-    if (a.box || b.box) throw new GameError('Retirez d’abord ces dés de leur case.');
+    if (a.box || b.box) throw new GameError('Retire d’abord ces dés de leur case.');
     this.dice = this.dice.filter((d) => d !== b);
     a.color = 'G';
     a.value = Math.max(a.value, b.value);
@@ -376,7 +384,7 @@ class Profondeurs {
     const needDie = ['boost', 'six', 'gold'].includes(skill.effect);
     let die = null;
     if (needDie) {
-      if (!dieId) throw new GameError('Sélectionnez d’abord un de vos dés.');
+      if (!dieId) throw new GameError('Choisis d’abord un de tes dés.');
       die = this.die(playerId, dieId);
       if (skill.color && die.color !== skill.color) throw new GameError(`Il faut un dé de ${{ F: 'Force', A: 'Agilité', M: 'Magie' }[skill.color]}.`);
     }
@@ -469,8 +477,23 @@ class Profondeurs {
     this.torch = Math.max(0, this.torch - time);
     if (hits && enc.bossPv !== undefined) enc.bossPv = Math.max(0, enc.bossPv - hits);
 
-    this.lastResolution = { name: enc.name, kind: enc.kind, round: enc.round, results, damage, taken, time, hits, bossPv: enc.bossPv };
-    this.emit('resolve', { results, taken, time, hits, bossPv: enc.bossPv });
+    const aoe = enc.ability?.type === 'aoe' ? enc.ability.amount : 0;
+    this.lastResolution = {
+      seq: ++this.resolutionSeq,
+      id: enc.room?.id ?? enc.def?.id ?? null,
+      name: enc.name,
+      kind: enc.kind,
+      chosen: enc.chosen ?? null,
+      round: enc.round,
+      results, damage, taken, time, hits, aoe,
+      bossPv: enc.bossPv,
+      bossPvMax: enc.bossPvMax,
+      ability: enc.ability ?? null,
+      // la salle telle qu'elle a été résolue (écran « Résultat »)
+      boxes: enc.boxes,
+      dice: this.dice.filter((d) => d.box),
+    };
+    this.emit('resolve', { results, taken, time, hits, aoe, bossPv: enc.bossPv });
     this.addLog(
       `${enc.name} : ${results.filter((r) => r.covered).length}/${results.length} cases réussies` +
         (damage ? `, ${damage} dégât(s)` : '') + (time ? `, −${time} torche` : '') + (hits ? `, ${hits} coup(s) portés` : '') + '.',
@@ -507,6 +530,7 @@ class Profondeurs {
     }
 
     this.stats.rooms += 1;
+    this.cleared.push({ id: enc.room.id, kind: enc.kind, name: enc.name });
     this.offerReward({ xp: enc.room.xp, loots: [enc.room.loot] });
   }
 
@@ -565,7 +589,7 @@ class Profondeurs {
       const loot = offer.loots[Number(choice)];
       if (!loot) throw new GameError('Récompense inconnue.');
       const hero = this.hero(heroOf);
-      if (!hero) throw new GameError('Choisissez le héros qui reçoit la récompense.');
+      if (!hero) throw new GameError('Choisis le héros qui reçoit la récompense.');
       if (loot.type === 'skill') {
         if (hero.skills.includes(loot.id)) throw new GameError('Ce héros connaît déjà cette compétence.');
         hero.skills.push(loot.id);
@@ -636,8 +660,19 @@ class Profondeurs {
   }
 
   preview(room) {
-    if (room.kind === 'peril') return { kind: 'peril', name: room.name, options: room.options.map((o) => o.label), loot: room.loot };
-    return { kind: 'monster', name: room.name, xp: room.xp, boxes: scaleBoxes(room.boxes, this.heroes.length, this.floor), loot: room.loot };
+    const n = this.heroes.length;
+    if (room.kind === 'peril') {
+      return { kind: 'peril', id: room.id, name: room.name, xp: room.xp, loot: room.loot,
+        options: room.options.map((o) => ({ label: o.label, box: scaleBoxes([o.box], n, this.floor)[0] })) };
+    }
+    return { kind: 'monster', id: room.id, name: room.name, xp: room.xp, boxes: scaleBoxes(room.boxes, n, this.floor), loot: room.loot };
+  }
+
+  /** Gardien (ou boss) qui attend au bout de l'étage. */
+  guardianPreview() {
+    const final = this.floor === FLOORS;
+    const def = final ? this.dungeon().boss : this.dungeon().guardians[this.floor - 1];
+    return { kind: final ? 'boss' : 'guardian', id: def.id, name: def.name, pv: Math.round(def.pv * this.heroes.length * BALANCE.bossPv), ability: def.ability ?? null };
   }
 
   // ================================================================ utilitaires

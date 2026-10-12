@@ -1,0 +1,42 @@
+/* Les Profondeurs : intégration du design system « Torche » dans le Hub.
+   Tout le visuel vient de torche/torche.css (tokens et composants) ; ici, seulement la mise en place. */
+
+.prof {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+}
+.prof-view { position: relative; }
+
+/* les titres du Hub (h2 en capitales dorées) ne déteignent pas sur le jeu ; les classes Torche priment */
+:where(.prof) :is(h1, h2, h3, h4) { font-size: inherit; letter-spacing: normal; text-transform: none; color: inherit; }
+
+/* l'écran remplit la zone de jeu du salon, sous la barre du Hub */
+:where(.prof) .t-screen {
+  min-height: calc(100dvh - 90px);
+}
+
+/* la fenêtre des règles reste dans la fenêtre du navigateur */
+:where(.prof) .prof-scrim { position: fixed; z-index: 70; }
+
+/* cartes de récompense cliquables */
+:where(.prof) .prof-pick { cursor: pointer; border-radius: var(--radius-md); }
+:where(.prof) .prof-pick:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+:where(.prof) .prof-pick[aria-pressed="true"] .t-card { box-shadow: var(--shadow-card-lift), var(--glow-torch); }
+
+:where(.prof) .t-card--hero[role="button"] { cursor: pointer; }
+:where(.prof) .t-card--hero[role="button"]:focus-visible { outline: none; box-shadow: var(--shadow-card), var(--focus-ring); }
+
+/* à 3 ou 4 joueurs, les cartes des portes ont plus de cases : elles passent à la ligne */
+:where(.prof) .t-door .t-card--monster .t-card__slots { flex-wrap: wrap; justify-content: center; }
+
+:where(.prof) .t-recv[disabled] { opacity: .5; cursor: not-allowed; }
+
+:where(.prof) .prof-end-note { color: var(--bone-muted); margin-top: 6px; }
+:where(.prof) .prof-credit { color: var(--bone-muted); font-size: 11px; opacity: .85; }
+:where(.prof) .t-dialog__foot .prof-credit { flex: 1; text-align: center; }
+
+@media (max-width: 640px) {
+  .prof { border-radius: 0; margin: 0 -0.6rem; }
+}

@@ -1,7 +1,8 @@
 # Game Hub — plateforme multijoueur modulaire
 
 Hub web temps réel (Node.js · Express · Socket.io · Vanilla JS en modules ES) pour héberger
-plusieurs mini-jeux de société / cartes. Premier jeu : **La Chute des Rois** (coopératif, 1-4 joueurs).
+plusieurs mini-jeux de société / cartes : **La Chute des Rois** (coopératif, 1-4 joueurs), **Tarot** (3-5 joueurs)
+et **Les Profondeurs** (exploration de donjon coopérative aux dés, 1-4 joueurs).
 
 ## Démarrage
 
@@ -39,6 +40,9 @@ web-game/
 │       └── dom.js                helper el() partagé (pas d'innerHTML)
 ├── games/                        ← UN DOSSIER = UN JEU
 │   ├── tarot/                    Tarot français (3-5 joueurs, appel au Roi à 5)
+│   ├── profondeurs/              Les Profondeurs (dés, 1-4 joueurs)
+│   │   ├── server/               moteur + contenu original (héros, salles, gardiens, boss)
+│   │   └── client/               écrans au design system « Torche » (client/torche/, importé de Claude Design)
 │   └── chute-des-rois/
 │       ├── server/index.js       manifeste (id, nom, joueurs min/max, createGame)
 │       ├── server/ChuteDesRois.js moteur de règles (pur, testable, sans réseau)
@@ -105,6 +109,20 @@ Tarot français (règles FFT), 3 à 5 joueurs ; une partie = une donne par joueu
 - Décompte : 56/51/41/36 points selon les bouts ; (25 + écart) × coef., Petit au bout (10 × coef.),
   poignées 20/30/40 ; répartition à somme nulle (à 5 : preneur ×2, partenaire ×1).
 - Non gérés pour l'instant : chelem, misère.
+
+## Les Profondeurs — règles et design
+
+- Inspiré de la mécanique de *One Deck Dungeon*, avec un contenu entièrement original. 1 à 4 joueurs, un héros chacun.
+- Trois étages : ouvrir des portes coûte une flamme de torche ; deux salles se révèlent (monstre ou péril), le groupe
+  en choisit une ; au bout de l'étage, un gardien (au 3e, le boss du donjon), combattu en plusieurs rounds.
+- Combat : chaque héros lance ses dés (Force, Agilité, Magie, Or), tout le groupe les place sur les cases de la salle
+  (dé unique ≥ seuil ou total Σ), puis « Prêt » ; les cases vides infligent dégâts ou perte de torche.
+- Récompenses : XP pour le groupe (niveaux : +1 dé d'Or, +2 PV max) ou objet / compétence pour un héros ; camp après
+  chaque gardien. Réglages d'équilibre dans `BALANCE` (games/profondeurs/server/Profondeurs.js).
+- **Design** : design system Claude Design « Torche » (https://claude.ai/artifact/JS4y7JDparPPUUDgYJHUFs). Pour
+  l'importer de nouveau après une mise à jour : exporter le dossier `project/` de l'artefact puis
+  `node scripts/vendor-torche.mjs <dossier>` (tokens et CSS limités au jeu, polices incluses).
+  Emblèmes : game-icons.net (Lorc, Delapouite et contributeurs), CC BY 3.0. Polices Cinzel et Alegreya Sans : SIL OFL 1.1.
 
 ## La Chute des Rois — règles implémentées
 

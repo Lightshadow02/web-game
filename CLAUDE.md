@@ -47,11 +47,13 @@ Toute évolution doit préserver cette extensibilité :
   Moteur : games/tarot/server/Tarot.js (enchères, chien/écart, appel au Roi, poignées, Petit au bout, Excuse,
   décompte officiel, une donne par joueur). Pas encore : chelem, misère.
 - `profondeurs` — Les Profondeurs (coopératif 1-4 joueurs, jeu de dés façon « One Deck Dungeon », contenu original,
-  boss à 3-4 joueurs). Moteur + contenu + équilibrage faits (games/profondeurs/server/, BALANCE dans Profondeurs.js),
-  **pas encore d'interface** : le registre le masque tant que `client/index.js` n'existe pas.
-  **Design system Claude Design « Torche » (fait par le propriétaire) : https://claude.ai/artifact/JS4y7JDparPPUUDgYJHUFs**
-  — tokens, `components/bundle.css` (`.t-*`), `bundle.js` (`window.Torche` : composants, `interact.dice`, `anim.*`,
-  `screens`), écrans PC/mobile et catalogue d'animations. C'est LA référence pour construire le client. Garder le crédit
+  boss à 3-4 joueurs). Moteur + contenu + équilibrage faits (games/profondeurs/server/, BALANCE dans Profondeurs.js).
+  **Interface FAITE avec le design system Claude Design « Torche » du propriétaire :
+  https://claude.ai/artifact/JS4y7JDparPPUUDgYJHUFs** (tokens, composants `.t-*`, `window.Torche`, écrans, animations).
+  Il est importé dans `games/profondeurs/client/torche/` par `scripts/vendor-torche.mjs` (ne pas éditer à la main :
+  ré-importer ; le script limite tokens/CSS à `.prof`, place l'interrupteur d'animations sur `[data-motion-host]` et
+  corrige `Timeline.done()` qui ne se résolvait jamais). Le client (`client/index.js`) joue chaque nouvel état en
+  animation sur l'écran affiché, puis redessine depuis l'état serveur. Garder le crédit
   « Emblèmes : game-icons.net (Lorc, Delapouite et contributeurs), CC BY 3.0 ».
 
 ## Pistes notées par le propriétaire
@@ -73,6 +75,13 @@ Toute évolution doit préserver cette extensibilité :
   **Page Hub : FAITE** — salons ouverts en direct, joueurs en ligne, stats par jeu, dernières parties, classement.
   JDR-WEB (même app Discord) est dans un dossier voisin : `SHARED_ENV_FILE=../light-jdr/.env` est monté en lecture
   seule et on n'y lit que DISCORD_CLIENT_ID/SECRET, SESSION_SECRET (clé dérivée) et ADMIN_DISCORD_IDS.
+- **À faire (demandé par le propriétaire) : le Joker dans La Chute des Rois**, comme le Fou de Regicide :
+  1 ou 2 Jokers dans la Taverne selon la difficulté (à proposer : Normal = 1, Facile = 2, et garder un mode
+  sans Joker). Le Joker se joue seul (valeur 0) : il annule l'immunité du boss (pour la suite du combat), le boss
+  ne riposte pas ce tour-là, **toutes les mains sont alors révélées à tout le monde**, et le joueur qui l'a posé
+  **choisit qui joue ensuite** (lui compris). Les mains redeviennent secrètes après ce choix.
+  À prévoir : carte Joker côté client, panneau « Qui joue ? », animation (immunité brisée, mains retournées),
+  règles et tests. Le choix de la difficulté demandera sans doute des options de jeu génériques dans le salon (Core).
 - Améliorations proposées au propriétaire (à discuter, non commencées) : notifications Discord (webhook) des
   demandes d'accès et des salons ; invitations/salons privés ; mode spectateur ; revanche en un clic ; succès/badges
   et profils ; nouveaux jeux (Président, Belote/Coinche, Loup-garou, Uno-like...) ; report du design Claude Design ;

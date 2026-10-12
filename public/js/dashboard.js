@@ -128,7 +128,7 @@ export function renderStats({ stats, recent }, games) {
 }
 
 function stat(value, label) {
-  return el('div', { class: 'stat' }, el('strong', {}, String(value)), el('span', {}, label));
+  return el('div', { class: 'hub-stat' }, el('strong', {}, String(value)), el('span', {}, label));
 }
 
 export function renderLeaderboard(rows, { meId }) {
