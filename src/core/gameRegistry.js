@@ -48,6 +48,11 @@ class GameRegistry {
       if (!entry.isDirectory()) continue;
       const serverEntry = path.join(gamesDir, entry.name, 'server', 'index.js');
       if (!fs.existsSync(serverEntry)) continue;
+      // Un jeu sans interface (en cours de développement) n'est pas proposé dans les salons.
+      if (!fs.existsSync(path.join(gamesDir, entry.name, 'client', 'index.js'))) {
+        console.log(`[games] "${entry.name}" ignoré : pas encore d'interface (client/index.js).`);
+        continue;
+      }
       const gameModule = require(serverEntry);
       const clientDir = path.join(gamesDir, entry.name, 'client');
       this.register(gameModule, fs.existsSync(clientDir) ? clientDir : null);
