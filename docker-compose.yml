@@ -1,15 +1,66 @@
+# =====================================================================
+#  Game Hub — déploiement Docker
+#
+#  Local / réseau maison :   docker compose up -d --build
+#  En ligne avec HTTPS :     docker compose --profile https up -d --build
+#  En ligne via Cloudflare : docker compose --profile tunnel up -d --build
+#
+#  Configuration : copier .env.example en .env et l'adapter.
+# =====================================================================
 services:
   game-hub:
     build: .
     image: game-hub:latest
     container_name: game-hub
     restart: unless-stopped
+    init: true # transmet SIGTERM à Node (arrêt propre)
     ports:
-      - "${HOST_PORT:-3000}:3000"
+      # Mettre HOST_BIND=127.0.0.1 quand Caddy/Cloudflare est devant (accès direct fermé)
+      - "${HOST_BIND:-0.0.0.0}:${HOST_PORT:-3000}:3000"
     environment:
       NODE_ENV: production
       PORT: 3000
-      MAX_PLAYERS_PER_ROOM: 8
-      RECONNECT_GRACE_MS: 60000
-      # CORS_ORIGIN: "https://jeux.mondomaine.fr"   # uniquement si le front est servi ailleurs
-    init: true   # transmet SIGTERM correctement à Node (arrêt propre)
+      MAX_PLAYERS_PER_ROOM: ${MAX_PLAYERS_PER_ROOM:-8}
+      RECONNECT_GRACE_MS: ${RECONNECT_GRACE_MS:-60000}
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  # --- Option A : reverse proxy HTTPS (certificat Let's Encrypt automatique)
+  # Prérequis : un nom de domaine pointant sur votre IP publique + ports 80/443 ouverts sur la box.
+  caddy:
+    image: caddy:2-alpine
+    container_name: game-hub-caddy
+    profiles: ["https"]
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data # certificats : à conserver
+      - caddy_config:/config
+    depends_on:
+      game-hub:
+        condition: service_healthy
+
+  # --- Option B : tunnel Cloudflare (aucun port à ouvrir, HTTPS géré par Cloudflare)
+  # Prérequis : domaine sur Cloudflare + tunnel créé dans Zero Trust (voir DEPLOIEMENT.md).
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: game-hub-tunnel
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      game-hub:
+        condition: service_healthy
+
+volumes:
+  caddy_data:
+  caddy_config:

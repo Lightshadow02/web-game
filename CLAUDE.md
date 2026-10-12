@@ -31,7 +31,8 @@ Toute évolution doit préserver cette extensibilité :
 
 - `npm run dev` — serveur avec rechargement (port 3000)
 - `npm test` — tests moteur + intégration Socket.io
-- `docker compose up -d --build` — déploiement
+- `docker compose up -d --build` — déploiement local ; profils `--profile https` (Caddy) et `--profile tunnel` (Cloudflare), voir DEPLOIEMENT.md
+- Le propriétaire héberge l'app sur ses propres Docker et la met en ligne : garder l'image autonome (aucun service externe requis).
 
 ## Jeux existants
 
