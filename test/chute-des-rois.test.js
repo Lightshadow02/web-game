@@ -123,3 +123,34 @@ test("la vue d'un joueur ne révèle pas la main des autres", () => {
   assert.equal(view.players[1].cardCount, 7);
   assert.equal(view.players[1].hand, undefined);
 });
+
+test('cartes posées par joueur et événements pour les animations', () => {
+  const game = setup({ hand: [makeCard('D', 3), makeCard('H', 10), makeCard('S', 10)] });
+  game.players[1].hand = [];
+  game.handleAction('p0', 'play', { cardIds: ['3D'] });
+
+  const view = game.getStateFor('p1');
+  assert.deepEqual(view.plays, [{ playerId: 'p0', cards: [makeCard('D', 3)] }]);
+  assert.equal(view.players[0].lastAction.type, 'attack');
+
+  const [attack, riposte] = view.events;
+  assert.equal(attack.type, 'attack');
+  assert.equal(attack.damage, 3);
+  assert.deepEqual(attack.drawn, { p0: 2, p1: 1 }, 'nombre de cartes piochées par joueur, sans les révéler');
+  assert.equal(riposte.type, 'riposte');
+  assert.equal(riposte.damage, 10);
+  assert.ok(riposte.id > attack.id);
+
+  game.handleAction('p0', 'defend', { cardIds: ['10H'] });
+  assert.equal(game.getStateFor('p1').events.at(-1).type, 'defend');
+  assert.equal(game.getStateFor('p1').players[0].lastAction.damage, 10);
+});
+
+test('boss vaincu : les cartes posées sont nettoyées, nouveau boss annoncé', () => {
+  const game = setup({ hand: [makeCard('C', 10), makeCard('H', 2)] });
+  game.handleAction('p0', 'play', { cardIds: ['10C'] });
+  const view = game.getStateFor('p0');
+  assert.deepEqual(view.plays, []);
+  assert.deepEqual(view.events.slice(-2).map((e) => e.type), ['bossDefeated', 'newBoss']);
+  assert.equal(view.events.at(-2).exact, true);
+});
