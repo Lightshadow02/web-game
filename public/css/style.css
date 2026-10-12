@@ -107,6 +107,15 @@ input:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
 .join-row { display: flex; gap: 0.5rem; }
 .join-row input { flex: 1; width: 0; text-transform: uppercase; letter-spacing: 0.3em; text-align: center; font-weight: 700; }
 
+/* ------------------------------------------------------------- connexion */
+.btn-discord { display: block; text-align: center; text-decoration: none; background: #5865f2; border-color: #4752c4; color: white; }
+.btn-discord:hover:not(:disabled) { background: #4752c4; }
+.auth-login { display: flex; flex-direction: column; gap: 1rem; }
+.auth-user { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1.2rem; padding: 0.6rem 0.8rem; border-radius: var(--radius); background: var(--bg-elev); }
+.auth-user span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: var(--border); }
+.avatar-sm { width: 24px; height: 24px; }
+
 /* ------------------------------------------------------------- salon */
 #screen-room { min-height: 100%; display: flex; flex-direction: column; }
 .topbar {

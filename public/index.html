@@ -10,22 +10,36 @@
   <!-- ===================================================== ACCUEIL -->
   <section id="screen-home" class="screen">
     <div class="home-card">
-      <h1 class="logo">♠ ♥ <span>Game Hub</span> ♦ ♣</h1>
+      <h1 class="logo">♠&#xFE0E; ♥&#xFE0E; <span>Game Hub</span> ♦&#xFE0E; ♣&#xFE0E;</h1>
       <p class="tagline">Des jeux de cartes entre amis, en temps réel.</p>
 
-      <label class="field">
-        <span>Votre pseudo</span>
-        <input id="input-name" maxlength="20" autocomplete="nickname" placeholder="ex. Lancelot" />
-      </label>
+      <!-- Connexion Discord (affiché seulement si activée côté serveur) -->
+      <div id="auth-login" class="auth-login hidden">
+        <p class="muted center">Connectez-vous avec votre compte Discord pour jouer.</p>
+        <a id="btn-discord" class="btn btn-discord btn-block" href="/auth/discord">Se connecter avec Discord</a>
+      </div>
 
-      <button id="btn-create" class="btn btn-primary btn-block">Créer un salon</button>
+      <div id="home-actions">
+        <div id="auth-user" class="auth-user hidden">
+          <img id="auth-avatar" class="avatar" alt="" />
+          <span>Connecté : <strong id="auth-name"></strong></span>
+          <button id="btn-logout" class="btn btn-ghost btn-small">Déconnexion</button>
+        </div>
 
-      <div class="divider"><span>ou</span></div>
+        <label id="field-name" class="field">
+          <span>Votre pseudo</span>
+          <input id="input-name" maxlength="20" autocomplete="nickname" placeholder="ex. Lancelot" />
+        </label>
 
-      <form id="form-join" class="join-row">
-        <input id="input-code" maxlength="5" placeholder="CODE" autocomplete="off" spellcheck="false" />
-        <button class="btn">Rejoindre</button>
-      </form>
+        <button id="btn-create" class="btn btn-primary btn-block">Créer un salon</button>
+
+        <div class="divider"><span>ou</span></div>
+
+        <form id="form-join" class="join-row">
+          <input id="input-code" maxlength="5" placeholder="CODE" autocomplete="off" spellcheck="false" />
+          <button class="btn">Rejoindre</button>
+        </form>
+      </div>
 
       <p id="home-error" class="error" role="alert"></p>
     </div>

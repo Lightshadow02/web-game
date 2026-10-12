@@ -28,6 +28,23 @@ location / {
 
 (Nginx Proxy Manager : cocher « Websockets Support ».)
 
+## Connexion Discord
+
+Sans configuration, le site fonctionne en pseudo libre. Pour réserver l'accès à vos joueurs :
+
+1. Sur https://discord.com/developers/applications, ouvrez l'application déjà utilisée par JDR-WEB
+   (ou créez-en une) → **OAuth2 → Redirects** → ajoutez `https://jeux.mondomaine.fr/auth/discord/callback`.
+2. Dans `.env` : `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` (les mêmes que JDR-WEB), `PUBLIC_URL`,
+   et `SESSION_SECRET` (`openssl rand -base64 48`).
+3. Choisissez qui peut jouer (activez le *Mode développeur* de Discord pour copier les IDs par clic droit) :
+   - `DISCORD_GUILD_ID` : seuls les membres de votre serveur ;
+   - `DISCORD_ROLE_IDS` : … et seulement ceux qui ont ce(s) rôle(s) — vous donnez/retirez le rôle dans Discord ;
+   - `DISCORD_ALLOWED_IDS` : comptes autorisés en plus, au cas par cas.
+4. `./update.sh` (ou `docker compose up -d --build`). Les logs affichent « Connexion Discord activée ».
+
+La session dure 7 jours. Retirer le rôle à quelqu'un l'empêche de se reconnecter ; pour couper toutes
+les sessions immédiatement, changez `SESSION_SECRET` et relancez.
+
 ## Mise à jour / exploitation
 
 | Action | Commande |

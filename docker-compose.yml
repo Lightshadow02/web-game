@@ -15,6 +15,14 @@ services:
       PORT: 3001
       MAX_PLAYERS_PER_ROOM: ${MAX_PLAYERS_PER_ROOM:-8}
       RECONNECT_GRACE_MS: ${RECONNECT_GRACE_MS:-60000}
+      # Connexion Discord (désactivée tant que CLIENT_ID/SECRET sont vides)
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
+      DISCORD_GUILD_ID: ${DISCORD_GUILD_ID:-}
+      DISCORD_ROLE_IDS: ${DISCORD_ROLE_IDS:-}
+      DISCORD_ALLOWED_IDS: ${DISCORD_ALLOWED_IDS:-}
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }

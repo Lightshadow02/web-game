@@ -8,9 +8,10 @@ const NAME_MAX_LENGTH = 20;
 /**
  * Gère les sessions joueurs et le cycle de vie des salons.
  *
- * Une session est identifiée par un jeton secret conservé par le navigateur
- * (localStorage) : elle survit à un rafraîchissement de page ou à une coupure
- * réseau. L'id public du joueur (diffusé aux autres) est distinct du jeton.
+ * Une session est identifiée soit par le compte Discord (connexion activée), soit
+ * par un jeton secret conservé par le navigateur (localStorage) : elle survit à un
+ * rafraîchissement ou à une coupure réseau. L'id public du joueur (diffusé aux
+ * autres) est distinct de ces identifiants.
  */
 class RoomManager {
   constructor({ registry, transport, maxPlayersPerRoom = 8, reconnectGraceMs = 60_000 }) {
@@ -19,18 +20,31 @@ class RoomManager {
     this.maxPlayersPerRoom = maxPlayersPerRoom;
     this.reconnectGraceMs = reconnectGraceMs;
     this.rooms = new Map(); // code -> Room
-    this.sessions = new Map(); // token -> { token, playerId, roomCode, sockets:Set, timer }
+    this.sessions = new Map(); // clé (jeton ou discord:<id>) -> { key, playerId, identity, roomCode, sockets, timer }
   }
 
   // ---------------------------------------------------------------- sessions
 
-  /** Associe une socket à une session (créée si le jeton est inconnu). */
-  attachSocket(token, socketId) {
-    let session = typeof token === 'string' ? this.sessions.get(token) : null;
+  /**
+   * Associe une socket à une session (créée si besoin).
+   * - Mode Discord : `identity` ({ id, name, avatarUrl }) identifie le joueur, quel que soit l'appareil.
+   * - Mode pseudo libre : `token` (localStorage) identifie le navigateur.
+   */
+  attachSocket(token, socketId, identity = null) {
+    const key = identity ? `discord:${identity.id}` : token;
+    let session = typeof key === 'string' ? this.sessions.get(key) : null;
     if (!session) {
-      session = { token: randomId(16), playerId: randomId(6), roomCode: null, sockets: new Set(), timer: null };
-      this.sessions.set(session.token, session);
+      session = {
+        key: identity ? key : randomId(16),
+        playerId: randomId(6),
+        identity: null,
+        roomCode: null,
+        sockets: new Set(),
+        timer: null,
+      };
+      this.sessions.set(session.key, session);
     }
+    if (identity) session.identity = identity; // nom/avatar rafraîchis à chaque connexion
     session.sockets.add(socketId);
     if (session.timer) {
       clearTimeout(session.timer);
@@ -41,20 +55,25 @@ class RoomManager {
     return session;
   }
 
+  /** Jeton à mémoriser côté navigateur (inutile en mode Discord : le cookie suffit). */
+  clientToken(session) {
+    return session.identity ? null : session.key;
+  }
+
   detachSocket(session, socketId) {
     session.sockets.delete(socketId);
     if (session.sockets.size > 0) return; // un autre onglet est encore ouvert
 
     const room = this.getRoomOf(session);
     if (!room) {
-      this.sessions.delete(session.token);
+      this.sessions.delete(session.key);
       return;
     }
     room.setConnected(session.playerId, false);
     session.timer = setTimeout(() => {
       session.timer = null;
       this.leaveRoom(session, 'a été déconnecté');
-      this.sessions.delete(session.token);
+      this.sessions.delete(session.key);
     }, this.reconnectGraceMs);
     session.timer.unref?.();
   }
@@ -66,7 +85,7 @@ class RoomManager {
   // ---------------------------------------------------------------- salons
 
   createRoom(session, rawName) {
-    const name = this.validateName(rawName);
+    const name = this.resolveName(session, rawName, null);
     this.leaveRoom(session);
 
     let code;
@@ -81,20 +100,20 @@ class RoomManager {
       maxPlayers: this.maxPlayersPerRoom,
     });
     this.rooms.set(code, room);
-    room.addPlayer({ id: session.playerId, name });
+    room.addPlayer(this.playerInfo(session, name));
     session.roomCode = code;
     return room;
   }
 
   joinRoom(session, rawCode, rawName) {
-    const name = this.validateName(rawName);
     const code = cleanText(rawCode, 5).toUpperCase();
     const room = this.rooms.get(code);
     if (!room) throw new UserError(`Aucun salon avec le code "${code}".`);
     if (session.roomCode === code) return room;
 
+    const name = this.resolveName(session, rawName, room);
     this.leaveRoom(session);
-    room.addPlayer({ id: session.playerId, name });
+    room.addPlayer(this.playerInfo(session, name));
     session.roomCode = code;
     return room;
   }
@@ -105,6 +124,20 @@ class RoomManager {
     if (!room) return;
     room.removePlayer(session.playerId, reason);
     if (room.isEmpty) this.rooms.delete(room.code);
+  }
+
+  /** Mode Discord : nom imposé (suffixé si homonyme dans le salon). Sinon : pseudo saisi. */
+  resolveName(session, rawName, room) {
+    if (!session.identity) return this.validateName(rawName);
+    const base = session.identity.name;
+    const taken = new Set(room ? [...room.players.values()].map((p) => p.name.toLowerCase()) : []);
+    let name = base;
+    for (let i = 2; taken.has(name.toLowerCase()); i++) name = `${base.slice(0, NAME_MAX_LENGTH - 3)} ${i}`;
+    return name;
+  }
+
+  playerInfo(session, name) {
+    return { id: session.playerId, name, avatarUrl: session.identity?.avatarUrl ?? null };
   }
 
   validateName(rawName) {

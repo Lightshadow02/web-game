@@ -8,6 +8,7 @@ const { Server } = require('socket.io');
 const { GameRegistry } = require('./core/gameRegistry');
 const { RoomManager } = require('./core/RoomManager');
 const { registerSocketHandlers, createSocketTransport } = require('./core/socketHandlers');
+const { createAuth } = require('./core/auth');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -18,8 +19,11 @@ function createHubServer(options = {}) {
   registry.loadFromDirectory(options.gamesDir ?? path.join(ROOT, 'games'));
 
   // ---------------------------------------------------------------- HTTP
+  const auth = options.auth ?? createAuth(options.env ?? process.env);
+
   const app = express();
   app.disable('x-powered-by');
+  app.use(auth.router); // /api/me, /auth/discord, /auth/discord/callback, /auth/logout
   app.use(express.static(path.join(ROOT, 'public')));
   // Chaque jeu expose son interface sur /games/<id>/ (index.js, style.css, ...)
   for (const { id, dir } of registry.clientDirs()) {
@@ -42,14 +46,19 @@ function createHubServer(options = {}) {
   app.get('/health', (req, res) => res.json({ status: 'ok', ...manager.stats() }));
   app.get('/api/games', (req, res) => res.json(registry.list()));
 
-  registerSocketHandlers(io, manager);
-  return { app, server, io, manager, registry };
+  registerSocketHandlers(io, manager, auth);
+  return { app, server, io, manager, registry, auth };
 }
 
 if (require.main === module) {
   const PORT = Number(process.env.PORT) || 3001;
-  const { server, io } = createHubServer();
-  server.listen(PORT, () => console.log(`[hub] Serveur prêt sur http://localhost:${PORT}`));
+  const { server, io, auth } = createHubServer();
+  server.listen(PORT, () => {
+    console.log(`[hub] Serveur prêt sur http://localhost:${PORT}`);
+    console.log(auth.enabled
+      ? '[hub] Connexion Discord activée.'
+      : '[hub] Connexion Discord désactivée (DISCORD_CLIENT_ID/SECRET absents) : pseudo libre.');
+  });
 
   // Arrêt propre (docker stop envoie SIGTERM)
   for (const signal of ['SIGINT', 'SIGTERM']) {

@@ -42,12 +42,8 @@ Toute évolution doit préserver cette extensibilité :
 ## Pistes notées par le propriétaire
 
 - Améliorer l'interface visuelle (piste : maquettes via Claude Design, puis report dans le code).
-- **Connexion via Discord (à faire)** : le site sera public, le propriétaire ne veut PAS gérer de comptes.
-  Il veut réutiliser la connexion Discord qu'il avait déjà, et choisir qui peut jouer via Discord.
-  Conception proposée (à valider avec lui avant de coder) :
-  - OAuth2 Discord (scopes `identify` + `guilds.members.read`) ; accès accordé si membre de
-    `DISCORD_GUILD_ID` (et, en option, porteur de `DISCORD_ROLE_ID`).
-  - Pas de base de données : session dans un cookie signé (`SESSION_SECRET`), vérifiée au handshake Socket.io.
-  - Le pseudo et l'avatar viennent de Discord (plus de saisie de pseudo).
-  - Logique d'auth dans le Core (générique), aucun impact sur les modules de jeu.
-  - Config par `.env` : `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `PUBLIC_URL` (derrière Nginx → `trust proxy`).
+- **Connexion Discord : FAITE** (`src/core/auth.js`, reprise du flux de JDR-WEB sans base de données).
+  Le site est public, le propriétaire ne veut pas gérer de comptes : accès filtré par serveur/rôle Discord
+  (`DISCORD_GUILD_ID`, `DISCORD_ROLE_IDS`, `DISCORD_ALLOWED_IDS`). Session = cookie signé HMAC vérifié au
+  handshake Socket.io ; le pseudo et l'avatar viennent de Discord. Sans `DISCORD_CLIENT_ID/SECRET` : pseudo libre.
+  Les modules de jeu n'ont rien à gérer (l'identité arrive via les joueurs du salon).

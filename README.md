@@ -24,6 +24,7 @@ web-game/
 │   ├── index.js                  Express + Socket.io, statiques, /health
 │   └── core/
 │       ├── gameRegistry.js       découverte automatique des jeux dans /games
+│       ├── auth.js               connexion Discord OAuth2 (optionnelle, cookie signé, sans BDD)
 │       ├── RoomManager.js        sessions (reconnexion), création/jointure des salons
 │       ├── Room.js               joueurs, hôte, choix du jeu, chat, partie en cours
 │       ├── socketHandlers.js     protocole Socket.io (événements client <-> serveur)
@@ -105,6 +106,9 @@ dans `localStorage` : un rafraîchissement ou une coupure réseau (< `RECONNECT_
 | `MAX_PLAYERS_PER_ROOM` | 8 | limite du Hub (chaque jeu a ses propres min/max) |
 | `RECONNECT_GRACE_MS` | 60000 | délai avant de retirer un joueur déconnecté |
 | `CORS_ORIGIN` | — | origines autorisées si le front est servi ailleurs |
+| `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` | — | active la connexion Discord (voir DEPLOIEMENT.md) |
+| `PUBLIC_URL` / `SESSION_SECRET` | — | requis avec Discord (URL publique, secret ≥ 32 caractères) |
+| `DISCORD_GUILD_ID` / `DISCORD_ROLE_IDS` / `DISCORD_ALLOWED_IDS` | — | qui a le droit de jouer |
 
 Derrière un reverse proxy (Nginx, Traefik…), pensez à transmettre les en-têtes `Upgrade`/`Connection` pour les WebSockets.
 Les salons sont en mémoire : une seule instance (pour scaler horizontalement : adaptateur Redis de Socket.io + stockage partagé des salons).

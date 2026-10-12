@@ -25,13 +25,15 @@ const store = {
 
 const state = {
   me: null, // { playerId }
+  auth: { enabled: false, user: null }, // connexion Discord
   games: [],
   room: null,
   mounted: null, // { gameId, instance, loading }
   pendingGameState: null,
 };
 
-const socket = io({ auth: (cb) => cb({ token: store.get(TOKEN_KEY) }) });
+// Connexion différée : on vérifie d'abord la session Discord (/api/me).
+const socket = io({ autoConnect: false, auth: (cb) => cb({ token: store.get(TOKEN_KEY) }) });
 
 // ------------------------------------------------------------------ utilitaires
 
@@ -72,6 +74,7 @@ function homeError(message) {
 }
 
 function readName() {
+  if (state.auth.user) return state.auth.user.name; // mode Discord : nom imposé par le serveur
   const name = nameInput.value.trim();
   if (name.length < 2) {
     homeError('Entrez un pseudo (2 caractères minimum).');
@@ -148,6 +151,7 @@ function renderRoom() {
         'li',
         { class: `player ${p.connected ? '' : 'offline'}` },
         el('span', { class: 'status-dot', title: p.connected ? 'Connecté' : 'Déconnecté' }),
+        p.avatarUrl && el('img', { class: 'avatar avatar-sm', src: p.avatarUrl, alt: '' }),
         el('span', { class: 'player-name' }, p.name),
         p.isHost && el('span', { class: 'badge' }, '👑 Hôte'),
         p.id === state.me.playerId && el('span', { class: 'badge badge-me' }, 'Vous'),
@@ -262,7 +266,7 @@ $('#form-chat').addEventListener('submit', (e) => {
 // ------------------------------------------------------------------ événements serveur
 
 socket.on('session', ({ token, playerId, roomCode }) => {
-  store.set(TOKEN_KEY, token);
+  if (token) store.set(TOKEN_KEY, token);
   state.me = { playerId };
   // Session expirée côté serveur (ex. redémarrage) : retour à l'accueil.
   if (!roomCode && state.room) leaveRoomScreen();
@@ -308,5 +312,62 @@ socket.on('game:state', (payload) => {
 
 socket.on('connect', () => $('#connection-banner').classList.add('hidden'));
 socket.on('disconnect', () => $('#connection-banner').classList.remove('hidden'));
+socket.on('connect_error', (err) => {
+  if (err.message === 'unauthorized') {
+    // Session Discord expirée ou absente : retour à l'écran de connexion.
+    socket.disconnect();
+    state.auth.user = null;
+    leaveRoomScreen();
+    renderAuth();
+  }
+});
 
-showScreen('home');
+// ------------------------------------------------------------------ connexion Discord
+
+const AUTH_ERRORS = {
+  refuse: "Accès refusé : votre compte Discord n'est pas autorisé sur ce site.",
+  erreur: 'La connexion Discord a échoué, réessayez.',
+};
+
+function renderAuth() {
+  const { enabled, user } = state.auth;
+  $('#auth-login').classList.toggle('hidden', !enabled || !!user);
+  $('#home-actions').classList.toggle('hidden', enabled && !user);
+  $('#auth-user').classList.toggle('hidden', !user);
+  $('#field-name').classList.toggle('hidden', !!user);
+  if (user) {
+    $('#auth-name').textContent = user.name;
+    $('#auth-avatar').src = user.avatarUrl || '';
+    $('#auth-avatar').classList.toggle('hidden', !user.avatarUrl);
+  }
+  // Après connexion, Discord nous ramène ici (le ?room= de l'invitation est conservé).
+  $('#btn-discord').href = `/auth/discord?returnTo=${encodeURIComponent(location.pathname + location.search)}`;
+}
+
+$('#btn-logout').addEventListener('click', async () => {
+  await fetch('/auth/logout', { method: 'POST' }).catch(() => {});
+  socket.disconnect();
+  state.auth.user = null;
+  renderAuth();
+});
+
+async function start() {
+  const params = new URLSearchParams(location.search);
+  const authError = AUTH_ERRORS[params.get('auth')];
+  if (authError) {
+    homeError(authError);
+    params.delete('auth');
+    history.replaceState(null, '', params.size ? `/?${params}` : '/');
+  }
+  try {
+    const me = await fetch('/api/me').then((r) => r.json());
+    state.auth = { enabled: me.authEnabled, user: me.user };
+  } catch {
+    state.auth = { enabled: false, user: null };
+  }
+  renderAuth();
+  showScreen('home');
+  if (!state.auth.enabled || state.auth.user) socket.connect();
+}
+
+start();

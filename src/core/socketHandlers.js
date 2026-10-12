@@ -13,15 +13,30 @@ const CHAT_RATE = { max: 5, windowMs: 5_000 };
  *   chat:send { text }          game:action { type, payload }
  *
  * Serveur -> client :
- *   session { token, playerId, roomCode }  games:list [...]   room:state {...}   room:left
+ *   session { token, playerId, roomCode, user }  games:list [...]   room:state {...}   room:left
  *   chat:history [...]           chat:message {...} game:state { gameId, state }
  */
-function registerSocketHandlers(io, manager) {
+function registerSocketHandlers(io, manager, auth = null) {
+  // Connexion Discord activée : refus des sockets sans cookie de session valide.
+  if (auth?.enabled) {
+    io.use((socket, next) => {
+      const user = auth.userFromCookieHeader(socket.handshake.headers.cookie);
+      if (!user) return next(new Error('unauthorized'));
+      socket.data.user = user;
+      next();
+    });
+  }
+
   io.on('connection', (socket) => {
-    const session = manager.attachSocket(socket.handshake.auth?.token, socket.id);
+    const session = manager.attachSocket(socket.handshake.auth?.token, socket.id, socket.data.user ?? null);
     socket.join(playerChannel(session.playerId));
 
-    socket.emit('session', { token: session.token, playerId: session.playerId, roomCode: session.roomCode });
+    socket.emit('session', {
+      token: manager.clientToken(session),
+      playerId: session.playerId,
+      roomCode: session.roomCode,
+      user: session.identity,
+    });
     socket.emit('games:list', manager.registry.list());
 
     // Reconnexion : on replace la socket dans son salon et on renvoie tout l'état.

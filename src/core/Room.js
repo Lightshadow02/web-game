@@ -16,7 +16,7 @@ class Room {
     this.registry = registry;
     this.transport = transport;
     this.maxPlayers = maxPlayers;
-    this.players = new Map(); // id -> { id, name, connected }
+    this.players = new Map(); // id -> { id, name, avatarUrl, connected }
     this.hostId = null;
     this.selectedGameId = registry.list()[0]?.id ?? null;
     this.game = null; // { id, instance }
@@ -42,7 +42,7 @@ class Room {
     );
     if (nameTaken) throw new UserError('Ce pseudo est déjà utilisé dans le salon.');
 
-    this.players.set(player.id, { id: player.id, name: player.name, connected: true });
+    this.players.set(player.id, { id: player.id, name: player.name, avatarUrl: player.avatarUrl ?? null, connected: true });
     if (!this.hostId) this.hostId = player.id;
     this.systemMessage(`${player.name} a rejoint le salon.`);
     this.broadcastState();
@@ -169,6 +169,7 @@ class Room {
       players: [...this.players.values()].map((p) => ({
         id: p.id,
         name: p.name,
+        avatarUrl: p.avatarUrl,
         connected: p.connected,
         isHost: p.id === this.hostId,
       })),
