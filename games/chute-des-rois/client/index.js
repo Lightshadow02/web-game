@@ -1,5 +1,6 @@
 import { el } from '/js/dom.js';
 import { createFx } from './animations.js';
+import { openRules, POWERS } from './rules.js';
 
 /* =====================================================================
  * Interface de "La Chute des Rois".
@@ -77,7 +78,6 @@ export function mount(root, ctx) {
   let current = null;
   let selection = new Set();
   let busy = false;
-  let showRules = false;
 
   // --- état des animations
   const fx = createFx({ renderCard });
@@ -126,8 +126,9 @@ export function mount(root, ctx) {
     const sections = [
       renderStatus(s),
       renderBoard(s),
+      renderPowers(s),
       renderHand(s),
-      el('div', { class: 'cdr-bottom' }, renderLog(s), renderRules()),
+      renderLog(s),
     ];
     // L'écran de fin attend la fin des animations.
     if ((s.phase === 'victory' || s.phase === 'defeat') && !animating) sections.push(renderEnd(s));
@@ -161,7 +162,10 @@ export function mount(root, ctx) {
       'div',
       { class: `cdr-status tone-${tone}` },
       el('span', {}, text),
-      el('span', { class: 'cdr-progress' }, `Souverains vaincus : ${s.bossesDefeated}/12 · Tour ${s.turn}`),
+      el('div', { class: 'cdr-status-side' },
+        el('span', { class: 'cdr-progress' }, `Souverains vaincus : ${s.bossesDefeated}/12 · Tour ${s.turn}`),
+        el('button', { class: 'btn btn-small cdr-rules-btn', type: 'button', onclick: () => showRules() }, '📖 Règles'),
+      ),
     );
   }
 
@@ -328,25 +332,32 @@ export function mount(root, ctx) {
     return el('div', { class: 'panel cdr-log-panel' }, el('h2', {}, 'Journal'), list);
   }
 
-  function renderRules() {
-    const body = showRules
-      ? el(
-          'div',
-          { class: 'cdr-rules-body' },
-          el('ul', {}, Object.values(SUITS).map((suit) =>
-            el('li', {}, el('span', { class: `suit ${suit.red ? 'red' : ''}` }, suit.symbol), ` ${suit.name} — ${suit.power}`))),
-          el('p', {}, 'N = valeur de l’attaque (As = 1, 2–10 = valeur). Le boss est immunisé contre le pouvoir de sa propre couleur.'),
-          el('p', {}, 'Combos : As + une carte, ou plusieurs cartes de même valeur totalisant 10 max.'),
-          el('p', {}, 'Boss : Valet 20 PV / 10 att., Dame 30 / 15, Roi 40 / 20. Un boss vaincu avec des dégâts exacts rejoint votre pioche.'),
-          el('p', {}, 'Après la riposte, défaussez des cartes dont la somme couvre les dégâts. Impossible ? La partie est perdue.'),
-        )
-      : null;
+  function showRules(tab) {
+    openRules({ renderCard, SUITS, startTab: tab });
+  }
+
+  /** Aide-mémoire des 4 pouvoirs, toujours visible ; la couleur du boss est barrée. */
+  function renderPowers(s) {
+    const immune = s.boss?.card.suit;
     return el(
       'div',
-      { class: 'panel cdr-rules' },
-      el('button', { class: 'btn btn-ghost btn-small', onclick: () => { showRules = !showRules; render(); } },
-        showRules ? '▾ Règles' : '▸ Règles & pouvoirs'),
-      body,
+      { class: 'cdr-powers' },
+      POWERS.map((p) => {
+        const blocked = p.suit === immune;
+        return el(
+          'button',
+          {
+            class: `cdr-power suit-${p.suit} ${blocked ? 'blocked' : ''}`,
+            type: 'button',
+            title: blocked ? `Ce boss est immunisé contre ${p.name} : pas de ${p.title.toLowerCase()}.` : p.text,
+            onclick: () => showRules('powers'),
+          },
+          el('span', { class: `cdr-power-suit ${SUITS[p.suit].red ? 'red' : ''}` }, SUITS[p.suit].symbol),
+          el('span', { class: 'cdr-power-text' },
+            el('strong', {}, p.title),
+            el('span', {}, blocked ? '⛔ Bloqué par ce boss' : p.short)),
+        );
+      }),
     );
   }
 
@@ -539,10 +550,21 @@ export function mount(root, ctx) {
 
   render();
 
+  // Première partie sur ce navigateur : on ouvre les règles.
+  try {
+    if (!localStorage.getItem('cdr.rulesSeen')) {
+      localStorage.setItem('cdr.rulesSeen', '1');
+      setTimeout(() => showRules(), 400);
+    }
+  } catch {
+    /* stockage indisponible : tant pis */
+  }
+
   return {
     update,
     unmount() {
       fx.destroy();
+      document.querySelector('.cdr-rules-dialog')?.close();
       css.remove();
       container.remove();
     },
