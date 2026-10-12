@@ -79,8 +79,27 @@ export function mount(root, ctx) {
   let selection = new Set();
   let busy = false;
 
-  // --- état des animations
-  const fx = createFx({ renderCard });
+  // --- état des animations : activées par défaut, le joueur peut les couper (bouton ✨, mémorisé)
+  const ANIM_KEY = 'cdr.animations';
+  let animationsOn = (() => {
+    try {
+      return localStorage.getItem(ANIM_KEY) !== 'off';
+    } catch {
+      return true;
+    }
+  })();
+  const fx = createFx({ renderCard, isEnabled: () => animationsOn });
+
+  function toggleAnimations() {
+    animationsOn = !animationsOn;
+    try {
+      localStorage.setItem(ANIM_KEY, animationsOn ? 'on' : 'off');
+    } catch {
+      /* stockage indisponible */
+    }
+    ctx.toast(animationsOn ? 'Animations activées ✨' : 'Animations désactivées', 'success');
+    render();
+  }
   let lastEventId = null; // null = premier état reçu (pas d'animation rétroactive)
   let queue = Promise.resolve();
   let animating = 0;
@@ -131,6 +150,7 @@ export function mount(root, ctx) {
     ];
     // L'écran de fin attend la fin des animations.
     if ((s.phase === 'victory' || s.phase === 'defeat') && !animating) sections.push(renderEnd(s));
+    container.classList.toggle('no-anim', !animationsOn);
     container.replaceChildren(...sections);
   }
 
@@ -163,6 +183,13 @@ export function mount(root, ctx) {
       el('span', {}, text),
       el('div', { class: 'cdr-status-side' },
         el('span', { class: 'cdr-progress' }, `Souverains vaincus : ${s.bossesDefeated}/12 · Tour ${s.turn}`),
+        el('button', {
+          class: `btn btn-small cdr-anim-btn ${animationsOn ? 'on' : ''}`,
+          type: 'button',
+          'aria-pressed': String(animationsOn),
+          title: animationsOn ? 'Désactiver les animations' : 'Activer les animations',
+          onclick: toggleAnimations,
+        }, animationsOn ? '✨ Animations' : '✨ Animations : off'),
         el('button', { class: 'btn btn-small cdr-rules-btn', type: 'button', onclick: () => showRules() }, '📖 Règles'),
       ),
     );
@@ -535,7 +562,7 @@ export function mount(root, ctx) {
     }
     const events = (state.events ?? []).filter((e) => e.id > lastEventId);
     lastEventId = Math.max(lastEventId, maxEventId(state));
-    if (!events.length || fx.reduced) {
+    if (!events.length || !animationsOn) {
       render();
       return;
     }

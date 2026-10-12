@@ -4,21 +4,22 @@ import { el } from '/js/dom.js';
  * Effets visuels de "La Chute des Rois" (Web Animations API).
  * Les éléments animés vivent dans un calque fixe au-dessus de la page :
  * un nouveau rendu du plateau ne les interrompt pas.
- * Respecte « réduire les animations » (prefers-reduced-motion).
+ * Activées par défaut ; le joueur peut les couper (bouton ✨, mémorisé dans le navigateur).
  * ===================================================================== */
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const center = (rect) => ({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
 
-export function createFx({ renderCard }) {
-  const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+export function createFx({ renderCard, isEnabled = () => true }) {
+  // Lu à chaque animation : le réglage peut changer en cours de partie.
+  const off = () => !isEnabled();
   const layer = el('div', { class: 'cdr-fx-layer', 'aria-hidden': 'true' });
   document.body.append(layer);
 
   /** Fait voler des cartes (faces visibles ou dos) d'un rectangle à un autre. */
   async function flyCards({ cards = [], count = cards.length, from, to, size = 'md', stagger = 70, duration = 480, rotate = 8 }) {
     if (!from || !to || !count) return;
-    if (reduced) return;
+    if (off()) return;
     const start = center(from);
     const end = center(to);
     const flights = [];
@@ -55,7 +56,7 @@ export function createFx({ renderCard }) {
     node.style.left = `${x}px`;
     node.style.top = `${y}px`;
     const animation = node.animate(
-      reduced
+      off()
         ? [{ opacity: 1 }, { opacity: 0 }]
         : [
             { transform: 'translate(-50%, -50%) scale(0.6)', opacity: 0 },
@@ -70,7 +71,7 @@ export function createFx({ renderCard }) {
 
   /** Classe CSS temporaire (secousse, flash...) rejouable. */
   function pulse(target, className, duration = 600) {
-    if (!target || reduced) return Promise.resolve();
+    if (!target || off()) return Promise.resolve();
     target.classList.remove(className);
     void target.offsetWidth; // relance l'animation CSS
     target.classList.add(className);
@@ -79,7 +80,7 @@ export function createFx({ renderCard }) {
 
   /** Le boss bondit vers sa cible puis revient. */
   function lunge(source, targetRect) {
-    if (!source || !targetRect || reduced) return Promise.resolve();
+    if (!source || !targetRect || off()) return Promise.resolve();
     const a = center(source.getBoundingClientRect());
     const b = center(targetRect);
     const dx = (b.x - a.x) * 0.18;
@@ -111,7 +112,7 @@ export function createFx({ renderCard }) {
    * rétrécit et file dans la pioche, qui la reçoit.
    */
   async function knockOut(card, rect, pileRect, pileEl) {
-    if (!rect || reduced) return;
+    if (!rect || off()) return;
     const { ghost, x, y, width, height } = ghostAt(card, rect);
     const stamp = el('div', { class: 'cdr-ko-stamp' }, 'K.O. !');
     ghost.append(stamp);
@@ -157,7 +158,7 @@ export function createFx({ renderCard }) {
 
   /** Boss vaincu (dégâts en trop) : la carte se déchire en deux moitiés qui tombent. */
   async function tearCard(card, rect) {
-    if (!rect || reduced) return;
+    if (!rect || off()) return;
     // Ligne de déchirure en zigzag, partagée par les deux moitiés.
     const zig = [[52, 0], [46, 12], [56, 24], [44, 37], [55, 50], [45, 63], [57, 76], [47, 88], [53, 100]];
     const line = zig.map(([px, py]) => `${px}% ${py}%`);
@@ -196,7 +197,7 @@ export function createFx({ renderCard }) {
 
   /** Carte (déjà rendue) qui se retourne en apparaissant. */
   function flipIn(target, fromRect) {
-    if (!target || reduced) return Promise.resolve();
+    if (!target || off()) return Promise.resolve();
     const to = target.getBoundingClientRect();
     const dx = fromRect ? center(fromRect).x - center(to).x : 0;
     const dy = fromRect ? center(fromRect).y - center(to).y : 0;
@@ -215,7 +216,7 @@ export function createFx({ renderCard }) {
   /** Barre de vie qui descend de l'ancienne valeur à la nouvelle. */
   function drainBar(fill, fromPct, toPct) {
     if (!fill) return Promise.resolve();
-    if (reduced) {
+    if (off()) {
       fill.style.width = `${toPct}%`;
       return Promise.resolve();
     }
@@ -228,7 +229,7 @@ export function createFx({ renderCard }) {
   }
 
   return {
-    reduced,
+    enabled: isEnabled,
     flyCards,
     floatText,
     pulse,
@@ -237,7 +238,7 @@ export function createFx({ renderCard }) {
     tearCard,
     flipIn,
     drainBar,
-    wait: (ms) => (reduced ? Promise.resolve() : wait(ms)),
+    wait: (ms) => (off() ? Promise.resolve() : wait(ms)),
     destroy: () => layer.remove(),
   };
 }

@@ -33,10 +33,12 @@ function createHubServer(options = {}) {
   const app = express();
   app.disable('x-powered-by');
   app.use(auth.router); // /api/me, /auth/discord, /auth/discord/callback, /auth/logout
-  app.use(express.static(path.join(ROOT, 'public')));
+  // no-cache = le navigateur revalide (ETag) à chaque chargement : une mise à jour est vue tout de suite.
+  const staticOptions = { setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache') };
+  app.use(express.static(path.join(ROOT, 'public'), staticOptions));
   // Chaque jeu expose son interface sur /games/<id>/ (index.js, style.css, ...)
   for (const { id, dir } of registry.clientDirs()) {
-    app.use(`/games/${id}`, express.static(dir));
+    app.use(`/games/${id}`, express.static(dir, staticOptions));
   }
 
   const server = http.createServer(app);

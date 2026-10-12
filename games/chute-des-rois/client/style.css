@@ -212,9 +212,9 @@ button.cdr-card.selected:hover { transform: translateY(-16px); }
   50% { box-shadow: 0 0 22px rgb(229 83 75 / 0.55); }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .cdr-landed, .cdr-seat.targeted, .cdr-hand-zone.targeted { animation: none; }
-}
+.cdr.no-anim .cdr-landed, .cdr.no-anim .cdr-seat.targeted, .cdr.no-anim .cdr-hand-zone.targeted { animation: none; }
+.cdr-anim-btn { white-space: nowrap; }
+.cdr-anim-btn.on { border-color: var(--gold-dark); color: var(--gold); }
 
 /* ---------------------------------------------------------------- main */
 .cdr-hand-zone { padding: 0.9rem 1rem 1.2rem; border-radius: var(--radius); background: var(--panel); border: 1px solid var(--border); }
