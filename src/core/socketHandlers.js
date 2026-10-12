@@ -2,22 +2,20 @@
 
 const { UserError } = require('./utils');
 
-const CHAT_RATE = { max: 5, windowMs: 5_000 };
-
 /**
  * Branche les événements Socket.io sur le RoomManager.
  *
  * Client -> serveur (tous acceptent un callback d'acquittement `ack({ ok, error })`) :
  *   room:create { name }        room:join { code, name }     room:leave
  *   room:selectGame { gameId }  room:startGame               room:endGame
- *   chat:send { text }          game:action { type, payload }
+ *   game:action { type, payload }
  *
  *   hub:get                      stats:get                    stats:leaderboard { gameId }
  *   admin:users (admin)          admin:decide { userId, status } (admin)
  *
  * Serveur -> client :
  *   session { token, playerId, roomCode, user }  games:list [...]   room:state {...}   room:left
- *   chat:history [...]           chat:message {...} game:state { gameId, state }
+ *   room:notice { text, ts }     game:state { gameId, state }
  *   hub:lobby { rooms, online, onlineCount }      stats:changed     admin:changed   admin:request { name }
  */
 function registerSocketHandlers(io, manager, auth = null, store = null) {
@@ -143,15 +141,6 @@ function registerSocketHandlers(io, manager, auth = null, store = null) {
     on('room:selectGame', ({ gameId }) => requireRoom().selectGame(session.playerId, gameId));
     on('room:startGame', () => requireRoom().startGame(session.playerId));
     on('room:endGame', () => requireRoom().endGame(session.playerId));
-
-    const chatTimes = [];
-    on('chat:send', ({ text }) => {
-      const now = Date.now();
-      while (chatTimes.length && now - chatTimes[0] > CHAT_RATE.windowMs) chatTimes.shift();
-      if (chatTimes.length >= CHAT_RATE.max) throw new UserError('Doucement ! Trop de messages.');
-      chatTimes.push(now);
-      requireRoom().postChat(session.playerId, text);
-    });
 
     on('game:action', ({ type, payload }) => requireRoom().gameAction(session.playerId, type, payload));
 

@@ -217,8 +217,7 @@ input:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
 .room-layout {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
   padding: 1rem;
   min-height: 0;
 }
@@ -250,16 +249,6 @@ input:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
 .players-range { font-size: 0.8rem; color: var(--muted); }
 .players-range.warn { color: var(--danger); }
 
-/* ------------------------------------------------------------- chat */
-.chat { display: flex; flex-direction: column; min-height: 0; max-height: calc(100vh - 6rem); position: sticky; top: 1rem; }
-.chat-messages { list-style: none; margin: 0 0 0.6rem; padding: 0; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 0.35rem; min-height: 200px; }
-.chat-msg { display: flex; flex-direction: column; background: var(--bg-elev); padding: 0.35rem 0.6rem; border-radius: 8px; word-break: break-word; }
-.chat-msg.mine { background: rgb(227 179 65 / 0.12); }
-.chat-meta { font-size: 0.72rem; color: var(--muted); }
-.chat-system { font-size: 0.8rem; color: var(--muted); font-style: italic; text-align: center; }
-.chat-form { display: flex; gap: 0.4rem; }
-.chat-form input { flex: 1; width: 0; }
-
 /* ------------------------------------------------------------- notifications */
 .toasts { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 0.4rem; z-index: 100; pointer-events: none; }
 .toast { padding: 0.6rem 1rem; border-radius: var(--radius); background: var(--bg-elev); border: 1px solid var(--border); box-shadow: var(--shadow); transition: opacity 0.4s; }
@@ -274,5 +263,4 @@ input:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
   .lobby { grid-template-columns: minmax(0, 1fr); }
   .hub-layout { grid-template-columns: minmax(0, 1fr); padding: 0.6rem; }
   .online-pill { display: none; }
-  .chat { position: static; max-height: 45vh; }
 }

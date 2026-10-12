@@ -5,9 +5,11 @@
 Ce dépôt est un **Hub multijoueur modulaire** : le propriétaire ajoutera **d'autres jeux à l'avenir**.
 Toute évolution doit préserver cette extensibilité :
 
-- **Le Core (`src/core/`) ne contient aucune règle de jeu.** Il gère sessions, salons, hôte, chat,
+- **Le Core (`src/core/`) ne contient aucune règle de jeu.** Il gère sessions, salons, hôte,
   sélection du jeu et diffusion des états. Si un nouveau jeu semble exiger une modification du Core,
   la rendre générique (utile à tous les jeux), jamais spécifique à un jeu.
+- **Pas de chat** (retiré à la demande du propriétaire, la voix passe par Discord) : le jeu occupe toute la
+  largeur du salon ; les annonces du salon (`room:notice` : arrivée, départ, nouvel hôte) s'affichent en notification.
 - **Un jeu = un dossier `games/<id>/`**, découvert automatiquement au démarrage :
   - `server/index.js` : `{ id, name, description, minPlayers, maxPlayers, createGame({ players }) }`
     - l'instance expose `handleAction(playerId, type, payload)` (lève une erreur avec
@@ -44,11 +46,20 @@ Toute évolution doit préserver cette extensibilité :
 - `tarot` — Tarot français FFT (3-5 joueurs ; le propriétaire joue surtout à 4, et à 5 avec appel au Roi).
   Moteur : games/tarot/server/Tarot.js (enchères, chien/écart, appel au Roi, poignées, Petit au bout, Excuse,
   décompte officiel, une donne par joueur). Pas encore : chelem, misère.
+- `profondeurs` — Les Profondeurs (coopératif 1-4 joueurs, jeu de dés façon « One Deck Dungeon », contenu original,
+  boss à 3-4 joueurs). Moteur + contenu + équilibrage faits (games/profondeurs/server/, BALANCE dans Profondeurs.js),
+  **pas encore d'interface** : le registre le masque tant que `client/index.js` n'existe pas.
+  **Design system Claude Design « Torche » (fait par le propriétaire) : https://claude.ai/artifact/JS4y7JDparPPUUDgYJHUFs**
+  — tokens, `components/bundle.css` (`.t-*`), `bundle.js` (`window.Torche` : composants, `interact.dice`, `anim.*`,
+  `screens`), écrans PC/mobile et catalogue d'animations. C'est LA référence pour construire le client. Garder le crédit
+  « Emblèmes : game-icons.net (Lorc, Delapouite et contributeurs), CC BY 3.0 ».
 
 ## Pistes notées par le propriétaire
 
-- **À faire (demandé par le propriétaire) : refaire le design ET les animations via Claude Design**, puis les reporter
-  dans le code. Une première maquette existe (direction « Cour royale de nuit » : encre bleu nuit, cartes parchemin,
+- **À faire (demandé par le propriétaire) : refaire le design ET les animations des jeux de cartes via Claude Design**,
+  puis les reporter dans le code. Le propriétaire trouve la table actuelle « pas ouf » : priorité à une vraie table
+  plein écran **PC 16:9 sans défilement**. Brief à coller dans Claude Design : `docs/design/brief-jeux-de-cartes.md`
+  (système « Tapis », thèmes `cour` / `salon`, format calqué sur « Torche »). Une première maquette existe (direction « Cour royale de nuit » : encre bleu nuit, cartes parchemin,
   or, Cinzel) : https://claude.ai/artifact/D8nx4awbLzBEoZdMHUqfz3 — à reprendre avec la table actuelle (coéquipiers en
   haut, légende des pouvoirs sur le tapis) et des storyboards d'animations (pose, dégâts, riposte, encaissement,
   K.O. vers la pioche, carte déchirée, nouveau boss). Animations actuelles : games/chute-des-rois/client/animations.js.

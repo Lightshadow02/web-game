@@ -9,11 +9,11 @@ const { createHubServer } = require('../src/index');
 function client(url, token) {
   const socket = connect(url, { auth: { token }, transports: ['websocket'], forceNew: true });
   const last = {};
-  for (const event of ['session', 'games:list', 'room:state', 'game:state', 'chat:history', 'room:left']) {
+  for (const event of ['session', 'games:list', 'room:state', 'game:state', 'room:left']) {
     socket.on(event, (data) => (last[event] = data ?? true));
   }
-  const chat = [];
-  socket.on('chat:message', (m) => chat.push(m));
+  const notices = [];
+  socket.on('room:notice', (m) => notices.push(m.text));
   const request = (event, data = {}) => new Promise((resolve) => socket.emit(event, data, resolve));
   const waitFor = async (predicate, timeout = 2000) => {
     const start = Date.now();
@@ -22,10 +22,10 @@ function client(url, token) {
       await new Promise((r) => setTimeout(r, 10));
     }
   };
-  return { socket, last, chat, request, waitFor };
+  return { socket, last, notices, request, waitFor };
 }
 
-test('parcours complet : salon, chat, lancement, action, reconnexion', async (t) => {
+test('parcours complet : salon, annonces, lancement, action, reconnexion', async (t) => {
   const { server, io } = createHubServer({ reconnectGraceMs: 200 });
   await new Promise((r) => server.listen(0, r));
   const url = `http://localhost:${server.address().port}`;
@@ -55,10 +55,8 @@ test('parcours complet : salon, chat, lancement, action, reconnexion', async (t)
   // Seul l'hôte lance la partie
   assert.equal((await bob.request('room:startGame')).ok, false);
 
-  // Chat
-  await bob.request('chat:send', { text: '  Salut <b>tout</b> le monde  ' });
-  await alice.waitFor(() => alice.chat.some((m) => m.name === 'Bob'));
-  assert.equal(alice.chat.find((m) => m.name === 'Bob').text, 'Salut <b>tout</b> le monde');
+  // Annonce d'arrivée (notification du salon)
+  await alice.waitFor(() => alice.notices.includes('Bob a rejoint le salon.'));
 
   // Lancement : chaque joueur reçoit SA main
   assert.equal((await alice.request('room:startGame')).ok, true);

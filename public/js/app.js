@@ -2,7 +2,7 @@ import { el, $ } from './dom.js';
 import { renderLobby, renderStats, renderLeaderboard, renderAdmin } from './dashboard.js';
 
 /* =====================================================================
- * Client du Hub : connexion, salons, chat et montage des modules de jeu.
+ * Client du Hub : connexion, salons et montage des modules de jeu.
  *
  * Interface attendue d'un module de jeu (servi sur /games/<id>/index.js) :
  *
@@ -246,35 +246,6 @@ function unmountGame() {
   $('#game-root').replaceChildren();
 }
 
-// ------------------------------------------------------------------ chat
-
-function renderChatMessage(msg) {
-  const list = $('#chat-messages');
-  const time = new Date(msg.ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  const mine = msg.playerId && msg.playerId === state.me?.playerId;
-  list.append(
-    msg.system
-      ? el('li', { class: 'chat-system' }, msg.text)
-      : el(
-          'li',
-          { class: `chat-msg ${mine ? 'mine' : ''}` },
-          el('span', { class: 'chat-meta' }, `${msg.name} · ${time}`),
-          el('span', { class: 'chat-text' }, msg.text),
-        ),
-  );
-  while (list.children.length > 100) list.firstChild.remove();
-  list.scrollTop = list.scrollHeight;
-}
-
-$('#form-chat').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const input = $('#input-chat');
-  const text = input.value.trim();
-  if (!text) return;
-  input.value = '';
-  request('chat:send', { text }).catch((err) => toast(err.message, 'error'));
-});
-
 // ------------------------------------------------------------------ événements serveur
 
 socket.on('session', ({ token, playerId, roomCode }) => {
@@ -303,7 +274,6 @@ socket.on('room:left', leaveRoomScreen);
 function leaveRoomScreen() {
   state.room = null;
   unmountGame();
-  $('#chat-messages').replaceChildren();
   history.replaceState(null, '', '/');
   codeInput.value = '';
   homeError('');
@@ -312,11 +282,8 @@ function leaveRoomScreen() {
   refreshDashboard();
 }
 
-socket.on('chat:history', (messages) => {
-  $('#chat-messages').replaceChildren();
-  messages.forEach(renderChatMessage);
-});
-socket.on('chat:message', renderChatMessage);
+// Annonces du salon (arrivée, départ, nouvel hôte...).
+socket.on('room:notice', ({ text }) => toast(text));
 
 socket.on('game:state', (payload) => {
   state.pendingGameState = payload;

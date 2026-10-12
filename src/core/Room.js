@@ -1,12 +1,9 @@
 'use strict';
 
-const { UserError, cleanText } = require('./utils');
-
-const CHAT_HISTORY = 50;
-const CHAT_MAX_LENGTH = 300;
+const { UserError } = require('./utils');
 
 /**
- * Un salon : liste des joueurs, hôte, jeu sélectionné, chat et partie en cours.
+ * Un salon : liste des joueurs, hôte, jeu sélectionné et partie en cours.
  * Ne connaît pas Socket.io : il émet via un objet `transport`
  * ({ toRoom(code, event, data), toPlayer(playerId, event, data) }).
  */
@@ -26,7 +23,6 @@ class Room {
     this.hostId = null;
     this.selectedGameId = registry.list()[0]?.id ?? null;
     this.game = null; // { id, instance }
-    this.chat = [];
     this.createdAt = Date.now();
   }
 
@@ -169,24 +165,11 @@ class Room {
     this.hooks.onChange?.();
   }
 
-  // ---------------------------------------------------------------- chat
+  // ---------------------------------------------------------------- annonces
 
-  postChat(playerId, rawText) {
-    const player = this.players.get(playerId);
-    const text = cleanText(rawText, CHAT_MAX_LENGTH);
-    if (!player || !text) return;
-    this.pushChat({ playerId, name: player.name, text, system: false });
-  }
-
+  /** Annonce courte affichée chez tous les joueurs du salon (arrivée, départ, nouvel hôte...). */
   systemMessage(text) {
-    this.pushChat({ playerId: null, name: null, text, system: true });
-  }
-
-  pushChat(message) {
-    const entry = { ...message, ts: Date.now() };
-    this.chat.push(entry);
-    if (this.chat.length > CHAT_HISTORY) this.chat.shift();
-    this.transport.toRoom(this.code, 'chat:message', entry);
+    this.transport.toRoom(this.code, 'room:notice', { text, ts: Date.now() });
   }
 
   // ---------------------------------------------------------------- diffusion
@@ -248,7 +231,6 @@ class Room {
   /** Tout ce qu'un joueur (re)connecté doit recevoir pour reconstruire son écran. */
   sendSnapshotTo(playerId) {
     this.transport.toPlayer(playerId, 'room:state', this.publicState());
-    this.transport.toPlayer(playerId, 'chat:history', this.chat);
     this.sendGameTo(playerId);
   }
 }

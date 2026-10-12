@@ -27,11 +27,11 @@ web-game/
 │       ├── auth.js               connexion Discord OAuth2 (optionnelle) + demandes d'accès
 │       ├── store.js              SQLite intégré à Node : comptes, statuts, parties, stats
 │       ├── RoomManager.js        sessions (reconnexion), création/jointure des salons
-│       ├── Room.js               joueurs, hôte, choix du jeu, chat, partie en cours
+│       ├── Room.js               joueurs, hôte, choix du jeu, annonces, partie en cours
 │       ├── socketHandlers.js     protocole Socket.io (événements client <-> serveur)
 │       └── utils.js
 ├── public/                       ← FRONT DU HUB
-│   ├── index.html                accueil + salon (lobby) + conteneur de jeu + chat
+│   ├── index.html                accueil + salon (lobby) + conteneur de jeu (pleine largeur)
 │   ├── css/style.css             thème partagé (variables CSS)
 │   └── js/
 │       ├── app.js                client Socket.io, écrans, chargement dynamique des jeux
@@ -87,7 +87,7 @@ puis le Core diffuse à chaque joueur sa propre vue (`getStateFor`) — les main
 | --- | --- |
 | `room:create {name}` · `room:join {code, name}` · `room:leave` | `session {token, playerId, roomCode}` |
 | `room:selectGame {gameId}` · `room:startGame` · `room:endGame` (hôte) | `games:list` · `room:state` · `room:left` |
-| `chat:send {text}` | `chat:history` · `chat:message` |
+| | `room:notice {text}` (arrivée, départ, nouvel hôte : affiché en notification) |
 | `game:action {type, payload}` | `game:state {gameId, state}` |
 | `hub:get` · `stats:get` · `stats:leaderboard {gameId}` | `hub:lobby {rooms, online}` · `stats:changed` |
 | `admin:users` · `admin:decide {userId, status}` (admins) | `admin:changed` · `admin:request {name}` |
