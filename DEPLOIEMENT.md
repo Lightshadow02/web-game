@@ -35,7 +35,7 @@ Sans configuration, le site fonctionne en pseudo libre. Pour réserver l'accès 
 1. Sur https://discord.com/developers/applications, ouvrez l'application déjà utilisée par JDR-WEB
    → **OAuth2 → Redirects** → ajoutez `https://jeux.mondomaine.fr/auth/discord/callback`
    (seule étape manuelle : Discord exige chaque adresse de retour).
-2. Dans `.env` : `PUBLIC_URL`, et `SHARED_ENV_FILE=../jdr-web/.env` (chemin vers le `.env` de JDR-WEB,
+2. Dans `.env` : `PUBLIC_URL`, et `SHARED_ENV_FILE=../light-jdr/.env` (chemin vers le `.env` de JDR-WEB,
    relatif à ce dossier). Le Hub y lit **seulement** l'ID/secret Discord, en dérive son propre secret de
    session, et autorise toujours les `ADMIN_DISCORD_IDS` de JDR-WEB. Rien d'autre n'est lu
    (ni base de données, ni port). Si vous changez le secret dans JDR-WEB : `./update.sh` et c'est repris.
@@ -47,7 +47,7 @@ Sans configuration, le site fonctionne en pseudo libre. Pour réserver l'accès 
 4. `./update.sh` (ou `docker compose up -d --build`). Les logs affichent « Connexion Discord activée ».
 
 Si les logs disent « Impossible de lire … (EACCES) », le `.env` de JDR-WEB n'est pas lisible par le
-conteneur (utilisateur 1000) : `chmod 644 ../jdr-web/.env` ou `chown 1000 ../jdr-web/.env`.
+conteneur (utilisateur 1000) : `chmod 644 ../light-jdr/.env` ou `chown 1000 ../light-jdr/.env`.
 
 La session dure 7 jours. Retirer le rôle à quelqu'un l'empêche de se reconnecter ; pour couper toutes
 les sessions immédiatement, changez `SESSION_SECRET` et relancez.
