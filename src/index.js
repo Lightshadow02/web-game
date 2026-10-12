@@ -55,9 +55,15 @@ if (require.main === module) {
   const { server, io, auth } = createHubServer();
   server.listen(PORT, () => {
     console.log(`[hub] Serveur prêt sur http://localhost:${PORT}`);
-    console.log(auth.enabled
-      ? '[hub] Connexion Discord activée.'
-      : '[hub] Connexion Discord désactivée (DISCORD_CLIENT_ID/SECRET absents) : pseudo libre.');
+    if (!auth.enabled) {
+      console.log('[hub] Connexion Discord désactivée (DISCORD_CLIENT_ID/SECRET absents) : pseudo libre.');
+      return;
+    }
+    console.log('[hub] Connexion Discord activée.');
+    console.log(`[hub] URL de retour à déclarer dans Discord (OAuth2 > Redirects) : ${auth.redirectUri}`);
+    if (/mondomaine|example\.com/.test(auth.redirectUri)) {
+      console.warn('[hub] ATTENTION : PUBLIC_URL est encore la valeur d’exemple, remplacez-la dans .env.');
+    }
   });
 
   // Arrêt propre (docker stop envoie SIGTERM)

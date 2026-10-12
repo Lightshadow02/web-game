@@ -251,7 +251,7 @@ function createAuth(rawEnv = process.env, { fetchImpl = fetch, readFile } = {}) 
     res.json({ ok: true });
   });
 
-  return { enabled: true, router, userFromCookieHeader };
+  return { enabled: true, router, userFromCookieHeader, redirectUri };
 }
 
 module.exports = { createAuth, createSigner, parseCookies, parseEnvFile, withSharedEnv, SESSION_COOKIE };
