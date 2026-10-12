@@ -8,7 +8,7 @@ plusieurs mini-jeux de société / cartes. Premier jeu : **La Chute des Rois** (
 ```bash
 # Docker (recommandé) — reverse proxy Nginx : voir DEPLOIEMENT.md
 cp .env.example .env
-docker compose up -d --build                     # http://localhost:3000
+docker compose up -d --build                     # http://localhost:3001
 
 # Local
 npm install
@@ -101,7 +101,7 @@ dans `localStorage` : un rafraîchissement ou une coupure réseau (< `RECONNECT_
 
 | Variable | Défaut | Rôle |
 | --- | --- | --- |
-| `PORT` | 3000 | port HTTP interne |
+| `PORT` | 3001 | port HTTP interne |
 | `MAX_PLAYERS_PER_ROOM` | 8 | limite du Hub (chaque jeu a ses propres min/max) |
 | `RECONNECT_GRACE_MS` | 60000 | délai avant de retirer un joueur déconnecté |
 | `CORS_ORIGIN` | — | origines autorisées si le front est servi ailleurs |

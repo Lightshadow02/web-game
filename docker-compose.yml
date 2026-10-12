@@ -9,10 +9,10 @@ services:
     init: true # transmet SIGTERM à Node (arrêt propre)
     ports:
       # HOST_BIND=127.0.0.1 si Nginx tourne sur la même machine (accès direct fermé)
-      - "${HOST_BIND:-0.0.0.0}:${HOST_PORT:-3000}:3000"
+      - "${HOST_BIND:-0.0.0.0}:${HOST_PORT:-3001}:3001"
     environment:
       NODE_ENV: production
-      PORT: 3000
+      PORT: 3001
       MAX_PLAYERS_PER_ROOM: ${MAX_PLAYERS_PER_ROOM:-8}
       RECONNECT_GRACE_MS: ${RECONNECT_GRACE_MS:-60000}
     logging:

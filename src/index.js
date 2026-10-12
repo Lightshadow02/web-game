@@ -47,7 +47,7 @@ function createHubServer(options = {}) {
 }
 
 if (require.main === module) {
-  const PORT = Number(process.env.PORT) || 3000;
+  const PORT = Number(process.env.PORT) || 3001;
   const { server, io } = createHubServer();
   server.listen(PORT, () => console.log(`[hub] Serveur prêt sur http://localhost:${PORT}`));
 

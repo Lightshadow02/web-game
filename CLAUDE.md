@@ -29,7 +29,7 @@ Toute évolution doit préserver cette extensibilité :
 
 ## Commandes
 
-- `npm run dev` — serveur avec rechargement (port 3000)
+- `npm run dev` — serveur avec rechargement (port 3001)
 - `npm test` — tests moteur + intégration Socket.io
 - `docker compose up -d --build` — déploiement (voir DEPLOIEMENT.md)
 - Le propriétaire héberge l'app sur ses propres Docker, derrière **son propre reverse proxy Nginx** (HTTPS géré par lui) :
