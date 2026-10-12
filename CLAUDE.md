@@ -50,7 +50,7 @@ Toute évolution doit préserver cette extensibilité :
   boss à 3-4 joueurs). Moteur + contenu + équilibrage faits (games/profondeurs/server/, BALANCE dans Profondeurs.js).
   **Interface FAITE avec le design system Claude Design « Torche » du propriétaire :
   https://claude.ai/artifact/JS4y7JDparPPUUDgYJHUFs** (tokens, composants `.t-*`, `window.Torche`, écrans, animations).
-  Il est importé dans `games/profondeurs/client/torche/` par `scripts/vendor-torche.mjs` (ne pas éditer à la main :
+  Il est importé dans `games/profondeurs/client/torche/` par `scripts/vendor-design.mjs` (ne pas éditer à la main :
   ré-importer ; le script limite tokens/CSS à `.prof`, place l'interrupteur d'animations sur `[data-motion-host]` et
   corrige `Timeline.done()` qui ne se résolvait jamais). Le client (`client/index.js`) joue chaque nouvel état en
   animation sur l'écran affiché, puis redessine depuis l'état serveur. Garder le crédit

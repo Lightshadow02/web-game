@@ -1,0 +1,1 @@
+Licences des polices fournies avec Tapis (woff2, sous-ensemble latin) : Cinzel et Alegreya Sans, toutes deux sous SIL Open Font License 1.1. Garde ces deux fichiers à côté des polices quand tu les déploies avec le Hub.

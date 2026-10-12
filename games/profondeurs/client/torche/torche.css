@@ -1,5 +1,5 @@
-/* Design system « Torche » (Claude Design) — généré par scripts/vendor-torche.mjs, ne pas modifier à la main.
-   Tokens et règles limités au conteneur .prof du jeu. Polices : SIL OFL 1.1 (voir licences/). */
+/* Design system « torche » (Claude Design) — généré par scripts/vendor-design.mjs, ne pas modifier à la main.
+   Tokens et règles limités au conteneur .prof. Polices : SIL OFL 1.1 (voir licences/). */
 @font-face { font-family: "Cinzel"; src: url("fonts/cinzel-latin-wght-normal.woff2") format("woff2"); font-weight: 400 900; font-style: normal; font-display: swap; }
 @font-face { font-family: "Alegreya Sans"; src: url("fonts/alegreya-sans-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
 @font-face { font-family: "Alegreya Sans"; src: url("fonts/alegreya-sans-latin-400-italic.woff2") format("woff2"); font-weight: 400; font-style: italic; font-display: swap; }
@@ -52,6 +52,17 @@
   --boisnoir: #7c9455;
   --scrim: rgba(13, 11, 8, 0.78);
   --bevel-light: rgba(255, 236, 200, 0.08);
+  --shadow-panel: inset 0 1px 0 rgba(255, 236, 200, 0.07), 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-card: 0 2px 0 rgba(0, 0, 0, 0.35), 0 10px 24px rgba(0, 0, 0, 0.55);
+  --shadow-card-lift: 0 4px 0 rgba(0, 0, 0, 0.3), 0 22px 40px rgba(0, 0, 0, 0.6);
+  --paper-edge: inset 0 0 0 1px rgba(43, 33, 24, 0.3), inset 0 0 26px rgba(138, 66, 8, 0.24);
+  --shadow-die: inset 0 2px 0 rgba(255, 255, 255, 0.28), inset 0 -3px 0 rgba(0, 0, 0, 0.28), 0 3px 6px rgba(0, 0, 0, 0.55);
+  --shadow-die-seated: inset 0 2px 0 rgba(255, 255, 255, 0.24), inset 0 -2px 0 rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-well: inset 0 2px 8px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(0, 0, 0, 0.45);
+  --glow-torch: 0 0 0 2px #17140f, 0 0 0 4px #e8892b, 0 0 22px 4px rgba(232, 137, 43, 0.55);
+  --glow-gold: 0 0 0 2px #d9a520, 0 0 18px 3px rgba(246, 211, 107, 0.6);
+  --focus-ring: 0 0 0 2px #17140f, 0 0 0 4px #e8892b;
+  --focus-ring-card: 0 0 0 2px #efe4cb, 0 0 0 4px #8a4208;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -76,17 +87,6 @@
   --card-lg: 248px;
   --game-pc: 1100px;
   --game-mobile: 390px;
-  --shadow-panel: inset 0 1px 0 rgba(255, 236, 200, 0.07), 0 8px 24px rgba(0, 0, 0, 0.45);
-  --shadow-card: 0 2px 0 rgba(0, 0, 0, 0.35), 0 10px 24px rgba(0, 0, 0, 0.55);
-  --shadow-card-lift: 0 4px 0 rgba(0, 0, 0, 0.3), 0 22px 40px rgba(0, 0, 0, 0.6);
-  --paper-edge: inset 0 0 0 1px rgba(43, 33, 24, 0.3), inset 0 0 26px rgba(138, 66, 8, 0.24);
-  --shadow-die: inset 0 2px 0 rgba(255, 255, 255, 0.28), inset 0 -3px 0 rgba(0, 0, 0, 0.28), 0 3px 6px rgba(0, 0, 0, 0.55);
-  --shadow-die-seated: inset 0 2px 0 rgba(255, 255, 255, 0.24), inset 0 -2px 0 rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.45);
-  --shadow-well: inset 0 2px 8px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(0, 0, 0, 0.45);
-  --glow-torch: 0 0 0 2px #17140f, 0 0 0 4px #e8892b, 0 0 22px 4px rgba(232, 137, 43, 0.55);
-  --glow-gold: 0 0 0 2px #d9a520, 0 0 18px 3px rgba(246, 211, 107, 0.6);
-  --focus-ring: 0 0 0 2px #17140f, 0 0 0 4px #e8892b;
-  --focus-ring-card: 0 0 0 2px #efe4cb, 0 0 0 4px #8a4208;
   --font-display: "Cinzel", "Trajan Pro", Georgia, serif;
   --font-text: "Alegreya Sans", "Gill Sans", "Trebuchet MS", sans-serif;
 }
@@ -1165,10 +1165,13 @@
 :where(.prof) .t-panel__title .gauge { color: var(--bone); }
 :where(.prof) .t-intro { display: flex; flex-direction: column; gap: 4px; }
 :where(.prof) .t-screen .label { letter-spacing: .12em; }
+.prof[class*="__intro"] > .label,
 :where(.prof) [class*="__intro"] > .label,
 :where(.prof) .t-prep__top > .label { color: var(--torch); }
+.prof[class*="__intro"] > .body,
 :where(.prof) [class*="__intro"] > .body,
 :where(.prof) .t-prep__top > .body { max-width: 64ch; color: var(--bone-muted); }
+.prof[class*="__intro"] > .title-lg,
 :where(.prof) [class*="__intro"] > .title-lg,
 :where(.prof) .t-prep__top > .title-lg { color: var(--parchment); }
 @container screen (max-width: 640px) {
@@ -1529,6 +1532,7 @@
 :where(.prof) .t-end__fx { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 :where(.prof) .t-end__rays,
 :where(.prof) .t-end__glow { position: absolute; left: 50%; top: 30%; border-radius: 50%; }
+.prof[data-outcome="victory"] .t-end__rays,
 :where(.prof) [data-outcome="victory"] .t-end__rays {
   width: 1600px;
   height: 1600px;
@@ -1539,19 +1543,25 @@
   animation: t-rays 60s linear infinite;
 }
 @keyframes t-rays { to { transform: rotate(360deg); } }
+.prof[data-outcome="victory"] .t-end__glow,
 :where(.prof) [data-outcome="victory"] .t-end__glow { width: 760px; height: 760px; margin: -380px 0 0 -380px; background: radial-gradient(closest-side, rgba(246, 211, 107, .4), rgba(232, 137, 43, .14) 45%, transparent); }
+.prof[data-outcome="defeat"] .t-end__glow,
 :where(.prof) [data-outcome="defeat"] .t-end__glow { inset: 0; top: 0; left: 0; border-radius: 0; background: radial-gradient(60% 50% at 50% 30%, rgba(133, 117, 96, .08), rgba(0, 0, 0, .78) 70%); }
 :where(.prof) .t-end { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 36px 28px; text-align: center; }
 :where(.prof) .t-end > .label { color: var(--bone-muted); }
 :where(.prof) .t-end > .body { max-width: 52ch; color: var(--bone-muted); }
 :where(.prof) .t-end h1 { color: var(--gold-bright); text-shadow: 0 0 30px rgba(246, 211, 107, .5), 0 3px 0 rgba(0, 0, 0, .5); }
+.prof[data-outcome="defeat"] .t-end h1,
 :where(.prof) [data-outcome="defeat"] .t-end h1 { color: var(--bone-muted); text-shadow: 0 3px 0 rgba(0, 0, 0, .6); }
 :where(.prof) .t-end__emb { width: 132px; height: 132px; display: grid; place-items: center; border-radius: 50%; background: radial-gradient(circle at 50% 35%, var(--stone-700), var(--stone-950)); color: var(--gold-bright); box-shadow: inset 0 0 0 3px var(--gold), inset 0 0 0 7px var(--stone-900), inset 0 0 0 8px rgba(217, 165, 32, .5), 0 0 40px 8px rgba(246, 211, 107, .3); }
 :where(.prof) .t-end__emb > .t-ico { width: 84px; height: 84px; }
+.prof[data-outcome="defeat"] .t-end__emb,
 :where(.prof) [data-outcome="defeat"] .t-end__emb { color: var(--ash); box-shadow: inset 0 0 0 2px var(--stone-600), 0 0 0 1px rgba(0, 0, 0, .6); background: var(--stone-950); }
 :where(.prof) .t-end__emb { position: relative; }
 :where(.prof) .t-end__smoke { display: none; }
+.prof[data-outcome="defeat"] .t-end__smoke,
 :where(.prof) [data-outcome="defeat"] .t-end__smoke { display: block; position: absolute; top: -26px; right: 30px; width: 34px; height: 52px; fill: none; stroke: var(--ash); stroke-width: 2; stroke-linecap: round; opacity: .7; }
+.prof[data-outcome="defeat"] .t-end__emb > .t-ico,
 :where(.prof) [data-outcome="defeat"] .t-end__emb > .t-ico { transform: rotate(-18deg); }
 :where(.prof) .t-end__stats { margin: 6px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(4, 150px); gap: 10px; }
 :where(.prof) .t-end__stats li { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 8px; border-radius: 12px; background: rgba(33, 28, 22, .85); border: 1px solid var(--stone-600); }
@@ -1560,6 +1570,7 @@
 :where(.prof) .t-end__party { display: flex; gap: 18px; margin-top: 4px; }
 :where(.prof) .t-end__hero { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--bone-muted); }
 :where(.prof) .t-end__hero .t-ico { width: 44px; height: 44px; padding: 7px; border-radius: 50%; background: radial-gradient(circle at 50% 35%, var(--parchment), var(--parchment-edge)); color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); }
+.prof[data-outcome="defeat"] .t-end__hero .t-ico,
 :where(.prof) [data-outcome="defeat"] .t-end__hero .t-ico { filter: grayscale(1) brightness(.6); }
 :where(.prof) .t-end__actions { display: flex; gap: 12px; margin-top: 8px; }
 @container screen (max-width: 640px) {

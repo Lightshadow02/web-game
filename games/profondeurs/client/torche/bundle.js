@@ -1,4 +1,4 @@
-/* Design system « Torche » (Claude Design) — importé par scripts/vendor-torche.mjs (interrupteur et tokens lus sur [data-motion-host] / .prof). */
+/* Design system « torche » (Claude Design) — importé par scripts/vendor-design.mjs (interrupteur et tokens sur .prof[data-motion-host]). */
 /* @ds-bundle: {"format":4,"namespace":"Torche","components":[{"name":"Die"},{"name":"Slot"},{"name":"DicePool"},{"name":"HeroPortrait"},{"name":"Avatar"},{"name":"TorchGauge"},{"name":"HpBar"},{"name":"XpBar"},{"name":"Button"},{"name":"GameHeader"},{"name":"Banner"},{"name":"Dialog"},{"name":"HeroCard"},{"name":"MonsterCard"},{"name":"PerilCard"},{"name":"BossCard"},{"name":"ItemCard"},{"name":"SkillCard"},{"name":"CardBack"}]} */
 /* Donjon à la torche — composants du jeu de dés. Vanilla JS : chaque composant renvoie une chaîne HTML.
    Les classes .t-* de bundle.css sont le contrat ; Torche.anim joue les animations (Web Animations). */
@@ -790,7 +790,7 @@ var D = {
   summon: 560, fury: 1200, round: 1400, shatter: 900, flameOut: 520, doors: 1300, fan: 520, give: 560,
   xp: 640, level: 1400, floor: 2200, ending: 1600
 };
-function motionHost() { return (doc && doc.querySelector('[data-motion-host]')) || doc.documentElement; }
+function motionHost() { return (doc && doc.querySelector('.prof[data-motion-host]')) || doc.documentElement; }
 var MOT = T.motion = {
   ease: E,
   dur: D,
@@ -815,7 +815,7 @@ var MOT = T.motion = {
 };
 if (doc) {
   doc.addEventListener('click', function (e) {
-    var b = e.target.closest && e.target.closest('[data-motion-toggle]');
+    var b = e.target.closest && e.target.closest('.prof [data-motion-toggle]');
     if (b) MOT.toggle();
   });
 }

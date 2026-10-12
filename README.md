@@ -121,7 +121,7 @@ Tarot français (règles FFT), 3 à 5 joueurs ; une partie = une donne par joueu
   chaque gardien. Réglages d'équilibre dans `BALANCE` (games/profondeurs/server/Profondeurs.js).
 - **Design** : design system Claude Design « Torche » (https://claude.ai/artifact/JS4y7JDparPPUUDgYJHUFs). Pour
   l'importer de nouveau après une mise à jour : exporter le dossier `project/` de l'artefact puis
-  `node scripts/vendor-torche.mjs <dossier>` (tokens et CSS limités au jeu, polices incluses).
+  `node scripts/vendor-design.mjs torche <dossier>` (tokens et CSS limités au jeu, polices incluses).
   Emblèmes : game-icons.net (Lorc, Delapouite et contributeurs), CC BY 3.0. Polices Cinzel et Alegreya Sans : SIL OFL 1.1.
 
 ## La Chute des Rois — règles implémentées
