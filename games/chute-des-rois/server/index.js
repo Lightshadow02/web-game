@@ -8,6 +8,7 @@ module.exports = {
   name: 'La Chute des Rois',
   description:
     'Coopératif (1-4 joueurs). Unissez-vous pour renverser les 12 souverains corrompus avec un simple jeu de 52 cartes.',
+  scoreLabel: 'Souverains vaincus', // libellé du score dans les stats du Hub
   minPlayers: 1,
   maxPlayers: 4,
   createGame: ({ players }) => new ChuteDesRois({ players }),

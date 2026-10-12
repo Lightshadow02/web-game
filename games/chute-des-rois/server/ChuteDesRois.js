@@ -83,6 +83,17 @@ class ChuteDesRois {
     return this.phase === 'victory' || this.phase === 'defeat';
   }
 
+  /** Résultat pour les statistiques du Hub (coopératif : tout le monde gagne ou perd). */
+  getResult() {
+    if (!this.isOver()) return null;
+    const victory = this.phase === 'victory';
+    const defeated = 12 - this.castle.length - (this.boss ? 1 : 0);
+    return {
+      summary: `${victory ? 'Victoire' : 'Défaite'} — ${defeated}/12 souverains`,
+      players: this.players.map((p) => ({ playerId: p.id, result: victory ? 'win' : 'loss', score: defeated })),
+    };
+  }
+
   getStateFor(playerId) {
     const me = this.players.find((p) => p.id === playerId);
     const current = this.currentPlayer();

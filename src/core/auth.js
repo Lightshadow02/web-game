@@ -8,16 +8,18 @@
  * { id, name, avatarUrl, exp }. Rien n'est stocké côté serveur.
  *
  * Qui peut jouer (variables d'environnement, toutes optionnelles) :
- *   DISCORD_ALLOWED_IDS  : ces comptes passent toujours ;
+ *   ADMIN_DISCORD_IDS    : administrateurs (toujours acceptés, valident les demandes) ;
+ *   DISCORD_ALLOWED_IDS  : ces comptes passent toujours, sans validation ;
  *   DISCORD_GUILD_ID     : sinon, il faut être membre de ce serveur Discord ;
  *   DISCORD_ROLE_IDS     : ... et avoir au moins un de ces rôles.
- *   Rien de défini : tout compte Discord peut jouer.
+ *   ACCESS_APPROVAL      : true (défaut) = tout nouveau compte attend la validation d'un admin
+ *                          (nécessite le stockage) ; false = accès direct après les filtres ci-dessus.
  *
  * Désactivé (mode pseudo libre, comme avant) si DISCORD_CLIENT_ID/SECRET sont absents.
  *
  * SHARED_ENV_FILE : chemin du .env d'une autre app (ex. JDR-WEB) dont on réutilise
  * l'application Discord. On n'y lit QUE : DISCORD_CLIENT_ID/SECRET, SESSION_SECRET
- * (dont on dérive une clé propre au Hub) et ADMIN_DISCORD_IDS (toujours autorisés).
+ * (dont on dérive une clé propre au Hub) et ADMIN_DISCORD_IDS (admins du Hub aussi).
  * Les valeurs du Hub lui-même restent prioritaires.
  */
 
@@ -119,11 +121,15 @@ function withSharedEnv(env, readFile = (path) => fs.readFileSync(path, 'utf8')) 
     result.SESSION_SECRET = crypto.createHmac('sha256', shared.SESSION_SECRET).update('game-hub-session').digest('base64url');
   }
   const admins = list(shared.ADMIN_DISCORD_IDS);
-  if (admins.length) result.DISCORD_ALLOWED_IDS = [...list(result.DISCORD_ALLOWED_IDS), ...admins].join(',');
+  if (admins.length) result.ADMIN_DISCORD_IDS = [...new Set([...list(result.ADMIN_DISCORD_IDS), ...admins])].join(',');
   return result;
 }
 
-function createAuth(rawEnv = process.env, { fetchImpl = fetch, readFile } = {}) {
+/**
+ * @param store  Store (src/core/store.js) ou null. Avec un store : comptes persistants,
+ *               validation des demandes par l'admin, révocation immédiate.
+ */
+function createAuth(rawEnv = process.env, { fetchImpl = fetch, readFile, store = null } = {}) {
   const env = withSharedEnv(rawEnv, readFile);
   const clientId = env.DISCORD_CLIENT_ID;
   const clientSecret = env.DISCORD_CLIENT_SECRET;
@@ -134,6 +140,8 @@ function createAuth(rawEnv = process.env, { fetchImpl = fetch, readFile } = {}) 
       enabled: false,
       router: express.Router().get('/api/me', (req, res) => res.json({ authEnabled: false, user: null })),
       userFromCookieHeader: () => null,
+      approval: false,
+      adminIds: new Set(),
     };
   }
 
@@ -151,20 +159,32 @@ function createAuth(rawEnv = process.env, { fetchImpl = fetch, readFile } = {}) 
   const guildId = env.DISCORD_GUILD_ID || null;
   const roleIds = list(env.DISCORD_ROLE_IDS);
   const allowedIds = new Set(list(env.DISCORD_ALLOWED_IDS));
+  const adminIds = new Set(list(env.ADMIN_DISCORD_IDS));
+  const approval = Boolean(store) && !['false', '0', 'no'].includes(String(env.ACCESS_APPROVAL ?? '').toLowerCase());
   const scope = guildId ? 'identify guilds.members.read' : 'identify';
 
   const cookieOptions = { httpOnly: true, sameSite: 'lax', secure };
 
+  /**
+   * Utilisateur courant d'après le cookie, avec son statut à jour :
+   * { id, name, avatarUrl, status: 'approved'|'pending'|'rejected', isAdmin } ou null.
+   */
   const userFromCookieHeader = (header) => {
     const payload = signer.verify(parseCookies(header)[SESSION_COOKIE]);
-    return payload?.id ? { id: payload.id, name: payload.name, avatarUrl: payload.avatarUrl ?? null } : null;
+    if (!payload?.id) return null;
+    const base = { id: payload.id, name: payload.name, avatarUrl: payload.avatarUrl ?? null };
+    if (!store) return { ...base, status: 'approved', isAdmin: adminIds.has(payload.id) };
+    const user = store.getUser(payload.id);
+    if (!user) return null; // base réinitialisée : il faut se reconnecter
+    return { ...base, name: user.name, avatarUrl: user.avatarUrl, status: user.status, isAdmin: user.isAdmin };
   };
 
   /** Applique les règles d'accès ; renvoie le nom à afficher ou null si refusé. */
   async function checkAccess(accessToken, discordUser) {
     const defaultName = discordUser.global_name || discordUser.username;
-    if (allowedIds.has(discordUser.id)) return defaultName;
-    if (!guildId) return allowedIds.size ? null : defaultName;
+    if (adminIds.has(discordUser.id) || allowedIds.has(discordUser.id)) return defaultName;
+    // Sans serveur imposé : liste blanche stricte, sauf si l'admin valide les demandes.
+    if (!guildId) return allowedIds.size && !approval ? null : defaultName;
 
     const res = await fetchImpl(`${DISCORD_API}/users/@me/guilds/${guildId}/member`, {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -231,13 +251,20 @@ function createAuth(rawEnv = process.env, { fetchImpl = fetch, readFile } = {}) 
       const avatarUrl = discordUser.avatar
         ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png?size=128`
         : null;
+      const name = cleanText(displayName, NAME_MAX_LENGTH) || 'Joueur';
+      if (store) {
+        const user = store.recordLogin({
+          id: discordUser.id,
+          name,
+          avatarUrl,
+          isAdmin: adminIds.has(discordUser.id),
+          initialStatus: !approval || allowedIds.has(discordUser.id) ? 'approved' : 'pending',
+        });
+        if (user.status === 'rejected') return fail('refuse');
+        // 'pending' : on pose quand même le cookie, l'écran d'attente suit la décision de l'admin.
+      }
       const maxAge = SESSION_DAYS * 24 * 3600 * 1000;
-      const session = {
-        id: discordUser.id,
-        name: cleanText(displayName, NAME_MAX_LENGTH) || 'Joueur',
-        avatarUrl,
-        exp: Date.now() + maxAge,
-      };
+      const session = { id: discordUser.id, name, avatarUrl, exp: Date.now() + maxAge };
       res.cookie(SESSION_COOKIE, signer.sign(session), { ...cookieOptions, path: '/', maxAge });
       res.redirect(safeReturnTo(saved.returnTo));
     } catch (err) {
@@ -251,7 +278,7 @@ function createAuth(rawEnv = process.env, { fetchImpl = fetch, readFile } = {}) 
     res.json({ ok: true });
   });
 
-  return { enabled: true, router, userFromCookieHeader, redirectUri };
+  return { enabled: true, router, userFromCookieHeader, redirectUri, approval, adminIds };
 }
 
 module.exports = { createAuth, createSigner, parseCookies, parseEnvFile, withSharedEnv, SESSION_COOKIE };

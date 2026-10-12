@@ -14,7 +14,14 @@ const NAME_MAX_LENGTH = 20;
  * autres) est distinct de ces identifiants.
  */
 class RoomManager {
-  constructor({ registry, transport, maxPlayersPerRoom = 8, reconnectGraceMs = 60_000 }) {
+  /**
+   * hooks (optionnels) :
+   *   onLobbyChange()   : liste des salons ou des joueurs en ligne modifiée
+   *   onGameEnd(match)  : partie terminée (voir Room.checkGameEnd)
+   */
+  constructor({ registry, transport, maxPlayersPerRoom = 8, reconnectGraceMs = 60_000, hooks = {} }) {
+    this.hooks = hooks;
+    this.lobbyChangeQueued = false;
     this.registry = registry;
     this.transport = transport;
     this.maxPlayersPerRoom = maxPlayersPerRoom;
@@ -52,6 +59,7 @@ class RoomManager {
     }
     const room = this.getRoomOf(session);
     if (room) room.setConnected(session.playerId, true);
+    this.notifyLobbyChange();
     return session;
   }
 
@@ -63,6 +71,7 @@ class RoomManager {
   detachSocket(session, socketId) {
     session.sockets.delete(socketId);
     if (session.sockets.size > 0) return; // un autre onglet est encore ouvert
+    this.notifyLobbyChange();
 
     const room = this.getRoomOf(session);
     if (!room) {
@@ -98,6 +107,10 @@ class RoomManager {
       registry: this.registry,
       transport: this.transport,
       maxPlayers: this.maxPlayersPerRoom,
+      hooks: {
+        onChange: () => this.notifyLobbyChange(),
+        onGameEnd: (match) => this.hooks.onGameEnd?.(match),
+      },
     });
     this.rooms.set(code, room);
     room.addPlayer(this.playerInfo(session, name));
@@ -123,7 +136,39 @@ class RoomManager {
     session.roomCode = null;
     if (!room) return;
     room.removePlayer(session.playerId, reason);
-    if (room.isEmpty) this.rooms.delete(room.code);
+    if (room.isEmpty) {
+      this.rooms.delete(room.code);
+      this.notifyLobbyChange();
+    }
+  }
+
+  /** Session d'un compte Discord (pour le retirer, le notifier...). */
+  sessionOfUser(userId) {
+    return this.sessions.get(`discord:${userId}`) ?? null;
+  }
+
+  // ---------------------------------------------------------------- vue "Hub"
+
+  /** Regroupe les changements d'un même tick en une seule notification. */
+  notifyLobbyChange() {
+    if (this.lobbyChangeQueued || !this.hooks.onLobbyChange) return;
+    this.lobbyChangeQueued = true;
+    setImmediate(() => {
+      this.lobbyChangeQueued = false;
+      this.hooks.onLobbyChange();
+    });
+  }
+
+  lobbySnapshot() {
+    const online = [...this.sessions.values()].filter((s) => s.sockets.size > 0);
+    return {
+      rooms: [...this.rooms.values()].map((room) => room.summary()).sort((a, b) => b.createdAt - a.createdAt),
+      onlineCount: online.length,
+      online: online
+        .filter((s) => s.identity)
+        .map((s) => ({ name: s.identity.name, avatarUrl: s.identity.avatarUrl, roomCode: s.roomCode }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    };
   }
 
   /** Mode Discord : nom imposé (suffixé si homonyme dans le salon). Sinon : pseudo saisi. */
@@ -137,7 +182,12 @@ class RoomManager {
   }
 
   playerInfo(session, name) {
-    return { id: session.playerId, name, avatarUrl: session.identity?.avatarUrl ?? null };
+    return {
+      id: session.playerId,
+      userId: session.identity?.id ?? null,
+      name,
+      avatarUrl: session.identity?.avatarUrl ?? null,
+    };
   }
 
   validateName(rawName) {

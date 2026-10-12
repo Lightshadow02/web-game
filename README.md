@@ -24,7 +24,8 @@ web-game/
 │   ├── index.js                  Express + Socket.io, statiques, /health
 │   └── core/
 │       ├── gameRegistry.js       découverte automatique des jeux dans /games
-│       ├── auth.js               connexion Discord OAuth2 (optionnelle, cookie signé, sans BDD)
+│       ├── auth.js               connexion Discord OAuth2 (optionnelle) + demandes d'accès
+│       ├── store.js              SQLite intégré à Node : comptes, statuts, parties, stats
 │       ├── RoomManager.js        sessions (reconnexion), création/jointure des salons
 │       ├── Room.js               joueurs, hôte, choix du jeu, chat, partie en cours
 │       ├── socketHandlers.js     protocole Socket.io (événements client <-> serveur)
@@ -34,6 +35,7 @@ web-game/
 │   ├── css/style.css             thème partagé (variables CSS)
 │   └── js/
 │       ├── app.js                client Socket.io, écrans, chargement dynamique des jeux
+│       ├── dashboard.js          page Hub : salons, en ligne, stats, classement, admin
 │       └── dom.js                helper el() partagé (pas d'innerHTML)
 ├── games/                        ← UN DOSSIER = UN JEU
 │   └── chute-des-rois/
@@ -58,7 +60,10 @@ module.exports = {
   createGame: ({ players }) => ({
     handleAction(playerId, type, payload) { /* lever une erreur avec err.isGameError = true si invalide */ },
     getStateFor(playerId) { /* état visible par CE joueur */ },
+    isOver() { /* optionnel */ },
+    getResult() { /* optionnel, pour les stats : { summary, players: [{ playerId, result: 'win'|'loss'|'draw', score }] } */ },
   }),
+  scoreLabel: 'Points', // optionnel : libellé du score dans les stats
 };
 ```
 
@@ -83,6 +88,8 @@ puis le Core diffuse à chaque joueur sa propre vue (`getStateFor`) — les main
 | `room:selectGame {gameId}` · `room:startGame` · `room:endGame` (hôte) | `games:list` · `room:state` · `room:left` |
 | `chat:send {text}` | `chat:history` · `chat:message` |
 | `game:action {type, payload}` | `game:state {gameId, state}` |
+| `hub:get` · `stats:get` · `stats:leaderboard {gameId}` | `hub:lobby {rooms, online}` · `stats:changed` |
+| `admin:users` · `admin:decide {userId, status}` (admins) | `admin:changed` · `admin:request {name}` |
 
 Chaque requête client reçoit un acquittement `{ ok, error? }`. La session est liée à un jeton stocké
 dans `localStorage` : un rafraîchissement ou une coupure réseau (< `RECONNECT_GRACE_MS`) ramène le joueur à sa place.

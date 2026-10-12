@@ -169,7 +169,8 @@ test('config partagée (.env de JDR-WEB) : seules les clés Discord sont reprise
   assert.equal(env.DATABASE_URL, undefined, 'rien d’autre n’est importé');
   assert.ok(env.SESSION_SECRET.length >= 32);
   assert.notEqual(env.SESSION_SECRET, 'secret-de-jdr-avec-assez-de-caracteres', 'clé dérivée, pas réutilisée');
-  assert.equal(env.DISCORD_ALLOWED_IDS, '7,42,43');
+  assert.equal(env.ADMIN_DISCORD_IDS, '42,43', 'les admins de JDR-WEB sont admins du Hub');
+  assert.equal(env.DISCORD_ALLOWED_IDS, '7');
 
   // Les valeurs propres au Hub restent prioritaires ; fichier vide (/dev/null) ou illisible : sans effet.
   assert.equal(withSharedEnv({ SHARED_ENV_FILE: '/x', DISCORD_CLIENT_ID: 'mien' }, () => jdrEnv).DISCORD_CLIENT_ID, 'mien');

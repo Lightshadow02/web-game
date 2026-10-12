@@ -40,17 +40,26 @@ Sans configuration, le site fonctionne en pseudo libre. Pour réserver l'accès 
    session, et autorise toujours les `ADMIN_DISCORD_IDS` de JDR-WEB. Rien d'autre n'est lu
    (ni base de données, ni port). Si vous changez le secret dans JDR-WEB : `./update.sh` et c'est repris.
    *(Sans JDR-WEB : remplissez plutôt `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` et `SESSION_SECRET`.)*
-3. Choisissez qui peut jouer (activez le *Mode développeur* de Discord pour copier les IDs par clic droit) :
-   - `DISCORD_GUILD_ID` : seuls les membres de votre serveur ;
-   - `DISCORD_ROLE_IDS` : … et seulement ceux qui ont ce(s) rôle(s) — vous donnez/retirez le rôle dans Discord ;
-   - `DISCORD_ALLOWED_IDS` : comptes autorisés en plus, au cas par cas.
+3. **Admin et demandes d'accès** (par défaut) : toute nouvelle personne qui se connecte arrive sur
+   « Demande envoyée » ; l'admin la voit en direct sur la page Hub (*Demandes d'accès*) et clique
+   **Accepter** ou **Refuser**. Retirer un membre le déconnecte immédiatement.
+   - Les `ADMIN_DISCORD_IDS` de light-jdr sont admins ici aussi. Sinon, ajoutez votre ID dans
+     `ADMIN_DISCORD_IDS` du `.env` du Hub (le log de démarrage prévient s'il n'y a aucun admin).
+   - Filtres optionnels avant la demande : `DISCORD_GUILD_ID` (membres de votre serveur),
+     `DISCORD_ROLE_IDS` (avec ce rôle), `DISCORD_ALLOWED_IDS` (acceptés sans validation).
+   - `ACCESS_APPROVAL=false` : pas de validation, accès direct après les filtres.
 4. `./update.sh` (ou `docker compose up -d --build`). Les logs affichent « Connexion Discord activée ».
 
 Si les logs disent « Impossible de lire … (EACCES) », le `.env` de JDR-WEB n'est pas lisible par le
 conteneur (utilisateur 1000) : `chmod 644 ../light-jdr/.env` ou `chown 1000 ../light-jdr/.env`.
 
-La session dure 7 jours. Retirer le rôle à quelqu'un l'empêche de se reconnecter ; pour couper toutes
-les sessions immédiatement, changez `SESSION_SECRET` et relancez.
+La session dure 7 jours ; un compte retiré par l'admin est coupé immédiatement.
+
+## Données (comptes, statistiques)
+
+Stockées en SQLite dans le volume Docker `hub-data` (conservé par `update.sh` et `docker compose down`).
+Sauvegarde : `docker compose cp game-hub:/data/hub.db ./hub-backup.db`.
+⚠️ `docker compose down -v` supprime le volume, donc les comptes et les stats.
 
 ## Mise à jour / exploitation
 
@@ -60,6 +69,6 @@ les sessions immédiatement, changez `SESSION_SECRET` et relancez.
 | Logs | `docker compose logs -f game-hub` |
 | Arrêter | `docker compose down` |
 
-- Salons en mémoire, pas de base de données : un redémarrage coupe les parties en cours. Rien à sauvegarder.
+- Les salons et parties en cours sont en mémoire : un redémarrage les coupe (comptes et stats sont conservés).
 - Une seule instance du conteneur (pas de `--scale`).
 - Image non-root, healthcheck, redémarrage automatique, logs limités à 3 × 10 Mo.

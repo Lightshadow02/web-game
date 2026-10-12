@@ -7,41 +7,104 @@
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
-  <!-- ===================================================== ACCUEIL -->
-  <section id="screen-home" class="screen">
+  <!-- ===================================================== CONNEXION (Discord) -->
+  <section id="screen-login" class="screen center-screen hidden">
     <div class="home-card">
       <h1 class="logo">♠&#xFE0E; ♥&#xFE0E; <span>Game Hub</span> ♦&#xFE0E; ♣&#xFE0E;</h1>
       <p class="tagline">Des jeux de cartes entre amis, en temps réel.</p>
+      <a id="btn-discord" class="btn btn-discord btn-block" href="/auth/discord">Se connecter avec Discord</a>
+      <p class="muted center small">Première visite ? Votre demande sera envoyée à l'administrateur.</p>
+      <p id="login-error" class="error" role="alert"></p>
+    </div>
+  </section>
 
-      <!-- Connexion Discord (affiché seulement si activée côté serveur) -->
-      <div id="auth-login" class="auth-login hidden">
-        <p class="muted center">Connectez-vous avec votre compte Discord pour jouer.</p>
-        <a id="btn-discord" class="btn btn-discord btn-block" href="/auth/discord">Se connecter avec Discord</a>
-      </div>
+  <!-- ===================================================== DEMANDE EN ATTENTE / REFUSÉE -->
+  <section id="screen-pending" class="screen center-screen hidden">
+    <div class="home-card center">
+      <img id="pending-avatar" class="avatar avatar-lg hidden" alt="" />
+      <h1 id="pending-title" class="pending-title">Demande envoyée</h1>
+      <p id="pending-text" class="muted"></p>
+      <p id="pending-wait" class="pending-wait"><span class="pulse-dot"></span> Cette page se met à jour toute seule.</p>
+      <button class="btn btn-ghost btn-small js-logout">Changer de compte</button>
+    </div>
+  </section>
 
-      <div id="home-actions">
-        <div id="auth-user" class="auth-user hidden">
-          <img id="auth-avatar" class="avatar" alt="" />
-          <span>Connecté : <strong id="auth-name"></strong></span>
-          <button id="btn-logout" class="btn btn-ghost btn-small">Déconnexion</button>
+  <!-- ===================================================== HUB (accueil connecté) -->
+  <section id="screen-home" class="screen hidden">
+    <header class="topbar hub-topbar">
+      <div class="brand">♠&#xFE0E; <span>Game Hub</span></div>
+      <div class="topbar-actions">
+        <span class="online-pill"><span class="status-dot"></span> <span id="online-count">0</span> en ligne</span>
+        <div id="user-chip" class="user-chip hidden">
+          <img id="user-avatar" class="avatar avatar-sm hidden" alt="" />
+          <strong id="user-name"></strong>
+          <span id="user-admin" class="badge hidden">Admin</span>
         </div>
-
-        <label id="field-name" class="field">
-          <span>Votre pseudo</span>
-          <input id="input-name" maxlength="20" autocomplete="nickname" placeholder="ex. Lancelot" />
-        </label>
-
-        <button id="btn-create" class="btn btn-primary btn-block">Créer un salon</button>
-
-        <div class="divider"><span>ou</span></div>
-
-        <form id="form-join" class="join-row">
-          <input id="input-code" maxlength="5" placeholder="CODE" autocomplete="off" spellcheck="false" />
-          <button class="btn">Rejoindre</button>
-        </form>
+        <button id="btn-logout" class="btn btn-ghost btn-small js-logout hidden">Déconnexion</button>
       </div>
+    </header>
 
-      <p id="home-error" class="error" role="alert"></p>
+    <div class="hub-layout">
+      <main class="hub-main">
+        <section class="panel hub-welcome">
+          <h1 id="welcome-title">Bienvenue !</h1>
+          <p class="muted">Créez un salon et partagez son code, ou rejoignez une partie ouverte.</p>
+          <div class="play-row">
+            <label id="field-name" class="field">
+              <span>Votre pseudo</span>
+              <input id="input-name" maxlength="20" autocomplete="nickname" placeholder="ex. Lancelot" />
+            </label>
+            <button id="btn-create" class="btn btn-primary">Créer un salon</button>
+            <form id="form-join" class="join-row">
+              <label class="sr-only" for="input-code">Code du salon</label>
+              <input id="input-code" maxlength="5" placeholder="CODE" autocomplete="off" spellcheck="false" />
+              <button class="btn">Rejoindre</button>
+            </form>
+          </div>
+          <p id="home-error" class="error" role="alert"></p>
+        </section>
+
+        <section class="panel">
+          <h2>Salons <span id="room-count" class="muted"></span></h2>
+          <ul id="room-list" class="room-list"></ul>
+        </section>
+
+        <section id="panel-stats" class="panel hidden">
+          <h2>Mes statistiques</h2>
+          <div id="stats-cards" class="stats-cards"></div>
+          <h3 class="subhead">Dernières parties</h3>
+          <ul id="recent-list" class="recent-list"></ul>
+        </section>
+
+        <section id="panel-leaderboard" class="panel hidden">
+          <div class="panel-head">
+            <h2>Classement</h2>
+            <label class="sr-only" for="lb-game">Jeu</label>
+            <select id="lb-game" class="select"></select>
+          </div>
+          <ol id="lb-list" class="lb-list"></ol>
+        </section>
+      </main>
+
+      <aside class="hub-side">
+        <section id="panel-admin" class="panel panel-admin hidden">
+          <h2>Demandes d'accès <span id="admin-count" class="count-badge hidden"></span></h2>
+          <ul id="admin-pending" class="user-list"></ul>
+          <details class="admin-details">
+            <summary>Membres <span id="admin-members-count" class="muted"></span></summary>
+            <ul id="admin-members" class="user-list"></ul>
+          </details>
+          <details class="admin-details">
+            <summary>Refusés <span id="admin-rejected-count" class="muted"></span></summary>
+            <ul id="admin-rejected" class="user-list"></ul>
+          </details>
+        </section>
+
+        <section class="panel">
+          <h2>En ligne</h2>
+          <ul id="online-list" class="user-list"></ul>
+        </section>
+      </aside>
     </div>
   </section>
 

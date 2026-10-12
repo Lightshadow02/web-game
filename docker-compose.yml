@@ -23,8 +23,12 @@ services:
       DISCORD_GUILD_ID: ${DISCORD_GUILD_ID:-}
       DISCORD_ROLE_IDS: ${DISCORD_ROLE_IDS:-}
       DISCORD_ALLOWED_IDS: ${DISCORD_ALLOWED_IDS:-}
+      ADMIN_DISCORD_IDS: ${ADMIN_DISCORD_IDS:-}
+      ACCESS_APPROVAL: ${ACCESS_APPROVAL:-true}
       SHARED_ENV_FILE: /run/shared/app.env
     volumes:
+      # Comptes, demandes d'accès et statistiques (SQLite) : à conserver.
+      - hub-data:/data
       # .env d'une app voisine (ex. ../jdr-web/.env) pour réutiliser sa config Discord.
       # Par défaut /dev/null (rien de partagé).
       - type: bind
@@ -35,3 +39,7 @@ services:
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
+
+volumes:
+  hub-data:
+    name: game-hub-data # nom fixe : indépendant du nom du dossier

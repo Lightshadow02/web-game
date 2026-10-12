@@ -9,6 +9,7 @@ const { GameRegistry } = require('./core/gameRegistry');
 const { RoomManager } = require('./core/RoomManager');
 const { registerSocketHandlers, createSocketTransport } = require('./core/socketHandlers');
 const { createAuth } = require('./core/auth');
+const { Store } = require('./core/store');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -19,7 +20,15 @@ function createHubServer(options = {}) {
   registry.loadFromDirectory(options.gamesDir ?? path.join(ROOT, 'games'));
 
   // ---------------------------------------------------------------- HTTP
-  const auth = options.auth ?? createAuth(options.env ?? process.env);
+  // Stockage (comptes, demandes d'accès, stats) : uniquement avec la connexion Discord.
+  const env = options.env ?? process.env;
+  const store =
+    options.store !== undefined
+      ? options.store
+      : createAuth(env).enabled
+        ? new Store(options.dbFile ?? path.join(env.DATA_DIR || path.join(ROOT, 'data'), 'hub.db'))
+        : null;
+  const auth = options.auth ?? createAuth(env, { store });
 
   const app = express();
   app.disable('x-powered-by');
@@ -46,8 +55,8 @@ function createHubServer(options = {}) {
   app.get('/health', (req, res) => res.json({ status: 'ok', ...manager.stats() }));
   app.get('/api/games', (req, res) => res.json(registry.list()));
 
-  registerSocketHandlers(io, manager, auth);
-  return { app, server, io, manager, registry, auth };
+  registerSocketHandlers(io, manager, auth, store);
+  return { app, server, io, manager, registry, auth, store };
 }
 
 if (require.main === module) {
@@ -59,7 +68,10 @@ if (require.main === module) {
       console.log('[hub] Connexion Discord désactivée (DISCORD_CLIENT_ID/SECRET absents) : pseudo libre.');
       return;
     }
-    console.log('[hub] Connexion Discord activée.');
+    console.log(`[hub] Connexion Discord activée${auth.approval ? ' (validation des demandes par un admin)' : ''}.`);
+    if (!auth.adminIds.size) {
+      console.warn('[hub] Aucun admin : ajoutez votre ID Discord dans ADMIN_DISCORD_IDS pour valider les demandes.');
+    }
     console.log(`[hub] URL de retour à déclarer dans Discord (OAuth2 > Redirects) : ${auth.redirectUri}`);
     if (/mondomaine|example\.com/.test(auth.redirectUri)) {
       console.warn('[hub] ATTENTION : PUBLIC_URL est encore la valeur d’exemple, remplacez-la dans .env.');

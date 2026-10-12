@@ -12,6 +12,10 @@
  *   handleAction(playerId, type, payload)  // lève une erreur si l'action est invalide
  *   getStateFor(playerId)                  // vue (privée) de l'état pour ce joueur
  *   isOver()                               // optionnel
+ *   getResult()                            // optionnel, pour les stats :
+ *     -> { summary, players: [{ playerId, result: 'win'|'loss'|'draw', score? }] }
+ *
+ * Champ optionnel du module : scoreLabel (libellé du score affiché dans les stats).
  *
  * Le dossier games/<id>/client est servi en statique sur /games/<id>/ et doit
  * exposer un module ES "index.js" (voir public/js/app.js pour l'interface).
@@ -61,6 +65,7 @@ class GameRegistry {
       id: g.id,
       name: g.name,
       description: g.description ?? '',
+      scoreLabel: g.scoreLabel ?? null,
       minPlayers: g.minPlayers,
       maxPlayers: g.maxPlayers,
     }));

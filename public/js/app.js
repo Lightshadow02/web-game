@@ -1,4 +1,5 @@
 import { el, $ } from './dom.js';
+import { renderLobby, renderStats, renderLeaderboard, renderAdmin } from './dashboard.js';
 
 /* =====================================================================
  * Client du Hub : connexion, salons, chat et montage des modules de jeu.
@@ -25,7 +26,8 @@ const store = {
 
 const state = {
   me: null, // { playerId }
-  auth: { enabled: false, user: null }, // connexion Discord
+  auth: { enabled: false, user: null }, // connexion Discord : user = { id, name, avatarUrl, status, isAdmin }
+  lobby: { rooms: [], online: [], onlineCount: 0 },
   games: [],
   room: null,
   mounted: null, // { gameId, instance, loading }
@@ -54,9 +56,9 @@ export function toast(message, type = 'info') {
   setTimeout(() => node.remove(), 3700);
 }
 
+const SCREENS = ['login', 'pending', 'home', 'room'];
 function showScreen(name) {
-  $('#screen-home').classList.toggle('hidden', name !== 'home');
-  $('#screen-room').classList.toggle('hidden', name !== 'room');
+  for (const screen of SCREENS) $(`#screen-${screen}`).classList.toggle('hidden', screen !== name);
 }
 
 const isHost = () => state.room && state.me && state.room.hostId === state.me.playerId;
@@ -94,6 +96,16 @@ $('#btn-create').addEventListener('click', async () => {
     homeError(err.message);
   }
 });
+
+async function joinRoom(code) {
+  const name = readName();
+  if (!name) return;
+  try {
+    await request('room:join', { code, name });
+  } catch (err) {
+    homeError(err.message);
+  }
+}
 
 $('#form-join').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -275,6 +287,7 @@ socket.on('session', ({ token, playerId, roomCode }) => {
 socket.on('games:list', (games) => {
   state.games = games;
   if (state.room) renderRoom();
+  renderLeaderboardSelect();
 });
 
 socket.on('room:state', (room) => {
@@ -294,7 +307,9 @@ function leaveRoomScreen() {
   history.replaceState(null, '', '/');
   codeInput.value = '';
   homeError('');
+  if (state.auth.enabled && state.auth.user?.status !== 'approved') return;
   showScreen('home');
+  refreshDashboard();
 }
 
 socket.on('chat:history', (messages) => {
@@ -311,16 +326,90 @@ socket.on('game:state', (payload) => {
 });
 
 socket.on('connect', () => $('#connection-banner').classList.add('hidden'));
-socket.on('disconnect', () => $('#connection-banner').classList.remove('hidden'));
+socket.on('disconnect', (reason) => {
+  // Déconnexion volontaire par le serveur = accès retiré par l'admin.
+  if (reason === 'io server disconnect' && state.auth.enabled) return checkAccess();
+  $('#connection-banner').classList.remove('hidden');
+});
 socket.on('connect_error', (err) => {
-  if (err.message === 'unauthorized') {
-    // Session Discord expirée ou absente : retour à l'écran de connexion.
+  if (['unauthorized', 'pending', 'rejected'].includes(err.message)) {
     socket.disconnect();
-    state.auth.user = null;
-    leaveRoomScreen();
-    renderAuth();
+    checkAccess();
   }
 });
+
+// ------------------------------------------------------------------ Hub : salons, stats, admin
+
+socket.on('hub:lobby', (lobby) => {
+  state.lobby = lobby;
+  renderLobby(lobby, { onJoin: joinRoom });
+});
+
+socket.on('stats:changed', () => {
+  loadStats();
+  loadLeaderboard();
+});
+
+socket.on('admin:changed', loadAdmin);
+socket.on('admin:request', ({ name }) => toast(`Nouvelle demande d'accès : ${name}`, 'success'));
+
+const hasStats = () => state.auth.enabled && state.auth.user?.status === 'approved';
+
+async function loadStats() {
+  if (!hasStats()) return;
+  try {
+    renderStats(await request('stats:get'), state.games);
+  } catch (err) {
+    console.warn(err);
+  }
+}
+
+function renderLeaderboardSelect() {
+  const select = $('#lb-game');
+  const current = select.value;
+  select.replaceChildren(...state.games.map((g) => el('option', { value: g.id }, g.name)));
+  if (current && state.games.some((g) => g.id === current)) select.value = current;
+  loadLeaderboard();
+}
+
+async function loadLeaderboard() {
+  const gameId = $('#lb-game').value;
+  if (!hasStats() || !gameId) return;
+  try {
+    const { leaderboard } = await request('stats:leaderboard', { gameId });
+    renderLeaderboard(leaderboard, { meId: state.auth.user.id });
+  } catch (err) {
+    console.warn(err);
+  }
+}
+$('#lb-game').addEventListener('change', loadLeaderboard);
+
+async function loadAdmin() {
+  if (!state.auth.user?.isAdmin) return;
+  try {
+    renderAdmin(await request('admin:users'), { meId: state.auth.user.id, onDecide: decide });
+  } catch (err) {
+    console.warn(err);
+  }
+}
+
+async function decide(user, status) {
+  const verb = { approved: 'Autoriser', rejected: 'Refuser / retirer' }[status];
+  if (status === 'rejected' && !confirm(`${verb} l'accès de ${user.name} ?`)) return;
+  try {
+    await request('admin:decide', { userId: user.id, status });
+    toast(status === 'approved' ? `${user.name} peut maintenant jouer.` : `Accès de ${user.name} retiré.`, 'success');
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+function refreshDashboard() {
+  renderLobby(state.lobby, { onJoin: joinRoom });
+  loadStats();
+  loadLeaderboard();
+  loadAdmin();
+}
 
 // ------------------------------------------------------------------ connexion Discord
 
@@ -329,45 +418,91 @@ const AUTH_ERRORS = {
   erreur: 'La connexion Discord a échoué, réessayez.',
 };
 
+let pendingTimer = null;
+
+/** Affiche l'écran adapté à l'état de connexion, et ouvre la socket si l'accès est accordé. */
 function renderAuth() {
   const { enabled, user } = state.auth;
-  $('#auth-login').classList.toggle('hidden', !enabled || !!user);
-  $('#home-actions').classList.toggle('hidden', enabled && !user);
-  $('#auth-user').classList.toggle('hidden', !user);
-  $('#field-name').classList.toggle('hidden', !!user);
-  if (user) {
-    $('#auth-name').textContent = user.name;
-    $('#auth-avatar').src = user.avatarUrl || '';
-    $('#auth-avatar').classList.toggle('hidden', !user.avatarUrl);
-  }
+  clearTimeout(pendingTimer);
+
   // Après connexion, Discord nous ramène ici (le ?room= de l'invitation est conservé).
   $('#btn-discord').href = `/auth/discord?returnTo=${encodeURIComponent(location.pathname + location.search)}`;
+
+  if (enabled && !user) {
+    showScreen('login');
+    return;
+  }
+  if (enabled && user.status !== 'approved') {
+    const rejected = user.status === 'rejected';
+    $('#pending-title').textContent = rejected ? 'Accès refusé' : 'Demande envoyée';
+    $('#pending-text').textContent = rejected
+      ? "L'administrateur n'a pas autorisé ce compte Discord."
+      : `Bonjour ${user.name} ! Un administrateur doit valider votre accès. Vous entrerez automatiquement dès qu'il aura accepté.`;
+    $('#pending-wait').classList.toggle('hidden', rejected);
+    $('#pending-avatar').src = user.avatarUrl || '';
+    $('#pending-avatar').classList.toggle('hidden', !user.avatarUrl);
+    showScreen('pending');
+    if (!rejected) pendingTimer = setTimeout(checkAccess, 8000); // suit la décision de l'admin
+    return;
+  }
+
+  // Accès accordé (ou mode pseudo libre).
+  const discord = enabled && user;
+  $('#user-chip').classList.toggle('hidden', !discord);
+  $('#btn-logout').classList.toggle('hidden', !discord);
+  $('#field-name').classList.toggle('hidden', Boolean(discord));
+  $('#panel-stats').classList.toggle('hidden', !discord);
+  $('#panel-leaderboard').classList.toggle('hidden', !discord);
+  $('#panel-admin').classList.toggle('hidden', !user?.isAdmin);
+  $('#welcome-title').textContent = discord ? `Bonjour ${user.name} !` : 'Bienvenue !';
+  if (discord) {
+    $('#user-name').textContent = user.name;
+    $('#user-avatar').src = user.avatarUrl || '';
+    $('#user-avatar').classList.toggle('hidden', !user.avatarUrl);
+    $('#user-admin').classList.toggle('hidden', !user.isAdmin);
+  }
+  if (!state.room) showScreen('home');
+  if (!socket.connected) socket.connect();
+  else refreshDashboard();
 }
 
-$('#btn-logout').addEventListener('click', async () => {
-  await fetch('/auth/logout', { method: 'POST' }).catch(() => {});
-  socket.disconnect();
-  state.auth.user = null;
-  renderAuth();
-});
-
-async function start() {
-  const params = new URLSearchParams(location.search);
-  const authError = AUTH_ERRORS[params.get('auth')];
-  if (authError) {
-    homeError(authError);
-    params.delete('auth');
-    history.replaceState(null, '', params.size ? `/?${params}` : '/');
-  }
+async function checkAccess() {
   try {
     const me = await fetch('/api/me').then((r) => r.json());
     state.auth = { enabled: me.authEnabled, user: me.user };
   } catch {
     state.auth = { enabled: false, user: null };
   }
+  if (state.auth.enabled && state.auth.user?.status !== 'approved') {
+    if (socket.connected) socket.disconnect();
+    state.room = null;
+    unmountGame();
+  }
   renderAuth();
-  showScreen('home');
-  if (!state.auth.enabled || state.auth.user) socket.connect();
+}
+
+socket.on('connect', refreshDashboard);
+
+for (const button of document.querySelectorAll('.js-logout')) {
+  button.addEventListener('click', async () => {
+    await fetch('/auth/logout', { method: 'POST' }).catch(() => {});
+    socket.disconnect();
+    state.auth.user = null;
+    state.room = null;
+    unmountGame();
+    renderAuth();
+  });
+}
+
+function start() {
+  const params = new URLSearchParams(location.search);
+  const authError = AUTH_ERRORS[params.get('auth')];
+  if (authError) {
+    $('#login-error').textContent = authError;
+    params.delete('auth');
+    history.replaceState(null, '', params.size ? `/?${params}` : '/');
+  }
+  checkAccess();
 }
 
 start();

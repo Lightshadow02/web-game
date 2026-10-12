@@ -11,12 +11,18 @@ const CHAT_MAX_LENGTH = 300;
  * ({ toRoom(code, event, data), toPlayer(playerId, event, data) }).
  */
 class Room {
-  constructor({ code, registry, transport, maxPlayers }) {
+  /**
+   * hooks (optionnels) :
+   *   onChange()          : l'état public du salon a changé (liste des salons du Hub)
+   *   onGameEnd(match)    : une partie vient de se terminer -> { gameId, roomCode, summary, players:[{ userId, result, score }] }
+   */
+  constructor({ code, registry, transport, maxPlayers, hooks = {} }) {
+    this.hooks = hooks;
     this.code = code;
     this.registry = registry;
     this.transport = transport;
     this.maxPlayers = maxPlayers;
-    this.players = new Map(); // id -> { id, name, avatarUrl, connected }
+    this.players = new Map(); // id -> { id, userId, name, avatarUrl, connected }
     this.hostId = null;
     this.selectedGameId = registry.list()[0]?.id ?? null;
     this.game = null; // { id, instance }
@@ -42,7 +48,13 @@ class Room {
     );
     if (nameTaken) throw new UserError('Ce pseudo est déjà utilisé dans le salon.');
 
-    this.players.set(player.id, { id: player.id, name: player.name, avatarUrl: player.avatarUrl ?? null, connected: true });
+    this.players.set(player.id, {
+      id: player.id,
+      userId: player.userId ?? null, // compte Discord (stats) ; null en mode pseudo libre
+      name: player.name,
+      avatarUrl: player.avatarUrl ?? null,
+      connected: true,
+    });
     if (!this.hostId) this.hostId = player.id;
     this.systemMessage(`${player.name} a rejoint le salon.`);
     this.broadcastState();
@@ -115,7 +127,7 @@ class Room {
     const instance = gameModule.createGame({
       players: players.map(({ id, name }) => ({ id, name })),
     });
-    this.game = { id: gameModule.id, instance };
+    this.game = { id: gameModule.id, instance, recorded: false };
     this.systemMessage(`La partie de ${gameModule.name} commence !`);
     this.broadcastState();
     this.broadcastGame();
@@ -134,6 +146,27 @@ class Room {
     if (typeof type !== 'string') throw new UserError('Action invalide.');
     this.game.instance.handleAction(playerId, type, payload ?? {});
     this.broadcastGame();
+    this.checkGameEnd();
+  }
+
+  /** Contrat générique : un jeu terminé peut exposer getResult() -> { summary, players:[{ playerId, result, score }] }. */
+  checkGameEnd() {
+    const game = this.game;
+    if (!game || game.recorded || !game.instance.isOver?.()) return;
+    game.recorded = true;
+    const result = game.instance.getResult?.();
+    if (!result || !this.hooks.onGameEnd) return;
+    this.hooks.onGameEnd({
+      gameId: game.id,
+      roomCode: this.code,
+      summary: result.summary ?? null,
+      players: (result.players ?? []).map((p) => ({
+        userId: this.players.get(p.playerId)?.userId ?? null,
+        result: p.result,
+        score: p.score,
+      })),
+    });
+    this.hooks.onChange?.();
   }
 
   // ---------------------------------------------------------------- chat
@@ -178,6 +211,24 @@ class Room {
 
   broadcastState() {
     this.transport.toRoom(this.code, 'room:state', this.publicState());
+    this.hooks.onChange?.();
+  }
+
+  /** Résumé affiché dans la liste des salons du Hub. */
+  summary() {
+    const game = this.registry.get(this.game?.id ?? this.selectedGameId);
+    const host = this.players.get(this.hostId);
+    return {
+      code: this.code,
+      status: this.status,
+      gameId: game?.id ?? null,
+      gameName: game?.name ?? null,
+      hostName: host?.name ?? null,
+      playerCount: this.players.size,
+      players: [...this.players.values()].map((p) => ({ name: p.name, avatarUrl: p.avatarUrl })),
+      maxPlayers: Math.min(this.maxPlayers, game?.maxPlayers ?? this.maxPlayers),
+      createdAt: this.createdAt,
+    };
   }
 
   /** Chaque joueur reçoit sa propre vue (cartes en main cachées aux autres). */
