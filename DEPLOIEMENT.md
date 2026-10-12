@@ -32,7 +32,7 @@ location / {
 
 | Action | Commande |
 | --- | --- |
-| Mettre à jour | `git pull && docker compose up -d --build` |
+| Mettre à jour | `./update.sh` (git pull + rebuild + relance) |
 | Logs | `docker compose logs -f game-hub` |
 | Arrêter | `docker compose down` |
 
