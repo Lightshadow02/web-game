@@ -256,25 +256,27 @@ button.cdr-card.selected:hover { transform: translateY(-16px); }
 .cdr-status-side { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; }
 .cdr-rules-btn { white-space: nowrap; }
 
-.cdr-powers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.6rem; }
+/* Légende des pouvoirs : colonne compacte sur le tapis, sous le château */
+.cdr-left { display: flex; flex-direction: column; align-items: flex-start; gap: 1rem; }
+.cdr-powers { display: flex; flex-direction: column; gap: 0.35rem; width: 168px; }
 .cdr-power {
   font: inherit; color: inherit; text-align: left; cursor: pointer;
-  display: flex; align-items: center; gap: 0.7rem;
-  padding: 0.6rem 0.8rem; border-radius: var(--radius);
-  background: var(--panel); border: 1px solid var(--border);
-  transition: border-color 0.15s, transform 0.15s, opacity 0.2s;
+  display: flex; align-items: center; gap: 0.55rem;
+  padding: 0.3rem 0.5rem 0.3rem 0.3rem; border-radius: 10px;
+  background: rgb(0 0 0 / 0.25); border: 1px solid transparent;
+  transition: background 0.15s, border-color 0.15s, opacity 0.2s;
 }
-.cdr-power:hover { border-color: var(--gold-dark); transform: translateY(-1px); }
+.cdr-power:hover { background: rgb(0 0 0 / 0.4); border-color: rgb(227 179 65 / 0.5); }
 .cdr-power-suit {
-  flex-shrink: 0; width: 40px; height: 40px; border-radius: 10px;
-  display: grid; place-items: center; font-size: 1.5rem;
-  background: var(--card-bg); color: var(--card-black); box-shadow: 0 2px 6px rgb(0 0 0 / 0.35);
+  flex-shrink: 0; width: 28px; height: 28px; border-radius: 7px;
+  display: grid; place-items: center; font-size: 1.05rem;
+  background: var(--card-bg); color: var(--card-black); box-shadow: 0 1px 3px rgb(0 0 0 / 0.4);
 }
 .cdr-power-suit.red { color: var(--card-red); }
-.cdr-power-text { display: flex; flex-direction: column; min-width: 0; }
-.cdr-power-text strong { font-size: 0.95rem; }
-.cdr-power-text span { font-size: 0.78rem; color: var(--muted); }
-.cdr-power.blocked { opacity: 0.6; border-style: dashed; border-color: var(--danger); }
+.cdr-power-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.cdr-power-text strong { font-size: 0.82rem; }
+.cdr-power-text span { font-size: 0.7rem; color: #b8d0c2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cdr-power.blocked { opacity: 0.55; border: 1px dashed rgb(229 83 75 / 0.7); }
 .cdr-power.blocked .cdr-power-suit { filter: grayscale(1); }
 .cdr-power.blocked .cdr-power-text span { color: #ff9b94; }
 
@@ -355,7 +357,8 @@ button.cdr-card.selected:hover { transform: translateY(-16px); }
 .cdr-r-icon { font-size: 1.4rem; line-height: 1; }
 
 @media (max-width: 760px) {
-  .cdr-powers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cdr-left { display: contents; }
+  .cdr-powers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: auto; grid-column: 1 / -1; order: 5; }
   .cdr-r-steps, .cdr-r-powers, .cdr-r-combos, .cdr-r-tips, .cdr-r-bosses { grid-template-columns: minmax(0, 1fr); }
   .cdr-rules-dialog { max-height: 92vh; }
 }

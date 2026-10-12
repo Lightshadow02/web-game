@@ -126,7 +126,6 @@ export function mount(root, ctx) {
     const sections = [
       renderStatus(s),
       renderBoard(s),
-      renderPowers(s),
       renderHand(s),
       renderLog(s),
     ];
@@ -258,7 +257,9 @@ export function mount(root, ctx) {
       el(
         'div',
         { class: 'cdr-center' },
-        el('div', { class: 'cdr-piles' }, renderPile('Château', s.castleCount, 'castle')),
+        el('div', { class: 'cdr-left' },
+          el('div', { class: 'cdr-piles' }, renderPile('Château', s.castleCount, 'castle')),
+          renderPowers(s)),
         renderBoss(s),
         el('div', { class: 'cdr-piles cdr-piles-right' },
           renderPile('Pioche', s.tavernCount, 'tavern'),
@@ -341,7 +342,7 @@ export function mount(root, ctx) {
     const immune = s.boss?.card.suit;
     return el(
       'div',
-      { class: 'cdr-powers' },
+      { class: 'cdr-powers', 'aria-label': 'Pouvoirs des couleurs' },
       POWERS.map((p) => {
         const blocked = p.suit === immune;
         return el(
@@ -355,7 +356,7 @@ export function mount(root, ctx) {
           el('span', { class: `cdr-power-suit ${SUITS[p.suit].red ? 'red' : ''}` }, SUITS[p.suit].symbol),
           el('span', { class: 'cdr-power-text' },
             el('strong', {}, p.title),
-            el('span', {}, blocked ? '⛔ Bloqué par ce boss' : p.short)),
+            el('span', {}, blocked ? '⛔ Boss immunisé' : p.short)),
         );
       }),
     );
