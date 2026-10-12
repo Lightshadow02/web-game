@@ -142,6 +142,20 @@ button.cdr-card.selected:hover { transform: translateY(-16px); }
 .cdr-fx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 60; overflow: hidden; }
 .cdr-flying { position: absolute; left: 0; top: 0; margin: 0; will-change: transform; box-shadow: 0 10px 24px rgb(0 0 0 / 0.55); }
 .cdr-ghost { z-index: 2; }
+.cdr-ko-stamp {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(-14deg);
+  padding: 0.15em 0.45em; border: 4px solid #d42a2a; border-radius: 10px;
+  color: #d42a2a; background: rgb(255 255 255 / 0.85);
+  font: 900 2.1rem/1 system-ui, sans-serif; letter-spacing: 0.04em; white-space: nowrap;
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.6), 0 6px 18px rgb(0 0 0 / 0.4);
+  opacity: 0;
+}
+.cdr-pile-receive { animation: cdr-pile-receive 0.6s ease-out; }
+@keyframes cdr-pile-receive {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.12); filter: brightness(1.5); }
+  100% { transform: scale(1); }
+}
 
 .cdr-float {
   position: absolute; white-space: nowrap; font-weight: 900; font-size: 1.15rem;

@@ -97,27 +97,101 @@ export function createFx({ renderCard }) {
       .finished.catch(() => {});
   }
 
-  /** Fantôme d'une carte qui éclate (boss vaincu) ou part vers un autre endroit. */
-  async function burstCard(card, rect, { flyTo = null } = {}) {
-    if (!rect || reduced) return;
+  /** Pose une carte « fantôme » (non interactive) exactement sur un rectangle. */
+  function ghostAt(card, rect) {
     const ghost = renderCard(card, { size: 'lg' });
     ghost.classList.add('cdr-flying', 'cdr-ghost');
     layer.append(ghost);
     const { width, height } = ghost.getBoundingClientRect();
-    const x = rect.left + rect.width / 2 - width / 2;
-    const y = rect.top + rect.height / 2 - height / 2;
-    const frames = [
-      { transform: `translate(${x}px, ${y}px) scale(1) rotate(0deg)`, opacity: 1, filter: 'brightness(1)' },
-      { transform: `translate(${x}px, ${y}px) scale(1.12) rotate(-6deg)`, opacity: 1, filter: 'brightness(2.2)', offset: 0.3 },
-    ];
-    if (flyTo) {
-      const t = center(flyTo);
-      frames.push({ transform: `translate(${t.x - width / 2}px, ${t.y - height / 2}px) scale(0.55) rotate(12deg)`, opacity: 0.9, filter: 'brightness(1)' });
-    } else {
-      frames.push({ transform: `translate(${x}px, ${y + 30}px) scale(1.5) rotate(18deg)`, opacity: 0, filter: 'brightness(3)' });
+    return { ghost, x: rect.left + rect.width / 2 - width / 2, y: rect.top + rect.height / 2 - height / 2, width, height };
+  }
+
+  /**
+   * K.O. (boss tombé pile à 0) : tampon « K.O. ! » sur la carte, puis la carte
+   * rétrécit et file dans la pioche, qui la reçoit.
+   */
+  async function knockOut(card, rect, pileRect, pileEl) {
+    if (!rect || reduced) return;
+    const { ghost, x, y, width, height } = ghostAt(card, rect);
+    const stamp = el('div', { class: 'cdr-ko-stamp' }, 'K.O. !');
+    ghost.append(stamp);
+    const at = (dx = 0, dy = 0, extra = '') => `translate(${x + dx}px, ${y + dy}px) ${extra}`;
+
+    // 1. Le coup : la carte encaisse, le tampon s'abat.
+    stamp.animate(
+      [
+        { transform: 'translate(-50%, -50%) rotate(-14deg) scale(3)', opacity: 0 },
+        { transform: 'translate(-50%, -50%) rotate(-14deg) scale(0.9)', opacity: 1, offset: 0.6 },
+        { transform: 'translate(-50%, -50%) rotate(-14deg) scale(1)', opacity: 1 },
+      ],
+      { duration: 380, easing: 'cubic-bezier(.5,0,.7,1.4)', fill: 'forwards' },
+    );
+    await ghost.animate(
+      [
+        { transform: at(), filter: 'brightness(1)' },
+        { transform: at(-10, 0, 'rotate(-4deg)'), filter: 'brightness(1.6)', offset: 0.55 },
+        { transform: at(6, 0, 'rotate(2deg)'), offset: 0.75 },
+        { transform: at(), filter: 'brightness(1)' },
+      ],
+      { duration: 420, delay: 120, fill: 'forwards' },
+    ).finished.catch(() => {});
+    await wait(550); // le temps de lire « K.O. »
+
+    // 2. La carte vaincue rejoint la pioche, sous les yeux des joueurs.
+    if (pileRect) {
+      const tx = pileRect.left + pileRect.width / 2 - width / 2;
+      const ty = pileRect.top + pileRect.height / 2 - height / 2;
+      const scale = Math.min(pileRect.width / width, 1);
+      await ghost.animate(
+        [
+          { transform: at(0, 0), opacity: 1 },
+          { transform: `translate(${(x + tx) / 2}px, ${Math.min(y, ty) - 60}px) rotate(10deg) scale(0.8)`, opacity: 1, offset: 0.5 },
+          { transform: `translate(${tx}px, ${ty}px) rotate(0deg) scale(${scale})`, opacity: 1 },
+        ],
+        { duration: 750, easing: 'cubic-bezier(.4,.1,.3,1)', fill: 'forwards' },
+      ).finished.catch(() => {});
+      pulse(pileEl, 'cdr-pile-receive', 600);
     }
-    await ghost.animate(frames, { duration: 900, easing: 'ease-in', fill: 'both' }).finished.catch(() => {});
     ghost.remove();
+  }
+
+  /** Boss vaincu (dégâts en trop) : la carte se déchire en deux moitiés qui tombent. */
+  async function tearCard(card, rect) {
+    if (!rect || reduced) return;
+    // Ligne de déchirure en zigzag, partagée par les deux moitiés.
+    const zig = [[52, 0], [46, 12], [56, 24], [44, 37], [55, 50], [45, 63], [57, 76], [47, 88], [53, 100]];
+    const line = zig.map(([px, py]) => `${px}% ${py}%`);
+    const halves = [
+      { clip: `polygon(0 0, ${line.join(', ')}, 0 100%)`, dx: -70, dy: 140, rot: -24 },
+      { clip: `polygon(${line.join(', ')}, 100% 100%, 100% 0)`, dx: 80, dy: 170, rot: 22 },
+    ];
+    const pieces = halves.map((h) => {
+      const g = ghostAt(card, rect);
+      g.ghost.style.clipPath = h.clip;
+      return { ...g, ...h };
+    });
+    // Tension : la carte tremble, puis craque.
+    await Promise.all(pieces.map(({ ghost, x, y }) =>
+      ghost.animate(
+        [
+          { transform: `translate(${x}px, ${y}px)` },
+          { transform: `translate(${x - 3}px, ${y}px) rotate(-1deg)`, offset: 0.25 },
+          { transform: `translate(${x + 3}px, ${y}px) rotate(1deg)`, offset: 0.5 },
+          { transform: `translate(${x - 2}px, ${y}px)`, offset: 0.75 },
+          { transform: `translate(${x}px, ${y}px)` },
+        ],
+        { duration: 300, fill: 'forwards' },
+      ).finished.catch(() => {})));
+    await Promise.all(pieces.map(({ ghost, x, y, dx, dy, rot }) =>
+      ghost.animate(
+        [
+          { transform: `translate(${x}px, ${y}px) rotate(0deg)`, opacity: 1 },
+          { transform: `translate(${x + dx * 0.25}px, ${y - 12}px) rotate(${rot * 0.3}deg)`, opacity: 1, offset: 0.25 },
+          { transform: `translate(${x + dx}px, ${y + dy}px) rotate(${rot}deg)`, opacity: 0 },
+        ],
+        { duration: 950, easing: 'cubic-bezier(.3,0,.8,.6)', fill: 'forwards' },
+      ).finished.catch(() => {})));
+    pieces.forEach(({ ghost }) => ghost.remove());
   }
 
   /** Carte (déjà rendue) qui se retourne en apparaissant. */
@@ -159,7 +233,8 @@ export function createFx({ renderCard }) {
     floatText,
     pulse,
     lunge,
-    burstCard,
+    knockOut,
+    tearCard,
     flipIn,
     drainBar,
     wait: (ms) => (reduced ? Promise.resolve() : wait(ms)),

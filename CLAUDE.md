@@ -44,7 +44,11 @@ Toute évolution doit préserver cette extensibilité :
 
 ## Pistes notées par le propriétaire
 
-- Améliorer l'interface visuelle (piste : maquettes via Claude Design, puis report dans le code).
+- **À faire (demandé par le propriétaire) : refaire le design ET les animations via Claude Design**, puis les reporter
+  dans le code. Une première maquette existe (direction « Cour royale de nuit » : encre bleu nuit, cartes parchemin,
+  or, Cinzel) : https://claude.ai/artifact/D8nx4awbLzBEoZdMHUqfz3 — à reprendre avec la table actuelle (coéquipiers en
+  haut, légende des pouvoirs sur le tapis) et des storyboards d'animations (pose, dégâts, riposte, encaissement,
+  K.O. vers la pioche, carte déchirée, nouveau boss). Animations actuelles : games/chute-des-rois/client/animations.js.
 - **Connexion Discord : FAITE** (`src/core/auth.js`, reprise du flux de JDR-WEB sans base de données).
   Le site est public, le propriétaire ne veut pas gérer de comptes : accès filtré par serveur/rôle Discord
   (`DISCORD_GUILD_ID`, `DISCORD_ROLE_IDS`, `DISCORD_ALLOWED_IDS`). Session = cookie signé HMAC vérifié au

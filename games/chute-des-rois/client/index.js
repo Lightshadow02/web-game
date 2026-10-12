@@ -476,9 +476,18 @@ export function mount(root, ctx) {
     async bossDefeated(e, batch) {
       const rect = rectOf('[data-fx="boss-card"]') ?? batch.before.boss;
       bossOverride = null;
-      render(); // le nouveau boss (ou la victoire) prend la place
-      fx.floatText(rect, e.exact ? 'Pile ! Il rejoint votre pioche' : 'Vaincu !', 'gold', { big: true });
-      await fx.burstCard(e.card, rect, { flyTo: e.exact ? rectOf('[data-fx="tavern"]') : null });
+      render(); // le nouveau boss (ou la victoire) prend la place, caché jusqu'à son entrée
+      // Le prochain boss (carte + stats) reste caché pendant la mort du précédent.
+      const next = q('[data-fx="boss"]');
+      if (next && e.type === 'bossDefeated' && batch.events.some((x) => x.type === 'newBoss')) next.style.visibility = 'hidden';
+      if (e.exact) {
+        fx.floatText(shift(rect, 120), 'Il rejoint votre pioche !', 'gold');
+        await fx.knockOut(e.card, rect, rectOf('[data-fx="tavern"] .cdr-card'), q('[data-fx="tavern"]'));
+      } else {
+        fx.floatText(shift(rect, -40), 'Vaincu !', 'gold', { big: true });
+        await fx.tearCard(e.card, rect);
+      }
+      if (next) next.style.visibility = '';
     },
 
     async newBoss() {
