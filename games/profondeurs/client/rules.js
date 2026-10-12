@@ -3,7 +3,7 @@
 export function rulesTabs(T, mobile) {
   const sz = mobile ? 'sm' : 'md';
   const fig = (html, cap) => `<figure class="t-rule__fig">${html}<figcaption class="caption">${cap}</figcaption></figure>`;
-  const ico = (name, cls) => T.icon(name, { className: `${cls} t-ico--inline` });
+  const ico = (name, cls = '', label) => T.icon(name, { className: `${cls} t-ico--inline`, label });
   return [
     { id: 'but', label: 'But', icon: 'crown', content:
       `<div class="t-rule"><div class="t-rule__txt"><h3 class="title-sm">Descendre trois étages</h3>
@@ -13,17 +13,17 @@ export function rulesTabs(T, mobile) {
           { kind: 'single', color: 'agilite', need: 5, pen: { torch: 1 } }, { kind: 'sum', color: 'force', need: 7, pen: { hp: 1 } }] } }), 'Une salle')}</div></div>` },
     { id: 'des', label: 'Dés', icon: 'die', content:
       `<div class="t-rule"><div class="t-rule__txt"><h3 class="title-sm">Quatre couleurs, une lettre chacune</h3>
-        <p class="body">Force <b>F</b>, Agilité <b>A</b>, Magie <b>M</b> : ton héros lance autant de dés que ses caractéristiques. L’Or <b>★</b> est un joker : il va sur n’importe quelle case. Chaque niveau du groupe donne un dé d’Or de plus à chaque héros.</p>
+        <p class="body">Force <b>F</b>, Agilité <b>A</b>, Magie <b>M</b> : ton héros lance autant de dés que ses caractéristiques. L’Or ${ico('star', 't-ink-gold', 'étoile')} est un joker : il va sur n’importe quelle case. Chaque niveau du groupe donne un dé d’Or de plus à chaque héros.</p>
         <p class="body"><b>Fusionner</b> : deux de tes dés non placés deviennent un dé d’Or qui garde la plus forte valeur.</p></div>
         <div class="t-rule__figs t-rule__dice">${['force', 'agilite', 'magie', 'or'].map((c, i) => fig(T.Die({ color: c, value: [5, 3, 6, 4][i], interactive: false }), T.data.colors[c].name)).join('')}</div></div>` },
     { id: 'cases', label: 'Cases', icon: 'sigma', content:
       `<div class="t-rule"><div class="t-rule__txt"><h3 class="title-sm">Couvrir les cases de la salle</h3>
         <p class="body"><b>Case unique</b> : un seul dé de la bonne couleur, égal ou supérieur au seuil.</p>
-        <p class="body"><b>Case Σ</b> : plusieurs dés dont la somme atteint le total. Tout le groupe peut y contribuer.</p>
+        <p class="body"><b>Case ${ico('sigma', '', 'total')}</b> : plusieurs dés dont la somme atteint le total. Tout le groupe peut y contribuer.</p>
         <p class="body">Une case restée vide inflige sa pénalité : ${ico('heart', 't-ink-hp')} des dégâts ou ${ico('flame', 't-ink-torch')} de la torche. À plusieurs, chaque case unique existe en un exemplaire par héros et les totaux grandissent avec le groupe.</p></div>
         <div class="t-pv-parch t-rule__figs">${fig(T.Slot({ color: 'agilite', need: 5, pen: { hp: 2 }, size: sz, interactive: false }), 'Un dé Agilité de 5 ou plus')}
-        ${fig(T.Slot({ kind: 'sum', color: 'force', need: 13, pen: { torch: 1 }, size: sz, interactive: false, dice: [{ color: 'force', value: 6, interactive: false }, { color: 'force', value: 2, owner: { name: 'Allié' } }] }), 'Σ 13 en Force : 8 déjà posés')}
-        ${fig(T.Slot({ color: 'toute', need: 4, pen: { hp: 1 }, size: sz, interactive: false }), 'Toute couleur ✱')}</div></div>` },
+        ${fig(T.Slot({ kind: 'sum', color: 'force', need: 13, pen: { torch: 1 }, size: sz, interactive: false, dice: [{ color: 'force', value: 6, interactive: false }, { color: 'force', value: 2, owner: { name: 'Allié' } }] }), `${ico('sigma', '', 'total')} 13 en Force : 8 déjà posés`)}
+        ${fig(T.Slot({ color: 'toute', need: 4, pen: { hp: 1 }, size: sz, interactive: false }), `Toute couleur ${ico('asterisk', '', 'toute couleur')}`)}</div></div>` },
     { id: 'torche', label: 'Torche', icon: 'flame', content:
       `<div class="t-rule"><div class="t-rule__txt"><h3 class="title-sm">Six flammes par étage</h3>
         <p class="body">Ouvrir des portes coûte une flamme : deux salles se révèlent, le groupe en choisit une. Certaines cases ratées brûlent aussi la torche. La Lanterne du mineur ajoute deux flammes.</p>

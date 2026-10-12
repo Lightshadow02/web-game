@@ -1,4 +1,4 @@
-import { COLOR, HERO_EMBLEM, SKILL_EMBLEM, ROOM_EMBLEM, DUNGEON, powerOf, slotOf, syncData, itemOf, skillOf } from './data.js';
+import { COLOR, HERO_EMBLEM, HERO_ARTICLE, FEMININE, SKILL_EMBLEM, ROOM_EMBLEM, DUNGEON, powerOf, slotOf, syncData, itemOf, skillOf, plainText } from './data.js';
 import { rulesTabs } from './rules.js';
 
 /* =====================================================================
@@ -26,18 +26,33 @@ function loadTorche() {
     const script = document.createElement('script');
     script.src = `${BASE}torche/bundle.js`;
     script.onload = () => resolve(window.Torche);
-    script.onerror = () => reject(new Error('Design system introuvable.'));
+    script.onerror = () => {
+      torcheLoading = null; // on retentera au prochain montage
+      script.remove();
+      reject(new Error('Design system introuvable.'));
+    };
     document.head.append(script);
   });
   return torcheLoading;
 }
 
+/** Choix explicite du joueur ('on' | 'off'), sinon null : on suit prefers-reduced-motion. */
 function readMotion() {
   try {
-    const v = localStorage.getItem(MOTION_KEY);
-    return v === null ? true : v === 'on';
+    return localStorage.getItem(MOTION_KEY);
   } catch {
-    return true;
+    return null;
+  }
+}
+
+/** Typographie française dans les textes affichés : espace fine insécable avant « : ; ! ? » et dans les guillemets. */
+function frenchSpacing(root) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const t = n.nodeValue;
+    if (!/[:;!?«»]/.test(t)) continue;
+    const fixed = t.replace(/ ([:;!?»])/g, '\u202F$1').replace(/« /g, '«\u202F');
+    if (fixed !== t) n.nodeValue = fixed;
   }
 }
 
@@ -58,10 +73,16 @@ export function mount(root, ctx) {
   const host = document.createElement('div');
   host.className = 'prof';
   host.setAttribute('data-motion-host', '');
-  host.setAttribute('data-motion', readMotion() ? 'on' : 'off');
-  const view = document.createElement('div');
+  const motionPref = readMotion();
+  if (motionPref === 'on' || motionPref === 'off') host.setAttribute('data-motion', motionPref);
+  const view = document.createElement('div'); // l'écran du jeu
   view.className = 'prof-view';
-  host.append(view);
+  const rulesLayer = document.createElement('div'); // la fenêtre des règles, hors de l'écran redessiné
+  rulesLayer.className = 'prof-rules';
+  const live = document.createElement('div'); // annonces pour les lecteurs d'écran
+  live.className = 't-sr';
+  live.setAttribute('aria-live', 'polite');
+  host.append(view, rulesLayer, live);
   root.append(host);
 
   let T = null;
@@ -69,9 +90,10 @@ export function mount(root, ctx) {
   let state = null; // état affiché
   let latest = null; // dernier état reçu
   let chain = Promise.resolve();
-  let animating = false;
+  let animating = false; // transition lourde en cours : les clics de jeu attendent
   let disposed = false;
   let busy = false;
+  let queued = 0; // états en attente dans la file
   const ui = {
     lastEvent: 0, sel: null, fuse: false, fuseFirst: null,
     rules: false, tab: 'but', pick: null, receiver: null, rewardKey: null,
@@ -93,8 +115,12 @@ export function mount(root, ctx) {
   // ================================================================ file des états
 
   function enqueue(next) {
-    chain = chain.then(() => step(next)).catch((err) => console.error(err));
+    queued += 1;
+    chain = chain.then(() => step(next)).catch((err) => console.error(err)).finally(() => { queued -= 1; });
   }
+
+  /** Événements qui changent l'écran : pendant leur animation, les clics de jeu attendent. */
+  const HEAVY = new Set(['floor', 'doors', 'enter', 'encounter', 'roll', 'resolve', 'bossDefeated', 'defeat', 'loot', 'levelUp']);
 
   async function step(next) {
     if (disposed || !T) return;
@@ -102,13 +128,17 @@ export function mount(root, ctx) {
     const events = prev ? next.events.filter((e) => e.id > ui.lastEvent) : [];
     ui.lastEvent = next.events.reduce((m, e) => Math.max(m, e.id), ui.lastEvent);
     syncData(T, next);
-    const motion = !!prev && T.motion.enabled();
-    setAnimating(true);
+    // Rattrapage (onglet caché, reconnexion, rafale d'états) : on affiche directement le dernier état.
+    const catchingUp = queued > 1 || document.hidden;
+    const motion = !!prev && !catchingUp && T.motion.enabled();
+    const heavy = motion && (prev.phase !== next.phase || events.some((e) => HEAVY.has(e.type)));
+    setAnimating(heavy);
     try {
       host.dataset.stage = 'before';
       if (motion) await before(prev, next, events).catch((err) => console.error(err));
       if (disposed) return;
       prepare(prev, next, motion);
+      noticeReward(prev, next, events);
       state = next;
       host.dataset.stage = 'render';
       const floor = motion ? events.find((e) => e.type === 'floor') : null;
@@ -116,17 +146,52 @@ export function mount(root, ctx) {
       else render();
       host.dataset.stage = 'after';
       if (motion) await after(prev, next, events).catch((err) => console.error(err));
-      host.dataset.stage = 'idle';
+      announce(prev, next, events);
+      // la fenêtre a pu passer de PC à mobile pendant l'animation
+      if (screenEl() && screenEl().dataset.vp !== (mobile() ? 'mobile' : 'pc')) render();
     } finally {
+      host.dataset.stage = 'idle';
       setAnimating(false);
     }
   }
 
-  /** Pendant une animation, les clics de jeu sont ignorés (l'écran est en transition). */
+  /** Pendant une transition lourde, les clics de jeu sont ignorés (l'écran va changer). */
   function setAnimating(on) {
     animating = on;
     host.toggleAttribute('data-animating', on);
   }
+
+  /** Un coéquipier a pris le butin pendant que je regardais le résultat : je le dis. */
+  function noticeReward(prev, next, events) {
+    if (!prev || prev.phase !== 'reward' || next.phase === 'reward') return;
+    if (!prev.lastResolution || ui.resultSeen >= prev.lastResolution.seq) return;
+    const loot = events.find((e) => e.type === 'loot');
+    if (loot) ctx.toast(`Butin : ${loot.name} pour ${heroNameOf(next, loot.heroOf)}.`);
+    else if (next.xp > prev.xp) ctx.toast(`Le groupe prend ${next.xp - prev.xp} XP.`);
+    else ctx.toast('Le groupe laisse le butin.');
+    ui.resultSeen = prev.lastResolution.seq;
+  }
+
+  /** Ce qui vient de se passer, pour les lecteurs d'écran. */
+  function announce(prev, next, events) {
+    if (!prev) return;
+    const parts = [];
+    for (const pid of next.phase === 'dice' ? next.ready : []) {
+      if (!prev.ready?.includes(pid) && pid !== me) parts.push(`${heroNameOf(next, pid)} est prêt.`);
+    }
+    const res = events.find((e) => e.type === 'resolve');
+    if (res) parts.push(`Résolution : ${res.results.filter((r) => r.covered).length} cases couvertes sur ${res.results.length}.`);
+    if (prev.phase !== next.phase) {
+      const label = { explore: 'Exploration', doors: 'Choix des portes', peril: 'Péril', dice: 'Combat', reward: 'Récompense', camp: 'Camp', victory: 'Victoire', defeat: 'Défaite' }[next.phase];
+      if (label) parts.push(label);
+    }
+    if (parts.length) live.textContent = parts.join(' ');
+  }
+
+  const heroNameOf = (s, pid) => {
+    const h = s.heroes.find((x) => x.playerId === pid);
+    return h ? `${HERO_ARTICLE[h.heroId] ?? ''}${h.name} (${h.playerName})` : 'un héros';
+  };
 
   /** Ajuste l'état local de l'interface quand la situation change. */
   function prepare(prev, next, motion) {
@@ -156,7 +221,7 @@ export function mount(root, ctx) {
   const q = (sel) => view.querySelector(sel);
   const qa = (sel) => [...view.querySelectorAll(sel)];
   const screenEl = () => q('.t-screen');
-  const mobile = () => (view.clientWidth || 1200) < 640;
+  const mobile = () => (view.clientWidth || 1200) <= 640; // même seuil que les container queries (max-width: 640px)
   const heroOf = (pid) => state?.heroes.find((h) => h.playerId === pid) ?? null;
   const heroEl = (pid) => {
     const h = (state ?? latest)?.heroes.find((x) => x.playerId === pid);
@@ -168,10 +233,50 @@ export function mount(root, ctx) {
   const avatarOf = (pid) => ctx.getRoom()?.players.find((p) => p.id === pid)?.avatarUrl ?? undefined;
   const ground = (s) => DUNGEON[s.dungeon?.id ?? s.dungeonId]?.ground ?? 'crypte';
 
+  /** Clé stable de l'élément qui a le focus, pour le lui rendre après un nouveau rendu. */
+  const FOCUS_ATTRS = ['data-id', 'data-act', 'data-index', 'data-skill', 'data-pick', 'data-receiver', 'data-pick-dungeon', 'data-hero', 'data-fuse', 'data-ready', 'data-open-rules', 'data-motion-toggle'];
+  function focusKey(el) {
+    if (!el || el === document.body || !view.contains(el)) return null;
+    const target = el.closest(FOCUS_ATTRS.map((a) => `[${a}]`).join(','));
+    if (!target) return null;
+    const attrs = FOCUS_ATTRS.filter((a) => target.hasAttribute(a)).map((a) => `[${a}="${CSS.escape(target.getAttribute(a))}"]`).join('');
+    const zone = target.closest('.t-pool') ? '.t-pool ' : target.closest('.t-slot') ? '.t-slot ' : '';
+    return zone + target.tagName.toLowerCase() + attrs;
+  }
+
   function render() {
     if (!state || !T || disposed) return;
-    view.innerHTML = screen(state) + (ui.rules ? rulesOverlay() : '');
+    const key = focusKey(document.activeElement);
+    view.innerHTML = screen(state);
     afterRender();
+    if (key) view.querySelector(key)?.focus({ preventScroll: true });
+  }
+
+  /** Fenêtre des règles : couche à part, l'écran dessous devient inerte. */
+  function renderRules({ focus = false } = {}) {
+    if (!T) return;
+    view.inert = ui.rules;
+    if (!ui.rules) {
+      rulesLayer.innerHTML = '';
+      return;
+    }
+    const scroll = rulesLayer.querySelector('.t-dialog__body')?.scrollTop ?? 0;
+    rulesLayer.innerHTML = rulesOverlay();
+    frenchSpacing(rulesLayer);
+    const body = rulesLayer.querySelector('.t-dialog__body');
+    if (body && !focus) body.scrollTop = scroll;
+    if (focus) rulesLayer.querySelector(`[data-tab="${ui.tab}"]`)?.focus();
+  }
+
+  function openRules() {
+    ui.rules = true;
+    renderRules({ focus: true });
+  }
+
+  function closeRules() {
+    ui.rules = false;
+    renderRules();
+    view.querySelector('[data-open-rules]')?.focus();
   }
 
   function afterRender() {
@@ -185,6 +290,11 @@ export function mount(root, ctx) {
       }
     }
     if (ui.fuse) screenEl()?.classList.add('is-fusing');
+    // chaque emplacement vide de la réserve sait à quel dé il appartient (retour à sa place)
+    const ghosts = qa('.t-pool .t-die-ghost');
+    const placed = state.dice?.filter((d) => d.owner === me && d.box) ?? [];
+    ghosts.forEach((g, i) => { if (placed[i]) g.dataset.ghostFor = placed[i].id; });
+    frenchSpacing(view);
   }
 
   function screen(s) {
@@ -206,7 +316,7 @@ export function mount(root, ctx) {
 
   function header(s, { rooms = true } = {}) {
     const xpMax = s.xpNext ?? s.xp;
-    const protect = s.phase === 'dice' && s.encounter?.noTime ? Math.max(0, s.torch - 1) : undefined;
+    const protect = s.phase === 'dice' && s.encounter?.noTime && s.torch > 0 ? s.torch - 1 : undefined;
     return `<header class="t-header">
       <div class="t-header__floor">${T.icon('stairs', { className: 't-header__stairs' })}
         <div><span class="label">Étage</span> <b class="stat">${s.floor}<small>/${s.floors}</small></b>
@@ -219,8 +329,7 @@ export function mount(root, ctx) {
   }
 
   function dieProps(d, s, extra = {}) {
-    const curse = s.encounter?.ability?.type === 'curse' && d.color === s.encounter.ability.color && !d.box;
-    return { id: d.id, color: COLOR[d.color], value: d.value, curse: curse ? -1 : 0, ...extra };
+    return { id: d.id, color: COLOR[d.color], value: d.value, curse: d.cursed && !d.box ? -1 : 0, ...extra };
   }
 
   /** Portraits du groupe ; en combat, les dés restants des autres joueurs. */
@@ -328,11 +437,21 @@ export function mount(root, ctx) {
   const monsterOf = (d) => ({ name: d.name, emblem: ROOM_EMBLEM[d.id] ?? 'skull', xp: d.xp, loot: d.loot?.type ?? 'item', slots: (d.boxes ?? []).map((b) => slotOf(b)) });
   const perilOf = (d) => ({ name: d.name, emblem: ROOM_EMBLEM[d.id] ?? 'skull', xp: d.xp, ways: d.options.map((o) => ({ name: o.label, slot: slotOf(o.box) })) });
 
+  /** La carte de péril n'affiche que l'XP : on ajoute son butin au pied de carte. */
+  function withLoot(html, loot) {
+    if (!loot) return html;
+    const tag = loot.type === 'skill'
+      ? `<span class="t-reward" data-r="skill">${T.icon('sparkle')}Compétence</span>`
+      : `<span class="t-reward" data-r="item">${T.icon('bag')}Objet</span>`;
+    const i = html.lastIndexOf('</footer>');
+    return i < 0 ? html : html.slice(0, i) + tag + html.slice(i);
+  }
+
   function screenDoors(s) {
     const m = mobile();
     const open = ui.doorsOpen === doorsKey(s);
     const doors = s.doors.map((d, i) => {
-      const card = d.kind === 'peril' ? T.PerilCard({ peril: perilOf(d), className: 't-door__card' }) : T.MonsterCard({ monster: monsterOf(d), className: 't-door__card' });
+      const card = d.kind === 'peril' ? withLoot(T.PerilCard({ peril: perilOf(d), className: 't-door__card' }), d.loot) : T.MonsterCard({ monster: monsterOf(d), className: 't-door__card' });
       return `<div class="t-door ${open ? 'is-open' : ''}" data-door="${i}"><span class="t-door__arch" aria-hidden="true"></span>
         <div class="t-flip"><div class="t-flip__front">${card}</div><div class="t-flip__back">${T.CardBack({ dungeon: ground(s) })}</div></div>
         ${T.Button({ variant: i === 0 ? 'primary' : 'secondary', label: d.kind === 'peril' ? 'Affronter le péril' : 'Entrer', size: m ? 'md' : 'lg', block: true, iconRight: 'chevron-right', disabled: busy, attrs: { 'data-act': 'enter', 'data-index': i } })}</div>`;
@@ -364,10 +483,10 @@ export function mount(root, ctx) {
     }).join('<span class="t-ways__or label" aria-hidden="true">ou</span>');
     return `${screenOpen('peril', s)}${header(s)}
       <main class="t-perilscr">
-        <div class="t-perilscr__card">${T.PerilCard({ peril: perilOf({ ...enc, options: enc.options }) })}
+        <div class="t-perilscr__card">${withLoot(T.PerilCard({ peril: perilOf({ ...enc, options: enc.options }) }), enc.loot)}
           <p class="t-perilscr__flavor body">Pas de monstre ici, mais le passage ne se laissera pas franchir sans effort.</p></div>
         <section class="t-ways"><div class="t-ways__intro"><span class="label">Péril</span><h1 class="title-lg">Deux voies</h1>
-          <p class="body">Le groupe choisit une voie, puis tout le monde place ses dés sur sa case Σ.</p></div>
+          <p class="body">Le groupe choisit une voie, puis tout le monde place ses dés sur sa case ${T.icon('sigma', { className: 't-ico--inline', label: 'total' })}.</p></div>
           <div class="t-ways__pair">${ways}</div></section>
       </main></div>`;
   }
@@ -385,7 +504,7 @@ export function mount(root, ctx) {
         ...(d.owner !== me ? { owner: { id: d.owner, name: playerName(d.owner) } } : {}),
       }));
       const slot = slotOf(b, { dice: inBox, interactive });
-      if (enraged) Object.assign(slot, { need: slot.need - 1, mod: 1 });
+      if (enraged && b.fury) Object.assign(slot, { need: slot.need - 1, mod: 1 });
       if (summoned && i >= boxes.length - summoned) slot.summoned = true;
       const res = results?.find((r) => r.boxId === b.id);
       if (res) slot.state = res.covered ? 'covered' : 'failed';
@@ -401,7 +520,7 @@ export function mount(root, ctx) {
     }
     const monster = { name: enc.name, emblem: ROOM_EMBLEM[enc.id] ?? 'skull', xp: enc.xp, loot: enc.loot?.type ?? 'item' };
     return T.MonsterCard({
-      monster, layout: 'room', slots, slotSize, className: 't-stage__room',
+      monster, layout: 'room', slots, slotSize, className: enc.kind === 'peril' ? 't-stage__room t-card--peril' : 't-stage__room',
       kicker: enc.kind === 'peril' ? 'Péril' : `Monstre · étage ${s.floor}`,
       sub: sub ?? (enc.kind === 'peril' ? `Voie : ${enc.chosen}` : `${plural(slots.length, 'case')} pour ${n} héros`),
     });
@@ -423,16 +542,21 @@ export function mount(root, ctx) {
         actions: `<div class="t-tray__main">${T.Button({ variant: 'primary', label: 'Les autres jouent', count: `${s.ready.length}/${alive}`, size: 'lg', disabled: true, className: 't-tray__ready' })}</div>` })}</div>`;
     }
     const mine = s.dice.filter((d) => d.owner === me);
+    if (!mine.length) {
+      return `<div class="t-tray">${T.DicePool({ dice: [], size: m ? 'md' : 'lg', hint: 'Relevé en plein combat : tu lanceras tes dés au prochain round. Dis « Prêt » pour ne pas bloquer le groupe.', className: 't-tray__pool',
+        actions: `<div class="t-tray__main">${T.Button({ variant: 'primary', label: 'Prêt', icon: s.ready.includes(me) ? 'check' : undefined, pressed: s.ready.includes(me), count: `${s.ready.length}/${alive}`, size: 'lg', state: s.ready.includes(me) ? 'waiting' : 'idle', className: 't-tray__ready', attrs: { 'data-ready': '' } })}</div>` })}</div>`;
+    }
     const dice = mine.map((d) => (d.box ? { ghost: true } : dieProps(d, s, { state: ui.sel === d.id || ui.fuseFirst === d.id ? 'selected' : 'idle' })));
     const free = mine.filter((d) => !d.box).length;
     const amReady = s.ready.includes(me);
+    const perRound = s.encounter?.kind === 'guardian' || s.encounter?.kind === 'boss';
     const skills = hero.skills.map((sk) => T.Button({
-      variant: 'skill', label: sk.name, emblem: SKILL_EMBLEM[sk.id] ?? 'sparkle', uses: sk.used ? 'Utilisée' : '1× par salle',
-      state: sk.used ? 'used' : 'idle', disabled: sk.used, title: sk.text, attrs: { 'data-skill': sk.id },
+      variant: 'skill', label: sk.name, emblem: SKILL_EMBLEM[sk.id] ?? 'sparkle', uses: sk.used ? 'Utilisée' : perRound ? '1× par round' : '1× par salle',
+      state: sk.used ? 'used' : 'idle', disabled: sk.used, title: plainText(sk.text), attrs: { 'data-skill': sk.id },
     })).join('');
     const actions = `<div class="t-tray__skills">${skills}</div><div class="t-tray__main">
       ${T.Button({ variant: 'secondary', label: ui.fuse ? 'Annuler la fusion' : 'Fusionner', icon: 'merge', pressed: ui.fuse, disabled: free < 2 && !ui.fuse, attrs: { 'data-fuse': '' } })}
-      ${T.Button({ variant: 'primary', label: 'Prêt', icon: amReady ? 'check' : undefined, count: `${s.ready.length}/${alive}`, size: 'lg', state: amReady ? 'waiting' : 'idle', className: 't-tray__ready', attrs: { 'data-ready': '' } })}</div>`;
+      ${T.Button({ variant: 'primary', label: 'Prêt', icon: amReady ? 'check' : undefined, pressed: amReady, count: `${s.ready.length}/${alive}`, size: 'lg', state: amReady ? 'waiting' : 'idle', className: 't-tray__ready', attrs: { 'data-ready': '' } })}</div>`;
     const hint = ui.fuse ? 'Fusion : choisis deux de tes dés non placés.' : amReady ? 'Tu es prêt. Clique encore « Prêt » pour modifier tes dés.' : m ? 'Touche un dé puis une case.' : 'Clique un dé puis une case, ou glisse-le.';
     return `<div class="t-tray">${T.DicePool({ dice, size: m ? 'md' : 'lg', hint, className: 't-tray__pool', actions })}</div>`;
   }
@@ -450,6 +574,8 @@ export function mount(root, ctx) {
 
   // ---------------------------------------------------------------- 6. résultat
 
+  const vaincu = (id) => (FEMININE.has(id) ? 'est vaincue' : 'est vaincu');
+
   function screenResult(s) {
     const r = s.lastResolution;
     const boss = r.kind === 'guardian' || r.kind === 'boss';
@@ -464,11 +590,11 @@ export function mount(root, ctx) {
       ['Dégâts', dmg, 'heart'],
       ['Torche', `<b class="stat">${r.time ? `−${r.time}` : '0'}</b><span class="caption">reste ${s.torch}/${s.torchMax}</span>`, 'flame'],
       boss
-        ? ['Coups portés', `<b class="stat">${r.hits}</b><span class="caption">${esc(r.name)} est vaincu</span>`, 'swords']
+        ? ['Coups portés', `<b class="stat">${r.hits}</b><span class="caption">${esc(r.name)} ${vaincu(r.id)}</span>`, 'swords']
         : ['Expérience', `<b class="stat">+${s.reward?.xp ?? 0}</b><span class="caption">XP à prendre</span>`, 'star'],
     ].map((l) => `<li class="t-sum__line" data-k="${l[2]}">${T.icon(l[2])}<span class="label">${l[0]}</span><span class="t-sum__val">${l[1]}</span></li>`).join('');
     const failed = r.results.length - covered;
-    const title = boss ? `${r.name} est vaincu` : r.kind === 'peril' ? 'Le péril est franchi' : `${r.name} : salle franchie`;
+    const title = boss ? `${r.name} ${vaincu(r.id)}` : r.kind === 'peril' ? 'Le péril est franchi' : `${r.name} : salle franchie`;
     const note = failed
       ? `${failed} ${failed > 1 ? 'cases ratées' : 'case ratée'}${hurt.length ? ' : le groupe encaisse' : ''}${r.time ? ', la torche faiblit' : ''}.`
       : 'Aucune case ratée : du travail propre.';
@@ -511,7 +637,7 @@ export function mount(root, ctx) {
     const receiverHero = s.heroes.find((h) => h.playerId === ui.receiver);
     const go = ui.pick === 'xp'
       ? T.Button({ variant: 'primary', label: `Prendre ${offer.xp} XP`, size: 'lg', iconRight: 'chevron-right', disabled: busy, attrs: { 'data-act': 'takeReward' } })
-      : T.Button({ variant: 'primary', label: receiverHero ? `Donner à ${receiverHero.name}` : 'Choisis qui le reçoit', size: 'lg', iconRight: 'chevron-right', disabled: busy || !loot || !receiverHero, attrs: { 'data-act': 'takeReward' } });
+      : T.Button({ variant: 'primary', label: receiverHero ? `Donner à ${HERO_ARTICLE[receiverHero.heroId] ?? ''}${receiverHero.name}` : 'Choisis qui le reçoit', size: 'lg', iconRight: 'chevron-right', disabled: busy || !loot || !receiverHero, attrs: { 'data-act': 'takeReward' } });
     const title = offer.guardian ? 'Le trésor du gardien' : 'Choisis une récompense';
     const body = offer.guardian
       ? 'Le gardien laisse deux trésors : un seul héros en reçoit un. Ensuite, le groupe se repose au camp.'
@@ -528,27 +654,32 @@ export function mount(root, ctx) {
   // ---------------------------------------------------------------- 8. camp
 
   function screenCamp(s) {
+    // ui.campFrom : PV d'avant le repos, le temps de l'animation ; le bilan vient du serveur (s.camp)
     const from = ui.campFrom;
+    const report = s.camp ?? { healed: {}, revived: [] };
     const heroes = s.heroes.map((h, i) => {
-      const was = from?.[h.playerId] ?? h.pv;
-      const revived = from && was <= 0;
+      const was = from?.[h.playerId];
+      const revived = report.revived.includes(h.playerId);
+      const gain = report.healed[h.playerId] ?? 0;
       const o = {
-        hero: h.heroId, player: h.playerName, me: h.playerId === me, hp: from ? was : h.pv, maxHp: h.pvMax, armor: h.stats.armor,
-        skills: h.skills.map((x) => x.id), items: h.items.map((x) => x.id), state: from && was <= 0 ? 'down' : 'idle', variant: mobile() ? 'compact' : 'full',
+        hero: h.heroId, player: h.playerName, me: h.playerId === me, hp: was ?? h.pv, maxHp: h.pvMax, armor: h.stats.armor,
+        skills: h.skills.map((x) => x.id), items: h.items.map((x) => x.id), state: was !== undefined && was <= 0 ? 'down' : 'idle', variant: mobile() ? 'compact' : 'full',
       };
-      const gain = h.pv - was;
+      const label = revived ? `${h.heroId === 'guerriere' || h.heroId === 'rodeuse' ? 'Relevée' : 'Relevé'} · +${gain} PV` : gain > 0 ? `+${gain} PV` : 'En pleine forme';
       return `<div class="t-camp__hero ${revived ? 'is-revived' : ''}" style="--k:${i}" data-camp="${esc(h.playerId)}">${T.HeroPortrait(o)}
-        <span class="t-camp__gain gauge">${revived ? `Relevé · +${gain} PV` : gain > 0 ? `+${gain} PV` : 'En pleine forme'}</span></div>`;
+        <span class="t-camp__gain gauge">${label}</span></div>`;
     }).join('');
     const g = s.lastResolution;
     return `${screenOpen('camp', s)}${header(s, { rooms: false })}
       <main class="t-camp">
-        <div class="t-camp__intro"><span class="label">Étage ${s.floor} terminé${g ? ` · ${esc(g.name)} vaincu` : ''}</span><h1 class="title-lg">Le camp</h1>
+        <div class="t-camp__intro"><span class="label">Étage ${s.floor} terminé${g ? ` · ${esc(g.name)} ${vaincu(g.id)}` : ''}</span><h1 class="title-lg">Le camp</h1>
           <p class="body">Le groupe souffle autour du feu : +4 PV pour chaque héros, les héros à terre se relèvent.</p></div>
         <div class="t-camp__fire" aria-hidden="true"><span class="t-camp__glow"></span>${T.icon('campfire', { className: 't-camp__ico' })}</div>
-        <div class="t-camp__party">${heroes}</div>
+        <div class="t-camp__party" style="--n:${s.heroes.length}">${heroes}</div>
         <div class="t-camp__foot"><ul class="t-camp__stats">
-          <li><b class="stat">${s.stats.rooms}</b><span class="caption">salles</span></li><li><b class="stat">${s.stats.guardians}</b><span class="caption">gardien${s.stats.guardians > 1 ? 's' : ''}</span></li><li><b class="stat">${s.level}</b><span class="caption">niveau</span></li></ul>
+          <li><b class="stat">${s.cleared.length}</b><span class="caption">${s.cleared.length > 1 ? 'salles cet étage' : 'salle cet étage'}</span></li>
+          <li><b class="stat">${s.stats.guardians}</b><span class="caption">${s.stats.guardians > 1 ? 'gardiens vaincus' : 'gardien vaincu'}</span></li>
+          <li><b class="stat">${s.level}</b><span class="caption">niveau</span></li></ul>
           ${T.Button({ variant: 'primary', label: 'Étage suivant', icon: 'stairs', size: 'lg', disabled: busy, attrs: { 'data-act': 'continue' } })}</div>
       </main></div>`;
   }
@@ -570,7 +701,7 @@ export function mount(root, ctx) {
       <div class="t-end__fx" aria-hidden="true"><span class="t-end__rays"></span><span class="t-end__glow"></span></div>
       <main class="t-end">
         <div class="t-end__emb">${emblem}</div>
-        <span class="label">${esc(s.dungeon?.name ?? '')} · ${win ? `${esc(r?.name ?? 'le boss')} est tombé` : `étage ${s.floor}`}</span>
+        <span class="label">${esc(s.dungeon?.name ?? '')} · ${win ? `${esc(r?.name ?? 'le boss')} ${FEMININE.has(r?.id) ? 'est tombée' : 'est tombé'}` : `étage ${s.floor}`}</span>
         <h1 class="title-xl">${win ? 'Victoire' : 'Défaite'}</h1>
         <p class="body">${win ? 'Le donjon se tait. Le groupe remonte vers la lumière, chargé d’or.' : 'Le dernier héros s’effondre. Dans le noir, les profondeurs reprennent leur silence.'}</p>
         <ul class="t-end__stats">${stats.map((x) => `<li><b class="stat">${x[0]}</b><span class="caption">${x[1]}</span></li>`).join('')}</ul>
@@ -588,7 +719,8 @@ export function mount(root, ctx) {
     const footer = `${T.Button({ variant: 'ghost', label: 'Précédent', icon: 'chevron-left', size: 'sm', disabled: i === 0, attrs: { 'data-rules-step': -1 } })}
       <span class="caption prof-credit">Emblèmes : game-icons.net (Lorc, Delapouite et contributeurs), CC BY 3.0</span>
       ${T.Button({ variant: 'secondary', label: i === tabs.length - 1 ? 'Fermer' : 'Suivant', iconRight: i === tabs.length - 1 ? undefined : 'chevron-right', size: 'sm', attrs: { 'data-rules-step': 1 } })}`;
-    return `<div class="t-scrim prof-scrim" data-close-rules>${T.Dialog({ id: 'prof-regles', title: 'Règles', icon: 'book', tabs, active: ui.tab, size: 'lg', footer })}</div>`;
+    // .t-rules-host est un conteneur : sous 640 px, la fenêtre prend sa mise en page mobile
+    return `<div class="t-rules-host prof-rules-host"><div class="t-scrim" data-close-rules>${T.Dialog({ id: 'prof-regles', title: 'Règles', icon: 'book', tabs, active: ui.tab, size: 'lg', footer })}</div></div>`;
   }
 
   // ================================================================ animations
@@ -620,7 +752,11 @@ export function mount(root, ctx) {
 
     const levelUp = events.find((e) => e.type === 'levelUp');
     for (const e of events) {
-      if (e.type === 'skill') await skillAnim(e, prev, next, root);
+      if (e.type === 'doors') {
+        const torch = q('.t-header .t-torch');
+        if (torch) await T.anim.flameOut(torch, { root }).done();
+      } else if (e.type === 'enter') await chooseDoorAnim(e.index, root);
+      else if (e.type === 'skill') await skillAnim(e, prev, next, root);
       else if (e.type === 'resolve') await resolveAnim(e, prev, next, root);
       else if (e.type === 'loot') await lootAnim(e, prev);
     }
@@ -672,9 +808,10 @@ export function mount(root, ctx) {
   async function resolveAnim(e, prev, next, root) {
     const enc = prev.encounter;
     if (!enc) return;
-    // les dégâts de la vague de froid sont joués à part
+    // les dégâts de la vague de froid sont joués à part, sur les seuls héros qu'elle a frappés
+    const frozen = e.aoeTargets ?? [];
     const queue = Object.entries(e.taken)
-      .map(([pid, n]) => [pid, e.aoe && n > e.aoe ? n - e.aoe : e.aoe ? 0 : n])
+      .map(([pid, n]) => [pid, frozen.includes(pid) ? n - e.aoe : n])
       .filter(([, n]) => n > 0);
     let time = e.time;
     const plan = [];
@@ -704,16 +841,18 @@ export function mount(root, ctx) {
       const el = heroEl(pid);
       if (el && n > 0) await T.anim.hit(el, n, { root }).done();
     }
-    if (e.aoe) {
+    if (e.aoe && frozen.length) {
       const p = q('.t-party');
-      if (p) await T.anim.frost(p, { root, n: e.aoe }).done();
+      const all = prev.heroes.filter((h) => h.pv > 0).every((h) => frozen.includes(h.playerId)) && prev.heroes.every((h) => h.pv > 0);
+      if (p && all) await T.anim.frost(p, { root, n: e.aoe }).done();
+      else await Promise.all(frozen.map((pid) => heroEl(pid)).filter(Boolean).map((el) => T.anim.hit(el, e.aoe, { root }).done()));
     }
     const card = q('.t-stage__room');
     if (card && e.hits && (enc.kind === 'guardian' || enc.kind === 'boss')) {
       await T.anim.bossHit(card, e.hits, { root }).done();
       if (e.bossPv === 0) await T.anim.shatter(card, { root }).done();
       else if (enc.ability?.type === 'enrage' && enc.bossPv > enc.bossPvMax / 2 && e.bossPv <= enc.bossPvMax / 2) {
-        await T.anim.fury(card, { root, mod: 1 }).done();
+        await furyAnim(card, next, root);
       }
     }
     await wait(next.phase === 'dice' ? 600 : 250);
@@ -722,7 +861,7 @@ export function mount(root, ctx) {
   async function lootAnim(e, prev) {
     const offer = prev.reward;
     if (!offer || !q('.t-fan')) return;
-    const i = offer.loots.findIndex((l) => l.name === e.name);
+    const i = Number.isInteger(e.index) ? e.index : offer.loots.findIndex((l) => l.name === e.name);
     const card = q(`.t-fan__slot[data-pick="${i}"] .t-card`);
     const target = q(`.t-recv[data-receiver="${e.heroOf}"]`);
     if (card && target) await T.anim.give(card, target, { root: screenEl() }).done();
@@ -740,8 +879,21 @@ export function mount(root, ctx) {
     if (roll && next.phase === 'dice') {
       const dice = qa('.t-pool .t-die, .t-hero__dice .t-die');
       const stage = q('.t-stage');
+      // dés maudits : ils roulent sur leur valeur d'avant, puis la malédiction les assombrit (−1)
+      const cursed = dice.filter((el) => el.classList.contains('is-cursed'));
+      for (const el of cursed) {
+        el.querySelector('.t-die__curse')?.remove();
+        el.classList.remove('is-cursed');
+        const v = Number(el.dataset.v);
+        el.dataset.v = String(Math.min(6, v + 1));
+        const num = el.querySelector('.t-die__face > .t-die__num');
+        if (num) num.textContent = el.dataset.v;
+      }
+      const summoned = qa('.t-stage .t-slot.is-summoned');
       if (roll.round > 1 && stage) await T.anim.round(stage, roll.round, { root, dice }).done();
       else if (dice.length) await T.anim.roll(dice, { root }).done();
+      if (summoned.length) await summonAnim(summoned, root);
+      if (cursed.length) await T.anim.curse(cursed, { root }).done();
     }
     if (next.phase === 'reward' && prev.phase !== 'reward' && q('.t-fan')) await fanIn();
     if (next.phase === 'camp' && ui.campFrom) {
@@ -752,8 +904,9 @@ export function mount(root, ctx) {
         const was = from[h.playerId] ?? h.pv;
         if (!el) return;
         if (was <= 0) await T.anim.revive(el, { root }).done();
-        if (h.pv > was) await T.anim.heal(el, h.pv - was, { root }).done();
+        if (h.pv > Math.max(was, 0)) await T.anim.heal(el, h.pv - Math.max(was, 0), { root }).done();
       }));
+      render(); // état définitif : PV et étiquettes à jour
     }
     if ((next.phase === 'victory' || next.phase === 'defeat') && prev.phase !== next.phase) {
       await T.anim.ending(root, { root }).done();
@@ -761,6 +914,50 @@ export function mount(root, ctx) {
   }
 
   const fanIn = () => T.anim.fan(qa('.t-fan__slot'), { root: screenEl() }).done();
+
+  /** La porte choisie avance, l'autre recule et s'estompe (Mouvement : « Portes »). */
+  async function chooseDoorAnim(index, root) {
+    const doors = qa('.t-door');
+    if (!doors.length) return;
+    const tl = new T.Timeline({ root });
+    doors.forEach((d, i) => {
+      const chosen = i === index;
+      tl.add(d, chosen
+        ? [{ transform: 'none' }, { transform: 'translateY(-10px) scale(1.06)' }]
+        : [{ transform: 'none', opacity: 1, filter: 'none' }, { transform: 'translateY(26px) scale(.9)', opacity: 0.38, filter: 'saturate(.4)' }],
+      { duration: 420, easing: T.motion.ease.out });
+    });
+    await tl.start().done();
+  }
+
+  /** Fureur : seules les cases dont le seuil a vraiment monté clignotent ; la salle rougeoie. */
+  async function furyAnim(card, next, root) {
+    const raised = new Set((next.encounter?.boxes ?? []).filter((b) => b.fury).map((b) => b.id));
+    const tl = new T.Timeline({ root });
+    let k = 0;
+    for (const slot of card.querySelectorAll('.t-slot')) {
+      if (!raised.has(slot.dataset.id)) continue;
+      const nb = slot.querySelector('.t-slot__need > b, .t-slot__target');
+      if (!nb) continue;
+      const was = Number(nb.textContent);
+      T.anim.swapText(nb, String(was), String(was + 1), { tl, delay: 100 + k * 40 });
+      tl.add(nb, [{ transform: 'none' }, { transform: 'scale(1.35)', offset: 0.25 }, { transform: 'none', offset: 0.5 }, { transform: 'scale(1.35)', offset: 0.75 }, { transform: 'none' }], { duration: 800, delay: 120 + k * 40, easing: 'linear' });
+      k += 1;
+    }
+    const base = getComputedStyle(card).boxShadow;
+    const glow = `${base}, 0 0 0 2px #c8402f, 0 0 34px 6px rgba(224, 89, 42, .55)`;
+    tl.add(card, [{ boxShadow: base }, { boxShadow: glow, offset: 0.2 }, { boxShadow: base, offset: 0.45 }, { boxShadow: glow, offset: 0.7 }, { boxShadow: base }], { duration: T.motion.dur.fury, easing: 'linear' });
+    await tl.start().done();
+  }
+
+  /** Case invoquée (Ver de lave, Ysh'ka) : elle surgit avec une onde de braise ou de toile. */
+  async function summonAnim(slots, root) {
+    const tl = new T.Timeline({ root });
+    slots.forEach((slot, i) => {
+      tl.add(slot, [{ transform: 'scale(.3) rotate(-12deg)', opacity: 0 }, { transform: 'scale(1.1) rotate(3deg)', opacity: 1, offset: 0.62 }, { transform: 'none', opacity: 1 }], { duration: T.motion.dur.summon, delay: i * 80, easing: T.motion.ease.out });
+    });
+    await tl.start().done();
+  }
 
   /** Changement d'étage : l'écran change pendant le noir. */
   async function floorTransition(e, next) {
@@ -856,7 +1053,14 @@ export function mount(root, ctx) {
     }
     if (die && !die.classList.contains('is-foreign') && die.closest('.t-stage') && !die.closest('.t-hero')) {
       const id = die.dataset.id;
-      if (die.closest('.t-slot')) {
+      const inSlot = die.closest('.t-slot');
+      // un dé est choisi et on clique une case (même sur un dé déjà posé) : on pose le dé choisi
+      if (inSlot && ui.sel && ui.sel !== id) {
+        const sel = q(`.t-pool .t-die[data-id="${ui.sel}"]`);
+        if (sel && T.interact.fits(sel, inSlot)) { placeOn(sel, inSlot); return true; }
+      }
+      if (inSlot) {
+        die._ghost = q(`.t-pool .t-die-ghost[data-ghost-for="${id}"]`); // son propre emplacement
         diceAction(() => T.anim.unplace(die, { root: screenEl(), pool: q('.t-pool') }), 'place', { dieId: id, boxId: null });
         return true;
       }
@@ -887,22 +1091,7 @@ export function mount(root, ctx) {
     if (!state || !T) return;
     if (e.target.closest('[data-motion-toggle]')) return; // géré par Torche (document)
     // règles
-    if (e.target.closest('[data-open-rules]')) { ui.rules = true; render(); return; }
-    if (ui.rules) {
-      const tab = e.target.closest('[data-tab]');
-      const stepBtn = e.target.closest('[data-rules-step]');
-      if (tab) { ui.tab = tab.dataset.tab; render(); return; }
-      if (stepBtn) {
-        const ids = rulesTabs(T, false).map((t) => t.id);
-        const i = ids.indexOf(ui.tab) + Number(stepBtn.dataset.rulesStep);
-        if (i >= ids.length) ui.rules = false;
-        else ui.tab = ids[Math.max(0, i)];
-        render();
-        return;
-      }
-      if (e.target.closest('.t-dialog__close') || e.target.matches('[data-close-rules]')) { ui.rules = false; render(); }
-      return;
-    }
+    if (e.target.closest('[data-open-rules]')) { openRules(); return; }
     if (animating || Date.now() - ui.lastDrag < 80) return;
 
     const hero = e.target.closest('.t-card--hero[role="button"]');
@@ -946,12 +1135,40 @@ export function mount(root, ctx) {
     if (state.phase === 'dice') onDiceClick(e);
   }
 
+  /** Clics dans la fenêtre des règles. */
+  function onRulesClick(e) {
+    const tab = e.target.closest('[data-tab]');
+    const stepBtn = e.target.closest('[data-rules-step]');
+    if (tab) { ui.tab = tab.dataset.tab; renderRules({ focus: true }); return; }
+    if (stepBtn) {
+      const ids = rulesTabs(T, false).map((t) => t.id);
+      const i = ids.indexOf(ui.tab) + Number(stepBtn.dataset.rulesStep);
+      if (i >= ids.length) closeRules();
+      else { ui.tab = ids[Math.max(0, i)]; renderRules({ focus: true }); }
+      return;
+    }
+    if (e.target.closest('.t-dialog__close') || e.target.matches('[data-close-rules]')) closeRules();
+  }
+
   function onKey(e) {
+    if (!host.isConnected || (!host.contains(e.target) && e.target !== document.body)) return;
+    if (ui.rules) {
+      if (e.key === 'Escape') { e.preventDefault(); closeRules(); return; }
+      const tab = e.target.closest?.('[data-tab]');
+      if (tab && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+        const ids = rulesTabs(T, false).map((t) => t.id);
+        const i = (ids.indexOf(ui.tab) + (e.key === 'ArrowRight' ? 1 : -1) + ids.length) % ids.length;
+        ui.tab = ids[i];
+        renderRules({ focus: true });
+        e.preventDefault();
+      }
+      return;
+    }
     if (e.key === 'Escape') {
-      if (ui.rules) { ui.rules = false; render(); return; }
       if (ui.sel || ui.fuse) { ui.fuse = false; ui.fuseFirst = null; select(null); render(); }
       return;
     }
+    if (!view.contains(e.target)) return;
     const slot = e.target.closest?.('.t-slot[role="button"]');
     if (slot && (e.key === 'Enter' || e.key === ' ') && ui.sel && !animating) {
       e.preventDefault();
@@ -966,7 +1183,16 @@ export function mount(root, ctx) {
   function onPointerDown(e) {
     const die = e.target.closest('.t-pool .t-die');
     if (!die || die.classList.contains('is-foreign') || ui.fuse || animating || e.button > 0) return;
+    if (ui.drag) cancelDrag(); // un seul glisser à la fois (multi-touch)
     ui.drag = { die, x: e.clientX, y: e.clientY, moved: false, ghost: null, over: null, id: e.pointerId };
+  }
+  function cancelDrag() {
+    const dr = ui.drag;
+    ui.drag = null;
+    if (!dr) return;
+    dr.ghost?.remove();
+    dr.die.classList.remove('is-dragging');
+    dr.over?.classList.remove('is-drop');
   }
   function onPointerMove(e) {
     const dr = ui.drag;
@@ -997,24 +1223,25 @@ export function mount(root, ctx) {
   function onPointerUp(e) {
     const dr = ui.drag;
     if (!dr || e.pointerId !== dr.id) return;
-    ui.drag = null;
-    if (!dr.moved) return;
+    if (!dr.moved) { ui.drag = null; return; }
     const from = dr.ghost.getBoundingClientRect();
-    dr.ghost.remove();
-    dr.die.classList.remove('is-dragging');
+    const over = dr.over;
+    cancelDrag();
     ui.lastDrag = Date.now(); // le clic qui suit le lâcher est ignoré
-    if (dr.over) {
-      dr.over.classList.remove('is-drop');
-      placeOn(dr.die, dr.over, from);
-    }
+    // lâcher pendant une transition, ou dé disparu entre-temps : rien ne se passe
+    if (over && !animating && dr.die.isConnected && over.isConnected) placeOn(dr.die, over, from);
+  }
+  function onPointerCancel(e) {
+    if (ui.drag && e.pointerId === ui.drag.id) cancelDrag();
   }
 
   view.addEventListener('click', onClick);
-  view.addEventListener('keydown', onKey);
+  rulesLayer.addEventListener('click', onRulesClick);
+  document.addEventListener('keydown', onKey); // Échap doit marcher même quand le focus est sur la page
   view.addEventListener('pointerdown', onPointerDown);
   view.addEventListener('pointermove', onPointerMove);
   view.addEventListener('pointerup', onPointerUp);
-  view.addEventListener('pointercancel', onPointerUp);
+  view.addEventListener('pointercancel', onPointerCancel);
   const onResize = () => { if (!animating) render(); };
   let resizeTimer = null;
   const resizeObserver = new ResizeObserver(() => {
@@ -1034,6 +1261,8 @@ export function mount(root, ctx) {
     unmount() {
       disposed = true;
       resizeObserver.disconnect();
+      cancelDrag();
+      document.removeEventListener('keydown', onKey);
       document.removeEventListener('torche:motion', onMotion);
       links.forEach((l) => l.remove());
       host.remove();

@@ -99,7 +99,6 @@ class Profondeurs {
       fuse: () => this.fuse(playerId, payload.dieIds),
       skill: () => this.useSkill(playerId, payload.skillId, payload.dieId),
       ready: () => this.setReady(playerId, payload.ready !== false),
-      resolve: () => this.resolve(),
       reward: () => this.takeReward(payload.choice, payload.heroOf),
       continue: () => this.nextFloor(),
     };
@@ -137,7 +136,9 @@ class Profondeurs {
       floors: FLOORS,
       torch: this.torch,
       torchMax: this.torchMax,
-      roomsLeft: this.deck?.length ?? 0,
+      // pendant le choix des portes, la salle non choisie retournera dans l'étage
+      roomsLeft: (this.deck?.length ?? 0) + (this.phase === 'doors' ? this.doors.length - 1 : 0),
+      camp: this.phase === 'camp' ? this.campReport ?? null : null,
       cleared: this.cleared ?? [],
       guardian: this.heroes.length && !this.isOver() ? this.guardianPreview() : null,
       level: this.level,
@@ -178,7 +179,7 @@ class Profondeurs {
 
   pickHero(playerId, heroId) {
     this.assertPhase('setup');
-    if (!HEROES[heroId]) throw new GameError('Héros inconnu.');
+    if (!Object.hasOwn(HEROES, heroId)) throw new GameError('Héros inconnu.');
     const takenBy = Object.entries(this.picks).find(([pid, h]) => h === heroId && pid !== playerId);
     if (takenBy) throw new GameError('Ce héros est déjà choisi.');
     this.picks[playerId] = heroId;
@@ -252,8 +253,9 @@ class Profondeurs {
 
   enter(index) {
     this.assertPhase('doors');
+    if (!Number.isInteger(index) || index < 0 || index >= this.doors.length) throw new GameError('Porte inconnue.');
     const room = this.doors[index];
-    if (!room) throw new GameError('Porte inconnue.');
+    this.emit('enter', { index });
     const other = this.doors.filter((_, i) => i !== index);
     this.deck.push(...other); // l'autre salle retourne au fond de l'étage
     this.doors = null;
@@ -268,8 +270,8 @@ class Profondeurs {
 
   choosePeril(index) {
     this.assertPhase('peril');
+    if (!Number.isInteger(index) || index < 0 || index >= this.encounter.options.length) throw new GameError('Choix inconnu.');
     const option = this.encounter.options[index];
-    if (!option) throw new GameError('Choix inconnu.');
     this.addLog(`${this.encounter.name} : « ${option.label} ».`);
     this.startEncounter({ ...this.encounter, chosen: option.label, boxes: scaleBoxes([option.box], this.heroes.length, this.floor) });
   }
@@ -299,7 +301,10 @@ class Profondeurs {
     if (def.ability?.type === 'summon') boxes.push(def.ability.box);
     let scaled = scaleBoxes(boxes, this.heroes.length, this.floor);
     if (def.ability?.type === 'enrage' && pv <= pvMax / 2) {
-      scaled = scaled.map((b) => ({ ...b, target: b.mode === 'single' ? Math.min(6, b.target + 1) : b.target + 1 }));
+      scaled = scaled.map((b) => {
+        const target = b.mode === 'single' ? Math.min(6, b.target + 1) : b.target + 1;
+        return { ...b, target, fury: target !== b.target };
+      });
     }
     return scaled;
   }
@@ -327,7 +332,7 @@ class Profondeurs {
         for (let i = 0; i < count; i++) {
           let value = this.d6();
           if (color === curse) value = Math.max(1, value - 1);
-          this.dice.push({ id: `d${++this.diceSeq}`, owner: h.playerId, color, value, box: null });
+          this.dice.push({ id: `d${++this.diceSeq}`, owner: h.playerId, color, value, box: null, cursed: color === curse });
         }
       }
     }
@@ -369,6 +374,7 @@ class Profondeurs {
     this.dice = this.dice.filter((d) => d !== b);
     a.color = 'G';
     a.value = Math.max(a.value, b.value);
+    a.cursed = false;
     this.readySet.delete(playerId);
     this.emit('fuse', { owner: playerId, dieId: a.id });
   }
@@ -397,12 +403,13 @@ class Profondeurs {
         break;
       case 'gold':
         die.color = 'G';
+        die.cursed = false;
         break;
       case 'reroll':
-        for (const d of this.dice) if (d.owner === playerId && !d.box) d.value = this.d6();
+        for (const d of this.dice) if (d.owner === playerId && !d.box) Object.assign(d, { value: this.d6(), cursed: false });
         break;
       case 'ballad':
-        for (const d of this.dice) if (!d.box && d.value <= 2) d.value = this.d6();
+        for (const d of this.dice) if (!d.box && d.value <= 2) Object.assign(d, { value: this.d6(), cursed: false });
         break;
       case 'heal': {
         const target = [...this.heroes].sort((x, y) => x.pv / this.heroStats(x).pvMax - y.pv / this.heroStats(y).pvMax)[0];
@@ -467,11 +474,13 @@ class Profondeurs {
     damage = Math.max(0, damage - enc.shield);
 
     const taken = this.distributeDamage(damage);
+    const aoeTargets = [];
     if (enc.ability?.type === 'aoe') {
       for (const h of this.heroes) {
         if (h.pv <= 0) continue;
         h.pv = Math.max(0, h.pv - enc.ability.amount);
         taken[h.playerId] = (taken[h.playerId] ?? 0) + enc.ability.amount;
+        aoeTargets.push(h.playerId);
       }
     }
     this.torch = Math.max(0, this.torch - time);
@@ -485,7 +494,7 @@ class Profondeurs {
       kind: enc.kind,
       chosen: enc.chosen ?? null,
       round: enc.round,
-      results, damage, taken, time, hits, aoe,
+      results, damage, taken, time, hits, aoe, aoeTargets,
       bossPv: enc.bossPv,
       bossPvMax: enc.bossPvMax,
       ability: enc.ability ?? null,
@@ -493,14 +502,15 @@ class Profondeurs {
       boxes: enc.boxes,
       dice: this.dice.filter((d) => d.box),
     };
-    this.emit('resolve', { results, taken, time, hits, aoe, bossPv: enc.bossPv });
+    this.emit('resolve', { results, taken, time, hits, aoe, aoeTargets, bossPv: enc.bossPv });
     this.addLog(
       `${enc.name} : ${results.filter((r) => r.covered).length}/${results.length} cases réussies` +
         (damage ? `, ${damage} dégât(s)` : '') + (time ? `, −${time} torche` : '') + (hits ? `, ${hits} coup(s) portés` : '') + '.',
     );
     this.dice = null;
 
-    if (this.heroes.every((h) => h.pv <= 0)) {
+    const foeDown = enc.bossPv !== undefined && enc.bossPv <= 0;
+    if (this.heroes.every((h) => h.pv <= 0) && !foeDown) {
       this.phase = 'defeat';
       this.encounter = null;
       this.emit('defeat', {});
@@ -596,15 +606,21 @@ class Profondeurs {
       } else {
         const before = this.heroStats(hero).pvMax;
         hero.items.push(loot.id);
-        hero.pv += this.heroStats(hero).pvMax - before; // les PV bonus arrivent pleins
+        if (hero.pv > 0) hero.pv += this.heroStats(hero).pvMax - before; // les PV bonus arrivent pleins (pas de relève hors camp)
       }
       this.addLog(`${HEROES[hero.heroId].name} (${hero.playerName}) obtient ${loot.name}.`);
-      this.emit('loot', { heroOf, name: loot.name });
+      this.emit('loot', { heroOf, name: loot.name, index: Number(choice) });
     }
     this.rewardOffer = null;
     if (offer.guardian) {
       this.phase = 'camp';
-      for (const h of this.heroes) h.pv = Math.min(this.heroStats(h).pvMax, Math.max(h.pv, 0) + CAMP_HEAL);
+      this.campReport = { healed: {}, revived: [] };
+      for (const h of this.heroes) {
+        const was = h.pv;
+        h.pv = Math.min(this.heroStats(h).pvMax, Math.max(h.pv, 0) + CAMP_HEAL);
+        this.campReport.healed[h.playerId] = h.pv - Math.max(was, 0);
+        if (was <= 0) this.campReport.revived.push(h.playerId);
+      }
       this.addLog(`Le groupe se repose avant de descendre (+${CAMP_HEAL} PV, les héros à terre se relèvent).`);
       return;
     }
@@ -615,7 +631,7 @@ class Profondeurs {
     this.xp += amount;
     while (this.level < XP_LEVELS.length && this.xp >= XP_LEVELS[this.level]) {
       this.level += 1;
-      for (const h of this.heroes) h.pv = Math.min(this.heroStats(h).pvMax, h.pv + 2);
+      for (const h of this.heroes) if (h.pv > 0) h.pv = Math.min(this.heroStats(h).pvMax, h.pv + 2);
       this.emit('levelUp', { level: this.level });
       this.addLog(`Niveau ${this.level} ! Chaque héros gagne 1 dé d’or et 2 PV max.`);
     }
@@ -654,7 +670,7 @@ class Profondeurs {
       pv: h.pv,
       pvMax: st.pvMax,
       stats: { F: st.F, A: st.A, M: st.M, gold: st.gold, armor: st.armor },
-      skills: h.skills.map((id) => ({ id, ...SKILLS[id], used: this.skillUses?.has(`${h.playerId}:${id}`) ?? false })),
+      skills: h.skills.map((id) => ({ id, ...SKILLS[id], used: this.phase === 'dice' && (this.skillUses?.has(`${h.playerId}:${id}`) ?? false) })),
       items: h.items.map((id) => ({ id, ...ITEMS[id] })),
     };
   }

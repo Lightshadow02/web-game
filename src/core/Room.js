@@ -61,18 +61,19 @@ class Room {
     if (!player) return;
     this.players.delete(playerId);
 
+    // le joueur qui part ne reçoit pas sa propre annonce
     if (this.game) {
       this.game = null;
-      this.systemMessage(`Partie interrompue : ${player.name} ${reason}.`);
+      this.systemMessage(`Partie interrompue : ${player.name} ${reason}.`, playerId);
     } else {
-      this.systemMessage(`${player.name} ${reason}.`);
+      this.systemMessage(`${player.name} ${reason}.`, playerId);
     }
 
     if (this.hostId === playerId) {
       // Transfert d'hôte : priorité aux joueurs connectés.
       const next = [...this.players.values()].sort((a, b) => b.connected - a.connected)[0];
       this.hostId = next?.id ?? null;
-      if (next) this.systemMessage(`${next.name} est le nouvel hôte.`);
+      if (next) this.systemMessage(`${next.name} est le nouvel hôte.`, playerId);
     }
     this.broadcastState();
   }
@@ -165,9 +166,9 @@ class Room {
 
   // ---------------------------------------------------------------- annonces
 
-  /** Annonce courte affichée chez tous les joueurs du salon (arrivée, départ, nouvel hôte...). */
-  systemMessage(text) {
-    this.transport.toRoom(this.code, 'room:notice', { text, ts: Date.now() });
+  /** Annonce courte affichée chez les joueurs du salon (arrivée, départ, nouvel hôte...), sauf `exceptPlayerId`. */
+  systemMessage(text, exceptPlayerId = null) {
+    this.transport.toRoom(this.code, 'room:notice', { text, ts: Date.now() }, exceptPlayerId);
   }
 
   // ---------------------------------------------------------------- diffusion

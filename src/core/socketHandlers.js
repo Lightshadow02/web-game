@@ -197,7 +197,8 @@ const playerChannel = (playerId) => `player:${playerId}`;
 /** Implémentation Socket.io du "transport" utilisé par les salons. */
 function createSocketTransport(io) {
   return {
-    toRoom: (code, event, data) => io.to(roomChannel(code)).emit(event, data),
+    toRoom: (code, event, data, exceptPlayerId = null) =>
+      (exceptPlayerId ? io.to(roomChannel(code)).except(playerChannel(exceptPlayerId)) : io.to(roomChannel(code))).emit(event, data),
     toPlayer: (playerId, event, data) => io.to(playerChannel(playerId)).emit(event, data),
   };
 }

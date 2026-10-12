@@ -123,14 +123,14 @@ test('gardien en plusieurs rounds, puis repos et étage suivant', () => {
   for (const box of g.encounter.boxes.filter((b) => b.mode === 'sum')) {
     for (let i = 0; i < Math.ceil(box.target / 6); i++) g.dice.push({ id: `w${box.id}-${i}`, owner: 'p0', color: 'G', value: 6, box: box.id });
   }
-  g.handleAction('p0', 'resolve');
+  g.resolve();
   assert.ok(g.encounter.bossPv < pv);
   assert.equal(g.encounter.round, 2, 'nouveau round, dés relancés');
   g.encounter.bossPv = 1;
   for (const box of g.encounter.boxes.filter((b) => b.hit)) g.dice.push({ id: `k${box.id}`, owner: 'p0', color: 'G', value: 6, box: box.id });
   g.dice.find((d) => d.box && g.encounter.boxes.find((b) => b.id === d.box).mode === 'single');
   g.encounter.boxes = g.encounter.boxes.filter((b) => b.mode === 'single');
-  g.handleAction('p0', 'resolve');
+  g.resolve();
   assert.equal(g.phase, 'reward');
   assert.equal(g.rewardOffer.loots.length, 2);
   g.handleAction('p0', 'reward', { choice: 'skip' });
@@ -159,7 +159,7 @@ test('défaite quand tous les héros tombent', () => {
   const g = started(1);
   g.heroes[0].pv = 2;
   fight(g, [s('F', 6, 'd5')], []);
-  g.handleAction('p0', 'resolve');
+  g.resolve();
   assert.equal(g.phase, 'defeat');
   assert.equal(g.getResult().players[0].result, 'loss');
 });
@@ -187,4 +187,60 @@ test('parties complètes simulées de 1 à 4 joueurs : toujours une fin', () => 
       assert.equal(r.players.length, n);
     }
   }
+});
+
+test('coup fatal : un ennemi abattu l’emporte sur la chute du dernier héros (Vague de froid)', () => {
+  const g = started(1, ['mage']);
+  g.floor = 3;
+  g.torch = 0;
+  g.dungeonId = 'crypte'; // Morvhal : -1 PV à chaque héros par round
+  g.handleAction('p0', 'descend');
+  assert.equal(g.encounter.kind, 'boss');
+  g.heroes[0].pv = 1;
+  g.encounter.bossPv = 1;
+  g.dice = g.encounter.boxes.map((b) => ({ id: `k${b.id}`, owner: 'p0', color: 'G', value: 6, box: b.id }));
+  for (const box of g.encounter.boxes.filter((b) => b.mode === 'sum')) {
+    for (let i = 0; i < Math.ceil(box.target / 6); i++) g.dice.push({ id: `k${box.id}-${i}`, owner: 'p0', color: 'G', value: 6, box: box.id });
+  }
+  g.resolve();
+  assert.equal(g.heroes[0].pv, 0, 'le froid a frappé');
+  assert.equal(g.phase, 'victory');
+  assert.equal(g.getResult().players[0].result, 'win');
+  assert.deepEqual(g.lastResolution.aoeTargets, ['p0']);
+});
+
+test('actions réseau : index validés, pas de résolution forcée, pas de clé de prototype', () => {
+  const g = started(1);
+  assert.throws(() => g.handleAction('p0', 'resolve'), /Action inconnue/);
+  g.handleAction('p0', 'openDoors');
+  for (const index of ['length', -1, 9, 1.5, '0']) assert.throws(() => g.handleAction('p0', 'enter', { index }), /Porte inconnue/);
+  assert.equal(g.phase, 'doors', 'la partie continue');
+  const h = new Profondeurs({ players: players(1) });
+  assert.throws(() => h.handleAction('p0', 'pickHero', { heroId: 'constructor' }), /Héros inconnu/);
+});
+
+test('relève : seul le camp relève un héros à terre ; bilan du camp', () => {
+  const g = started(2);
+  g.heroes[1].pv = 0;
+  g.gainXp(5);
+  assert.equal(g.heroes[1].pv, 0, 'la montée de niveau ne relève pas');
+  g.offerReward({ xp: 0, loots: [{ type: 'item', id: 'anneau_vigueur' }], guardian: true });
+  g.handleAction('p0', 'reward', { choice: 0, heroOf: 'p1' });
+  assert.equal(g.phase, 'camp');
+  const camp = g.getStateFor('p0').camp;
+  assert.deepEqual(camp.revived, ['p1']);
+  assert.equal(camp.healed.p1, 4);
+});
+
+test('malédiction marquée sur les dés, effacée par une relance', () => {
+  const g = started(1, ['rodeuse']);
+  g.torch = 0;
+  g.dungeonId = 'bois_noir';
+  g.floor = 2; // Sorcière des racines : Agilité -1
+  g.handleAction('p0', 'descend');
+  const agi = g.dice.filter((d) => d.color === 'A');
+  assert.ok(agi.length && agi.every((d) => d.cursed));
+  assert.ok(g.dice.filter((d) => d.color !== 'A').every((d) => !d.cursed));
+  g.handleAction('p0', 'skill', { skillId: 'second_souffle' });
+  assert.ok(g.dice.every((d) => !d.cursed), 'relancés : plus maudits');
 });

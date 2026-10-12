@@ -4,7 +4,7 @@
 .prof {
   position: relative;
   border-radius: 14px;
-  overflow: hidden;
+  overflow: clip; /* pas « hidden » : la réserve et « Descendre » doivent pouvoir rester collés en bas (sticky) */
   box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
 }
 .prof-view { position: relative; }
@@ -15,10 +15,12 @@
 /* l'écran remplit la zone de jeu du salon, sous la barre du Hub */
 :where(.prof) .t-screen {
   min-height: calc(100dvh - 90px);
+  overflow: clip; /* idem : le design met « hidden », qui neutralise le sticky */
 }
 
-/* la fenêtre des règles reste dans la fenêtre du navigateur */
-:where(.prof) .prof-scrim { position: fixed; z-index: 70; }
+/* la fenêtre des règles couvre la fenêtre du navigateur ; c'est un conteneur : sous 640 px, mise en page mobile */
+:where(.prof) .prof-rules-host { position: fixed; inset: 0; z-index: 70; }
+:where(.prof) .prof-rules:empty { display: none; }
 
 /* cartes de récompense cliquables */
 :where(.prof) .prof-pick { cursor: pointer; border-radius: var(--radius-md); }
@@ -30,12 +32,29 @@
 
 /* à 3 ou 4 joueurs, les cartes des portes ont plus de cases : elles passent à la ligne */
 :where(.prof) .t-door .t-card--monster .t-card__slots { flex-wrap: wrap; justify-content: center; }
+:where(.prof) .t-door { min-width: 0; }
+
+/* camp : les portraits restent centrés quand le groupe compte moins de 4 héros */
+@container screen (min-width: 641px) {
+  :where(.prof) .t-camp__party { grid-template-columns: repeat(var(--n, 4), minmax(0, 270px)); justify-content: center; }
+}
+
+/* salle de péril en combat : médaillon en losange du péril, mais à la taille de l'en-tête de salle */
+:where(.prof) .t-card--peril[data-layout="room"] .t-card__medal { width: 52px; height: 52px; margin: 6px 8px; }
+:where(.prof) .t-card--peril[data-layout="room"] .t-card__medal .t-ico { width: 32px; height: 32px; }
 
 :where(.prof) .t-recv[disabled] { opacity: .5; cursor: not-allowed; }
 
 :where(.prof) .prof-end-note { color: var(--bone-muted); margin-top: 6px; }
 :where(.prof) .prof-credit { color: var(--bone-muted); font-size: 11px; opacity: .85; }
 :where(.prof) .t-dialog__foot .prof-credit { flex: 1; text-align: center; }
+
+/* mobile (écran du jeu sous 640 px) : les deux portes s'empilent, le crédit quitte le pied de la fenêtre des règles */
+@container screen (max-width: 640px) {
+  :where(.prof) .t-doors__pair { flex-direction: column; align-items: stretch; }
+  :where(.prof) .t-doors__pair > .t-door { width: 100%; flex: none; }
+  :where(.prof) .t-dialog__foot .prof-credit { display: none; }
+}
 
 @media (max-width: 640px) {
   .prof { border-radius: 0; margin: 0 -0.6rem; }

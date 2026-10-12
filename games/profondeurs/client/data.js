@@ -12,6 +12,15 @@ export const HERO_EMBLEM = {
   paladin: 'templar-shield', rodeuse: 'high-shot', barde: 'lyre',
 };
 
+/** Article devant le nom du héros (« Donner à la Guerrière »). */
+export const HERO_ARTICLE = { guerriere: 'la ', voleur: 'le ', mage: 'le ', paladin: 'le ', rodeuse: 'la ', barde: 'le ' };
+
+/** Adversaires au féminin (« La Dame Voilée est vaincue »). */
+export const FEMININE = new Set(['gelee', 'araignee', 'mimique', 'dame_voilee', 'meute', 'sorciere', 'yshka']);
+
+/** Texte de carte sans balisage de glyphes (infobulles). */
+export const plainText = (t) => String(t ?? '').replace(/\{(hp)\}/g, 'dégâts').replace(/\{(torch)\}/g, 'torche').replace(/\{(hit)\}/g, 'coups').replace(/\{(or)\}/g, 'Or').replace(/\{(sigma)\}/g, 'total');
+
 export const SKILL_EMBLEM = {
   coup_puissant: 'fist', visee: 'bullseye', focalisation: 'crystal-wand', coup_bas: 'dodging',
   frappe_titan: 'enrage', eclair: 'inspiration', transmutation: 'gold-bar', second_souffle: 'lungs',
