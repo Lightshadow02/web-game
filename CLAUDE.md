@@ -41,6 +41,9 @@ Toute évolution doit préserver cette extensibilité :
 ## Jeux existants
 
 - `chute-des-rois` — La Chute des Rois (coopératif 1-4 joueurs, jeu de 52 cartes).
+- `tarot` — Tarot français FFT (3-5 joueurs ; le propriétaire joue surtout à 4, et à 5 avec appel au Roi).
+  Moteur : games/tarot/server/Tarot.js (enchères, chien/écart, appel au Roi, poignées, Petit au bout, Excuse,
+  décompte officiel, une donne par joueur). Pas encore : chelem, misère.
 
 ## Pistes notées par le propriétaire
 

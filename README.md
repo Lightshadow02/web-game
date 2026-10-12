@@ -38,6 +38,7 @@ web-game/
 │       ├── dashboard.js          page Hub : salons, en ligne, stats, classement, admin
 │       └── dom.js                helper el() partagé (pas d'innerHTML)
 ├── games/                        ← UN DOSSIER = UN JEU
+│   ├── tarot/                    Tarot français (3-5 joueurs, appel au Roi à 5)
 │   └── chute-des-rois/
 │       ├── server/index.js       manifeste (id, nom, joueurs min/max, createGame)
 │       ├── server/ChuteDesRois.js moteur de règles (pur, testable, sans réseau)
@@ -93,6 +94,17 @@ puis le Core diffuse à chaque joueur sa propre vue (`getStateFor`) — les main
 
 Chaque requête client reçoit un acquittement `{ ok, error? }`. La session est liée à un jeton stocké
 dans `localStorage` : un rafraîchissement ou une coupure réseau (< `RECONNECT_GRACE_MS`) ramène le joueur à sa place.
+
+## Tarot — règles implémentées
+
+Tarot français (règles FFT), 3 à 5 joueurs ; une partie = une donne par joueur.
+- Distribution : 24/18/15 cartes et chien de 6/6/3 ; « Petit sec » et « tout le monde passe » = redistribution.
+- Enchères : Petite ×1, Garde ×2, Garde sans ×4, Garde contre ×6. Écart sans Roi ni bout (atouts si nécessaire, montrés).
+- À 5 : appel au Roi (Dame si on a les 4 Rois…), partenaire secret révélé quand la carte est jouée.
+- Jeu : fournir, couper, monter ; Excuse gardée par son camp contre une demi-carte, perdue au dernier pli.
+- Décompte : 56/51/41/36 points selon les bouts ; (25 + écart) × coef., Petit au bout (10 × coef.),
+  poignées 20/30/40 ; répartition à somme nulle (à 5 : preneur ×2, partenaire ×1).
+- Non gérés pour l'instant : chelem, misère.
 
 ## La Chute des Rois — règles implémentées
 
