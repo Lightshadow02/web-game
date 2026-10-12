@@ -14,9 +14,15 @@
  *   Rien de défini : tout compte Discord peut jouer.
  *
  * Désactivé (mode pseudo libre, comme avant) si DISCORD_CLIENT_ID/SECRET sont absents.
+ *
+ * SHARED_ENV_FILE : chemin du .env d'une autre app (ex. JDR-WEB) dont on réutilise
+ * l'application Discord. On n'y lit QUE : DISCORD_CLIENT_ID/SECRET, SESSION_SECRET
+ * (dont on dérive une clé propre au Hub) et ADMIN_DISCORD_IDS (toujours autorisés).
+ * Les valeurs du Hub lui-même restent prioritaires.
  */
 
 const crypto = require('crypto');
+const fs = require('fs');
 const express = require('express');
 const { cleanText } = require('./utils');
 
@@ -76,7 +82,49 @@ function createSigner(secret) {
   };
 }
 
-function createAuth(env = process.env, { fetchImpl = fetch } = {}) {
+/** Lecture minimale d'un fichier .env (KEY=VALUE, commentaires #, guillemets optionnels). */
+function parseEnvFile(text) {
+  const out = {};
+  for (const raw of String(text).split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#')) continue;
+    const index = line.indexOf('=');
+    if (index < 1) continue;
+    const key = line.slice(0, index).replace(/^export\s+/, '').trim();
+    let value = line.slice(index + 1).trim();
+    const quoted = value.match(/^(['"])(.*)\1$/);
+    if (quoted) value = quoted[2];
+    else value = value.replace(/\s+#.*$/, ''); // commentaire en fin de ligne
+    out[key] = value;
+  }
+  return out;
+}
+
+/** Complète la config Discord du Hub avec celle d'une app voisine (voir SHARED_ENV_FILE). */
+function withSharedEnv(env, readFile = (path) => fs.readFileSync(path, 'utf8')) {
+  if (!env.SHARED_ENV_FILE) return env;
+  let shared;
+  try {
+    shared = parseEnvFile(readFile(env.SHARED_ENV_FILE));
+  } catch (err) {
+    console.warn(`[auth] Impossible de lire ${env.SHARED_ENV_FILE} (${err.code || err.message}) : ignoré.`);
+    return env;
+  }
+  const result = { ...env };
+  for (const key of ['DISCORD_CLIENT_ID', 'DISCORD_CLIENT_SECRET']) {
+    if (!result[key] && shared[key]) result[key] = shared[key];
+  }
+  if (!result.SESSION_SECRET && shared.SESSION_SECRET) {
+    // Clé dérivée : un cookie de l'autre app ne vaut rien ici, et inversement.
+    result.SESSION_SECRET = crypto.createHmac('sha256', shared.SESSION_SECRET).update('game-hub-session').digest('base64url');
+  }
+  const admins = list(shared.ADMIN_DISCORD_IDS);
+  if (admins.length) result.DISCORD_ALLOWED_IDS = [...list(result.DISCORD_ALLOWED_IDS), ...admins].join(',');
+  return result;
+}
+
+function createAuth(rawEnv = process.env, { fetchImpl = fetch, readFile } = {}) {
+  const env = withSharedEnv(rawEnv, readFile);
   const clientId = env.DISCORD_CLIENT_ID;
   const clientSecret = env.DISCORD_CLIENT_SECRET;
   const enabled = Boolean(clientId && clientSecret);
@@ -206,4 +254,4 @@ function createAuth(env = process.env, { fetchImpl = fetch } = {}) {
   return { enabled: true, router, userFromCookieHeader };
 }
 
-module.exports = { createAuth, createSigner, parseCookies, SESSION_COOKIE };
+module.exports = { createAuth, createSigner, parseCookies, parseEnvFile, withSharedEnv, SESSION_COOKIE };

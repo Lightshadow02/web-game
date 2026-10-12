@@ -47,3 +47,5 @@ Toute évolution doit préserver cette extensibilité :
   (`DISCORD_GUILD_ID`, `DISCORD_ROLE_IDS`, `DISCORD_ALLOWED_IDS`). Session = cookie signé HMAC vérifié au
   handshake Socket.io ; le pseudo et l'avatar viennent de Discord. Sans `DISCORD_CLIENT_ID/SECRET` : pseudo libre.
   Les modules de jeu n'ont rien à gérer (l'identité arrive via les joueurs du salon).
+  JDR-WEB (même app Discord) est dans un dossier voisin : `SHARED_ENV_FILE=../jdr-web/.env` est monté en lecture
+  seule et on n'y lit que DISCORD_CLIENT_ID/SECRET, SESSION_SECRET (clé dérivée) et ADMIN_DISCORD_IDS.

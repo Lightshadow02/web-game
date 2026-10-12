@@ -147,3 +147,37 @@ test('liste blanche : DISCORD_ALLOWED_IDS passe sans être membre', async (t) =>
   assert.equal(res.headers.get('location'), '/?room=ABCD');
   assert.ok(cookieFrom(res, 'gh_session'));
 });
+
+test('config partagée (.env de JDR-WEB) : seules les clés Discord sont reprises', () => {
+  const { withSharedEnv, parseEnvFile } = require('../src/core/auth');
+  const jdrEnv = [
+    '# config JDR',
+    'NODE_ENV=production',
+    'PORT=3000',
+    'DATABASE_URL=postgresql://ljdr:pw@db:5432/ljdr',
+    'SESSION_SECRET="secret-de-jdr-avec-assez-de-caracteres"',
+    "DISCORD_CLIENT_ID='1234'",
+    'DISCORD_CLIENT_SECRET=abcd # commentaire',
+    'ADMIN_DISCORD_IDS=42, 43',
+  ].join('\n');
+  assert.equal(parseEnvFile(jdrEnv).DISCORD_CLIENT_SECRET, 'abcd');
+
+  const env = withSharedEnv({ SHARED_ENV_FILE: '/x', PORT: '3001', DISCORD_ALLOWED_IDS: '7' }, () => jdrEnv);
+  assert.equal(env.DISCORD_CLIENT_ID, '1234');
+  assert.equal(env.DISCORD_CLIENT_SECRET, 'abcd');
+  assert.equal(env.PORT, '3001', 'le port de JDR-WEB est ignoré');
+  assert.equal(env.DATABASE_URL, undefined, 'rien d’autre n’est importé');
+  assert.ok(env.SESSION_SECRET.length >= 32);
+  assert.notEqual(env.SESSION_SECRET, 'secret-de-jdr-avec-assez-de-caracteres', 'clé dérivée, pas réutilisée');
+  assert.equal(env.DISCORD_ALLOWED_IDS, '7,42,43');
+
+  // Les valeurs propres au Hub restent prioritaires ; fichier vide (/dev/null) ou illisible : sans effet.
+  assert.equal(withSharedEnv({ SHARED_ENV_FILE: '/x', DISCORD_CLIENT_ID: 'mien' }, () => jdrEnv).DISCORD_CLIENT_ID, 'mien');
+  assert.deepEqual(withSharedEnv({ SHARED_ENV_FILE: '/dev/null' }, () => ''), { SHARED_ENV_FILE: '/dev/null' });
+  const unreadable = withSharedEnv({ SHARED_ENV_FILE: '/x' }, () => { throw Object.assign(new Error('x'), { code: 'EACCES' }); });
+  assert.equal(unreadable.DISCORD_CLIENT_ID, undefined);
+
+  // Bout en bout : l'auth s'active avec uniquement PUBLIC_URL + le fichier partagé.
+  const auth = createAuth({ SHARED_ENV_FILE: '/x', PUBLIC_URL: 'https://jeux.example.com' }, { readFile: () => jdrEnv });
+  assert.equal(auth.enabled, true);
+});

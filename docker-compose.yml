@@ -23,6 +23,15 @@ services:
       DISCORD_GUILD_ID: ${DISCORD_GUILD_ID:-}
       DISCORD_ROLE_IDS: ${DISCORD_ROLE_IDS:-}
       DISCORD_ALLOWED_IDS: ${DISCORD_ALLOWED_IDS:-}
+      SHARED_ENV_FILE: /run/shared/app.env
+    volumes:
+      # .env d'une app voisine (ex. ../jdr-web/.env) pour réutiliser sa config Discord.
+      # Par défaut /dev/null (rien de partagé).
+      - type: bind
+        source: ${SHARED_ENV_FILE:-/dev/null}
+        target: /run/shared/app.env
+        read_only: true
+        bind: { create_host_path: false } # chemin faux = erreur claire, pas de dossier fantôme
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
