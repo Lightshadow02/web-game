@@ -99,13 +99,13 @@ test('passer son tour : interdit si tous les autres ont déjà passé', () => {
   game.players[1].hand = [makeCard('S', 10), makeCard('C', 10)];
   game.handleAction('p0', 'yield');
   game.handleAction('p0', 'defend', { cardIds: ['10H'] });
-  assert.throws(() => game.handleAction('p1', 'yield'), /devez jouer/);
+  assert.throws(() => game.handleAction('p1', 'yield'), /dois jouer/);
 });
 
 test('les actions hors tour sont refusées', () => {
   const game = setup({ hand: [makeCard('H', 10)] });
-  assert.throws(() => game.handleAction('p1', 'play', { cardIds: ['10H'] }), /pas votre tour/);
-  assert.throws(() => game.handleAction('p0', 'play', { cardIds: ['XX'] }), /pas dans votre main/);
+  assert.throws(() => game.handleAction('p1', 'play', { cardIds: ['10H'] }), /pas ton tour/);
+  assert.throws(() => game.handleAction('p0', 'play', { cardIds: ['XX'] }), /pas dans ta main/);
 });
 
 test('victoire après le dernier souverain', () => {
@@ -153,4 +153,36 @@ test('boss vaincu : les cartes posées sont nettoyées, nouveau boss annoncé', 
   assert.deepEqual(view.plays, []);
   assert.deepEqual(view.events.slice(-2).map((e) => e.type), ['bossDefeated', 'newBoss']);
   assert.equal(view.events.at(-2).exact, true);
+});
+
+test('souverains vaincus : liste publique avec le K.O. pile, et contribution de chaque joueur', () => {
+  const game = setup({ hand: [makeCard('C', 10), makeCard('H', 2), makeCard('S', 9)] });
+  assert.deepEqual(game.getStateFor('p1').fallen, []);
+  game.handleAction('p0', 'play', { cardIds: ['10C'] }); // 20 dégâts pile sur 20 PV
+  const next = game.boss.card;
+  game.boss.hp = 5;
+  game.handleAction('p0', 'play', { cardIds: ['9S'] }); // au-delà de 0
+  const view = game.getStateFor('p1');
+  assert.deepEqual(view.fallen, [{ card: makeCard('S', 11), exact: true }, { card: next, exact: false }]);
+  assert.equal(view.players[0].damage, 25, 'les dégâts au-delà des PV ne comptent pas');
+  assert.equal(view.players[0].kos, 1);
+  assert.equal(view.players[1].damage, 0);
+});
+
+test('défausse : la carte du dessus est publique', () => {
+  const game = setup({ hand: [makeCard('C', 2), makeCard('H', 6), makeCard('D', 5)] });
+  assert.equal(game.getStateFor('p1').discardTop, null);
+  game.handleAction('p0', 'play', { cardIds: ['2C'] });
+  game.handleAction('p0', 'defend', { cardIds: ['5D', '6H'] });
+  assert.deepEqual(game.getStateFor('p1').discardTop, makeCard('H', 6));
+  assert.equal(game.getStateFor('p1').discardCount, 2);
+});
+
+test('défaite : l’événement dit qui est bloqué et ce qu’il fallait encaisser', () => {
+  const game = setup({ hand: [makeCard('C', 2), makeCard('H', 3)] });
+  game.handleAction('p0', 'play', { cardIds: ['2C'] });
+  const defeat = game.getStateFor('p1').events.at(-1);
+  assert.equal(defeat.type, 'defeat');
+  assert.deepEqual({ playerId: defeat.playerId, need: defeat.need, total: defeat.total }, { playerId: 'p0', need: 10, total: 3 });
+  assert.equal(game.getStateFor('p1').players[1].hand, undefined, 'aucune main adverse dans la vue');
 });

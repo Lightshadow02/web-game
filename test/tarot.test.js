@@ -52,7 +52,7 @@ test('distribution selon le nombre de joueurs', () => {
 test('enchères : ordre, montée obligatoire, tout le monde passe', () => {
   const game = new Tarot({ players: players(4) });
   assert.equal(game.players[game.currentIndex].id, 'p0', 'le joueur après le donneur parle en premier');
-  assert.throws(() => game.handleAction('p1', 'bid', { bid: 'garde' }), /pas votre tour/);
+  assert.throws(() => game.handleAction('p1', 'bid', { bid: 'garde' }), /Ce n’est pas ton tour/);
   game.handleAction('p0', 'bid', { bid: 'garde' });
   assert.throws(() => game.handleAction('p1', 'bid', { bid: 'petite' }), /plus haut/);
   assert.deepEqual(game.getStateFor('p1').availableBids, ['passe', 'garde_sans', 'garde_contre']);
@@ -148,6 +148,9 @@ test('décompte : garde réussie à 4 (2 bouts, 45 points)', () => {
   assert.equal(s.total, (25 + 4) * 2);
   assert.deepEqual(s.changes, { p0: 174, p1: -58, p2: -58, p3: -58 });
   assert.equal(Object.values(s.changes).reduce((a, b) => a + b, 0), 0);
+  // l'historique (feuille de scores) garde les points et l'écart au contrat, publics en fin de donne
+  assert.deepEqual(game.history.at(-1), { roundNumber: 1, takerId: 'p0', contract: 'garde', made: true, points: 45, diff: 4, changes: s.changes });
+  assert.deepEqual(game.getStateFor('p2').history, game.history);
 });
 
 test('décompte : chute, Petit au bout et poignée', () => {

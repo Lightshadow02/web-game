@@ -7,7 +7,15 @@ const SOLO_RENEWALS = 2;
 const COMBO_MAX_TOTAL = 10;
 const LOG_SIZE = 40;
 const EVENT_SIZE = 40;
+// Nom des pouvoirs (« annulé » s'accorde : la Pioche).
+const POWER_OFF = { H: 'Soin annulé', D: 'Pioche annulée', C: 'Double annulé', S: 'Bouclier annulé' };
+const plural = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`;
 const SUIT_NAMES = { H: 'Cœur', D: 'Carreau', C: 'Trèfle', S: 'Pique' };
+const BOSS_NAMES = { 11: 'Valet', 12: 'Dame', 13: 'Roi' };
+/** « Valet de Pique » ; avec l'article : « Le Valet de Pique », « La Dame de Carreau » (journal). */
+const bossLabel = (card) => `${BOSS_NAMES[card.rank]} de ${SUIT_NAMES[card.suit]}`;
+const bossName = (card) => `${card.rank === 12 ? 'La' : 'Le'} ${bossLabel(card)}`;
+const fem = (card, word) => (card.rank === 12 ? `${word}e` : word);
 
 class GameError extends Error {
   constructor(message) {
@@ -37,7 +45,8 @@ class ChuteDesRois {
   constructor({ players, rng = Math.random }) {
     if (players.length < 1 || players.length > 4) throw new GameError('1 à 4 joueurs requis.');
     this.rng = rng;
-    this.players = players.map((p) => ({ id: p.id, name: p.name, hand: [], lastAction: null }));
+    // damage / kos : contribution publique de chaque joueur (écran de fin).
+    this.players = players.map((p) => ({ id: p.id, name: p.name, hand: [], lastAction: null, damage: 0, kos: 0 }));
     this.handSize = HAND_SIZE[players.length];
     this.solo = players.length === 1;
     this.renewalsLeft = this.solo ? SOLO_RENEWALS : 0;
@@ -51,6 +60,7 @@ class ChuteDesRois {
     this.events = [];
     this.eventSeq = 0;
     this.boss = null;
+    this.fallen = []; // souverains vaincus, dans l'ordre : [{ card, exact }] (public)
     this.currentIndex = 0;
     this.phase = 'attack';
     this.pendingDamage = 0;
@@ -63,7 +73,7 @@ class ChuteDesRois {
       for (const player of this.players) player.hand.push(this.tavern.pop());
     }
     this.revealNextBoss();
-    this.addLog(`La partie commence. Premier boss : ${describe(this.boss.card)}.`);
+    this.addLog(`La partie commence. Premier boss : ${bossLabel(this.boss.card)}.`);
   }
 
   // ================================================================ API publique
@@ -109,7 +119,9 @@ class ChuteDesRois {
       isMyTurn: current.id === playerId,
       handSize: this.handSize,
       myHand: me ? sortHand(me.hand) : [],
-      players: this.players.map((p) => ({ id: p.id, name: p.name, cardCount: p.hand.length, lastAction: p.lastAction })),
+      players: this.players.map((p) => ({
+        id: p.id, name: p.name, cardCount: p.hand.length, lastAction: p.lastAction, damage: p.damage, kos: p.kos,
+      })),
       boss: this.boss && {
         card: this.boss.card,
         hp: this.boss.hp,
@@ -124,6 +136,8 @@ class ChuteDesRois {
       events: this.events,
       tavernCount: this.tavern.length,
       discardCount: this.discard.length,
+      discardTop: this.discard.at(-1) ?? null, // la défausse est face visible
+      fallen: this.fallen,
       castleCount: this.castle.length,
       bossesDefeated: 12 - this.castle.length - (this.boss ? 1 : 0),
       pendingDamage: this.pendingDamage,
@@ -155,34 +169,35 @@ class ChuteDesRois {
     const effects = [];
     const event = { playerId, cards, attack, healed: 0, drawn: {}, shield: 0, doubled: false, blockedSuit: blocked[0] ?? null };
 
-    // Ordre de résolution : Cœur avant Carreau (on soigne la pioche avant de piocher).
+    // Ordre de résolution : Cœur avant Carreau (on soigne la Taverne avant de piocher).
     if (active.includes('H')) {
       const healed = this.heal(attack);
       event.healed = healed;
-      effects.push(`♥ ${healed} carte(s) remise(s) sous la pioche`);
+      effects.push(healed ? `soigne ${healed}` : 'défausse vide : aucun soin');
     }
     if (active.includes('D')) {
       const { total, perPlayer } = this.drawForPlayers(attack);
       event.drawn = perPlayer;
-      effects.push(`♦ ${total} carte(s) piochée(s)`);
+      effects.push(total ? `pioche ${total}` : 'aucune carte piochée');
     }
     if (active.includes('S')) {
       boss.shield += attack;
       event.shield = attack;
-      effects.push(`♠ bouclier +${attack}`);
+      effects.push(`bouclier +${attack}`);
     }
     const damage = active.includes('C') ? attack * 2 : attack;
-    if (active.includes('C')) effects.push(`♣ dégâts doublés`);
-    if (blocked.length) effects.push(`${SUIT_NAMES[blocked[0]]} bloqué (immunité du boss)`);
+    if (active.includes('C')) effects.push('dégâts doublés');
+    if (blocked.length) effects.push(`${POWER_OFF[blocked[0]]} (immunité)`);
 
+    player.damage += Math.min(damage, boss.hp);
     boss.hp -= damage;
     event.doubled = active.includes('C');
     this.lastAttack = { playerId, cards, attack, damage, effects };
     player.lastAction = { type: 'attack', cards, damage };
     this.emit('attack', { ...event, damage, bossHp: Math.max(0, boss.hp), bossMaxHp: boss.maxHp });
     this.addLog(
-      `${player.name} joue ${cards.map(describe).join(' + ')} : ${damage} dégât(s)` +
-        (effects.length ? ` — ${effects.join(', ')}` : '') + '.',
+      `${player.name} joue ${cards.map(describe).join(' + ')} : ${plural(damage, 'dégât')}` +
+        (effects.length ? `, ${effects.join(', ')}` : '') + '.',
     );
 
     if (boss.hp <= 0) {
@@ -196,7 +211,7 @@ class ChuteDesRois {
     this.assertTurn(playerId, 'attack');
     if (!this.canYield()) {
       throw new GameError(
-        this.solo ? 'Impossible de passer en solo.' : 'Tous les autres joueurs ont déjà passé : vous devez jouer.',
+        this.solo ? 'Impossible de passer en solo.' : 'Tous les autres joueurs viennent de passer : tu dois jouer.',
       );
     }
     this.consecutiveYields++;
@@ -219,7 +234,7 @@ class ChuteDesRois {
     this.discard.push(...cards);
     player.lastAction = { type: 'defend', cards, damage: this.pendingDamage };
     this.emit('defend', { playerId, cards, damage: this.pendingDamage });
-    this.addLog(`${player.name} encaisse ${this.pendingDamage} dégât(s) en défaussant ${cards.length} carte(s).`);
+    this.addLog(`${player.name} encaisse ${this.pendingDamage} en défaussant ${plural(cards.length, 'carte')}.`);
     this.pendingDamage = 0;
     this.nextPlayer();
   }
@@ -227,7 +242,7 @@ class ChuteDesRois {
   /** Solo uniquement : défausse sa main et repioche une main complète. */
   renew(playerId) {
     if (!this.solo) throw new GameError('Le renouveau est réservé au mode solo.');
-    if (this.currentPlayer().id !== playerId) throw new GameError("Ce n'est pas votre tour.");
+    if (this.currentPlayer().id !== playerId) throw new GameError('Ce n’est pas ton tour.');
     if (this.renewalsLeft <= 0) throw new GameError('Plus de renouveau disponible.');
     const player = this.currentPlayer();
     this.renewalsLeft--;
@@ -235,7 +250,7 @@ class ChuteDesRois {
     player.hand = [];
     while (player.hand.length < this.handSize && this.tavern.length) player.hand.push(this.tavern.pop());
     this.emit('renew', { playerId, count: player.hand.length });
-    this.addLog(`${player.name} utilise un Renouveau et repioche ${player.hand.length} carte(s).`);
+    this.addLog(`${player.name} utilise un Renouveau et repioche ${plural(player.hand.length, 'carte')}.`);
     this.checkStalemate();
   }
 
@@ -271,12 +286,14 @@ class ChuteDesRois {
 
   defeatBoss() {
     const { card, hp } = this.boss;
+    this.fallen.push({ card, exact: hp === 0 });
     if (hp === 0) {
-      this.tavern.push(card); // pile exacte : le boss rallie la cause, au sommet de la pioche
-      this.addLog(`${describe(card)} est vaincu pile ! Il rejoint votre pioche.`);
+      this.tavern.push(card); // pile exacte : le boss rallie la cause, au sommet de la Taverne
+      this.currentPlayer().kos++;
+      this.addLog(`${bossName(card)} est ${fem(card, 'vaincu')} pile : K.O., ${card.rank === 12 ? 'elle' : 'il'} rejoint la Taverne.`);
     } else {
       this.discard.push(card);
-      this.addLog(`${describe(card)} est vaincu !`);
+      this.addLog(`${bossName(card)} est ${fem(card, 'vaincu')}.`);
     }
     this.discard.push(...this.table);
     this.table = [];
@@ -288,12 +305,12 @@ class ChuteDesRois {
       this.boss = null;
       this.phase = 'victory';
       this.emit('victory', {});
-      this.addLog('Tous les souverains sont tombés. VICTOIRE !');
+      this.addLog('Les 12 souverains sont tombés : victoire !');
       return;
     }
     this.revealNextBoss();
     this.emit('newBoss', { card: this.boss.card });
-    this.addLog(`Nouveau boss : ${describe(this.boss.card)}. ${this.currentPlayer().name} rejoue.`);
+    this.addLog(`Nouveau boss : ${bossLabel(this.boss.card)}. ${this.currentPlayer().name} rejoue.`);
     // Le joueur qui a vaincu le boss enchaîne directement (pas de riposte).
     this.phase = 'attack';
     this.checkStalemate();
@@ -303,14 +320,14 @@ class ChuteDesRois {
     const damage = Math.max(0, this.boss.attack - this.boss.shield);
     if (damage === 0) {
       this.emit('blocked', { playerId: this.currentPlayer().id });
-      this.addLog(`Le bouclier absorbe toute l'attaque de ${describe(this.boss.card)}.`);
+      this.addLog(`Le bouclier absorbe toute l’attaque ${this.boss.card.rank === 12 ? 'de la' : 'du'} ${bossLabel(this.boss.card)}.`);
       this.nextPlayer();
       return;
     }
     this.pendingDamage = damage;
     this.phase = 'defend';
     this.emit('riposte', { playerId: this.currentPlayer().id, damage });
-    this.addLog(`${describe(this.boss.card)} riposte : ${damage} dégât(s) pour ${this.currentPlayer().name}.`);
+    this.addLog(`${bossName(this.boss.card)} riposte : ${this.currentPlayer().name} doit encaisser ${damage}.`);
     this.checkStalemate();
   }
 
@@ -330,17 +347,20 @@ class ChuteDesRois {
     if (this.phase === 'defend') {
       const total = player.hand.reduce((sum, c) => sum + cardValue(c), 0);
       if (total < this.pendingDamage) {
-        this.lose(`${player.name} ne peut pas encaisser ${this.pendingDamage} dégât(s) (main : ${total}).`);
+        this.lose(`${player.name} ne peut pas encaisser ${this.pendingDamage} (${total} points en main).`, { total });
       }
     } else if (this.phase === 'attack' && player.hand.length === 0 && !this.canYield()) {
-      this.lose(`${player.name} n'a plus de carte et ne peut pas passer.`);
+      this.lose(`${player.name} n’a plus de carte et ne peut pas passer.`, { total: 0 });
     }
   }
 
-  lose(reason) {
+  /** Défaite : la cause est publique (joueur bloqué, riposte à encaisser, total de sa main, déjà écrit au journal). */
+  lose(reason, { total }) {
+    const playerId = this.currentPlayer().id;
+    const need = this.phase === 'defend' ? this.pendingDamage : 0;
     this.phase = 'defeat';
-    this.emit('defeat', {});
-    this.addLog(`${reason} DÉFAITE.`);
+    this.emit('defeat', { playerId, need, total });
+    this.addLog(`${reason} Défaite.`);
   }
 
   revealNextBoss() {
@@ -360,18 +380,18 @@ class ChuteDesRois {
   }
 
   assertTurn(playerId, phase) {
-    if (this.currentPlayer().id !== playerId) throw new GameError("Ce n'est pas votre tour.");
+    if (this.currentPlayer().id !== playerId) throw new GameError('Ce n’est pas ton tour.');
     if (this.phase !== phase) {
-      throw new GameError(phase === 'attack' ? 'Vous devez encaisser les dégâts.' : "Ce n'est pas le moment de défausser.");
+      throw new GameError(phase === 'attack' ? 'Tu dois d’abord encaisser la riposte.' : 'Ce n’est pas le moment d’encaisser.');
     }
   }
 
   takeFromHand(player, cardIds, { dryRun = false } = {}) {
-    if (!Array.isArray(cardIds) || cardIds.length === 0) throw new GameError('Sélectionnez au moins une carte.');
+    if (!Array.isArray(cardIds) || cardIds.length === 0) throw new GameError('Choisis au moins une carte.');
     if (new Set(cardIds).size !== cardIds.length) throw new GameError('Carte sélectionnée deux fois.');
     const cards = cardIds.map((id) => {
       const card = player.hand.find((c) => c.id === id);
-      if (!card) throw new GameError("Cette carte n'est pas dans votre main.");
+      if (!card) throw new GameError('Cette carte n’est pas dans ta main.');
       return card;
     });
     if (!dryRun) player.hand = player.hand.filter((c) => !cardIds.includes(c.id));
@@ -404,7 +424,7 @@ function validateCombo(cards) {
   const total = cards.reduce((sum, c) => sum + cardValue(c), 0);
   if (sameRank && total <= COMBO_MAX_TOTAL) return;
   throw new GameError(
-    `Combo invalide : une carte seule, un As + une carte, ou des cartes de même valeur totalisant ${COMBO_MAX_TOTAL} max.`,
+    `Combo invalide : une carte seule, un As et une carte, ou des cartes de même valeur dont le total fait ${COMBO_MAX_TOTAL} au plus.`,
   );
 }
 

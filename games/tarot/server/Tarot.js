@@ -335,11 +335,11 @@ class Tarot {
     const taker = this.player(playerId);
     const count = this.cfg.chien;
     if (!Array.isArray(cardIds) || cardIds.length !== count || new Set(cardIds).size !== count) {
-      throw new GameError(`Choisissez exactement ${count} cartes à écarter.`);
+      throw new GameError(`Choisis exactement ${count} cartes à écarter.`);
     }
     const cards = cardIds.map((id) => {
       const card = taker.hand.find((c) => c.id === id);
-      if (!card) throw new GameError("Cette carte n'est pas dans votre main.");
+      if (!card) throw new GameError('Cette carte n’est pas dans ta main.');
       return card;
     });
     if (cards.some((c) => c.suit !== TRUMP && c.suit !== EXCUSE && c.rank === 14)) throw new GameError('On ne peut pas écarter de Roi.');
@@ -372,7 +372,7 @@ class Tarot {
 
   declarePoignee(playerId, size) {
     const option = this.poigneeOptions(playerId).find((o) => o.id === size);
-    if (!option) throw new GameError('Poignée impossible (avant votre première carte, avec assez d’atouts).');
+    if (!option) throw new GameError('Poignée impossible (avant ta première carte, avec assez d’atouts).');
     const p = this.player(playerId);
     // On montre exactement le nombre requis d'atouts (l'Excuse seulement en dernier recours).
     const trumps = p.hand.filter((c) => c.suit === TRUMP).sort((a, b) => a.rank - b.rank);
@@ -397,7 +397,7 @@ class Tarot {
     this.assertTurn(playerId, 'playing');
     const p = this.players[this.currentIndex];
     const card = p.hand.find((c) => c.id === cardId);
-    if (!card) throw new GameError("Cette carte n'est pas dans votre main.");
+    if (!card) throw new GameError('Cette carte n’est pas dans ta main.');
     if (!legalCards(p.hand, this.trick.cards).some((c) => c.id === cardId)) {
       throw new GameError(this.illegalReason(p.hand));
     }
@@ -420,8 +420,8 @@ class Tarot {
   illegalReason(hand) {
     const played = this.trick.cards.filter((t) => t.card.suit !== EXCUSE);
     const lead = played[0]?.card.suit;
-    if (lead && lead !== TRUMP && hand.some((c) => c.suit === lead)) return 'Vous devez fournir la couleur demandée.';
-    if (hand.some((c) => c.suit === TRUMP)) return 'Vous devez couper, et monter à l’atout si vous le pouvez.';
+    if (lead && lead !== TRUMP && hand.some((c) => c.suit === lead)) return 'Tu dois fournir la couleur demandée.';
+    if (hand.some((c) => c.suit === TRUMP)) return 'Tu dois couper, et monter à l’atout si tu le peux.';
     return 'Carte non autorisée.';
   }
 
@@ -518,7 +518,7 @@ class Tarot {
       scores: Object.fromEntries(this.players.map((p) => [p.id, p.score])),
       isLast: this.roundNumber >= this.totalRounds,
     };
-    this.history.push({ roundNumber: this.roundNumber, takerId: this.takerId, contract: contract.id, made, changes });
+    this.history.push({ roundNumber: this.roundNumber, takerId: this.takerId, contract: contract.id, made, points, diff, changes });
     this.addLog(
       `${this.player(this.takerId).name} ${made ? 'réussit' : 'chute'} sa ${contract.name} : ${points} pts pour ${needed} requis (${oudlers} bout${oudlers > 1 ? 's' : ''}).`,
     );
@@ -546,7 +546,7 @@ class Tarot {
 
   assertTurn(playerId, phase) {
     if (this.phase !== phase) throw new GameError("Ce n'est pas le moment.");
-    if (this.players[this.currentIndex].id !== playerId) throw new GameError("Ce n'est pas votre tour.");
+    if (this.players[this.currentIndex].id !== playerId) throw new GameError('Ce n’est pas ton tour.');
   }
 
   emit(type, data) {
