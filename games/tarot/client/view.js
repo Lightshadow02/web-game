@@ -114,7 +114,7 @@ function noteHtml(v) {
   const fromChien = v.ui.calledInChien || s.chien?.some((c) => c.id === s.calledCard.id);
   if (s.takerId === me && !fromChien && s.myHand.some((c) => c.id === s.calledCard.id)) {
     const queen = s.calledCard.rank === 13;
-    return `<div class="tp-secret" data-zone="secret" role="note">${T.icon('lock')}<span><b class="body-strong">Tu joues seul</b><span class="caption">${T.esc(`Tu as appelé ${queen ? 'ta propre' : 'ton propre'} ${fig}. Personne ne le sait avant qu’${queen ? 'elle' : 'il'} tombe.`)}</span></span></div>`;
+    return `<div class="tp-secret" data-zone="secret" role="note">${T.icon('lock')}<span><b class="body-strong">Sans partenaire</b><span class="caption">${T.esc(`Tu as appelé ${queen ? 'ta propre' : 'ton propre'} ${fig}. Personne ne le sait avant qu’${queen ? 'elle' : 'il'} tombe.`)}</span></span></div>`;
   }
   return '';
 }
@@ -284,7 +284,7 @@ export function statusFor(v) {
       if (ui.callSuit) {
         const suit = SUIT_OF_TAPIS[ui.callSuit];
         const mine = s.myHand.some((c) => c.suit === suit && c.rank === r);
-        detail = mine ? `Tu as ${calledDef(r)} ${fig} de ${SUIT_NAME[suit]} : tu joueras seul` : `Tu n’as pas ${calledDef(r)} ${fig} de ${SUIT_NAME[suit]}`;
+        detail = mine ? `Tu as ${calledDef(r)} ${fig} de ${SUIT_NAME[suit]} : tu joueras sans partenaire` : `Tu n’as pas ${calledDef(r)} ${fig} de ${SUIT_NAME[suit]}`;
       }
       return { tone: 'turn', text: `${BID_SHORT[s.contract.id]} : appelle ${calledArticle(r)} ${fig}`, detail };
     }
@@ -406,7 +406,9 @@ function dealSummaryHtml(v) {
   for (const p of m.poignees) {
     lines.push(['Poignée', T.esc(`${v.label(p.playerId)}, ${POIGNEE_NAME[p.size]} : ${p.bonus} ${m.made ? 'à l’attaque' : 'à la défense'}`)]);
   }
-  lines.push(['Total', T.esc(`${signed(m.total)} par défenseur`)]);
+  // m.total est compté pour le camp du preneur : chaque défenseur en paie autant (ou le reçoit s'il est négatif)
+  const pays = m.total >= 0;
+  lines.push(['Total', `Chaque défenseur ${pays ? 'paie' : 'reçoit'} <b class="tp-num">${num(Math.abs(m.total))}</b> ${pays ? 'à l’attaque' : 'de l’attaque'}`]);
 
   const order = [m.takerId, m.partnerId, ...s.players.map((p) => p.id)].filter((id, i, a) => id && a.indexOf(id) === i);
   const gains = order.map((id) => {
@@ -439,13 +441,24 @@ export function endScreen(v) {
   const ranking = [...s.players].sort((a, b) => b.score - a.score);
   const who = `${winnerText(v)}.`;
   const note = v.isHost ? 'Utilise « Retour au salon » en haut pour relancer une partie.' : 'En attente de l’hôte pour revenir au salon.';
-  return T.EndScreen({
+  const tied = (p) => ranking.some((o) => o !== p && o.score === p.score);
+  // place partagée par les ex aequo (1, 1, 3…) ; Tapis numérote d'après la position dans la liste
+  const places = ranking.map((p) => 1 + ranking.filter((o) => o.score > p.score).length);
+  let i = 0;
+  const html = T.EndScreen({
     result: 'fin', title: 'Fin de partie', subtitle: `${s.totalRounds} donnes jouées. ${who}`,
-    ranking: ranking.map((p) => ({ name: v.nameOf(p.id), avatar: v.avatarOf(p.id), me: p.id === me, score: signed(p.score) })),
+    ranking: ranking.map((p) => ({
+      name: v.nameOf(p.id), avatar: v.avatarOf(p.id), me: p.id === me, score: signed(p.score), note: tied(p) ? 'ex aequo' : undefined,
+    })),
     extra: `<div class="trt-end-sheet">${scoreSheet(v)}</div>`,
     actions: `${T.Button({ variant: 'secondary', icon: 'info', label: 'Dernière donne', attrs: { 'data-act': 'summary' } })}${
       T.Button({ variant: 'secondary', icon: 'scores', label: 'Feuille de scores', attrs: { 'data-open': 'scores' } })}${
       T.Button({ variant: 'ghost', icon: 'eye', label: 'Voir la table', attrs: { 'data-act': 'close-end' } })}<p class="caption trt-end-note">${T.esc(note)}</p>`,
+  });
+  return html.replace(/<li class="tp-rank__r"([^>]*)><span class="tp-rank__pos stat">\d+<\/span>/g, (m, rest) => {
+    const place = places[i++];
+    const first = place === 1 && !rest.includes('data-first') ? `${rest} data-first=""` : rest;
+    return `<li class="tp-rank__r"${first}><span class="tp-rank__pos stat">${place}</span>`;
   });
 }
 
@@ -461,7 +474,10 @@ function winnerText(v) {
   const { s, me } = v;
   const best = Math.max(...s.players.map((p) => p.score));
   const winners = s.players.filter((p) => p.score === best);
-  if (winners.length > 1) return `Égalité entre ${winners.map((p) => (p.id === me ? 'toi' : v.nameOf(p.id))).join(' et ')} avec ${signed(best)}`;
+  if (winners.length > 1) {
+    const names = winners.map((p) => (p.id === me ? 'toi' : v.nameOf(p.id)));
+    return `Égalité entre ${names.slice(0, -1).join(', ')} et ${names.at(-1)} avec ${signed(best)}`;
+  }
   return winners[0].id === me ? `Tu gagnes avec ${signed(best)}` : `${v.nameOf(winners[0].id)} gagne avec ${signed(best)}`;
 }
 

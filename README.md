@@ -34,6 +34,7 @@ web-game/
 ├── public/                       ← FRONT DU HUB
 │   ├── index.html                accueil + salon (lobby) + conteneur de jeu (pleine largeur)
 │   ├── css/style.css             thème partagé (variables CSS)
+│   ├── vendor/tapis/             design system « Tapis » des jeux de cartes (importé, ne pas éditer)
 │   └── js/
 │       ├── app.js                client Socket.io, écrans, chargement dynamique des jeux
 │       ├── dashboard.js          page Hub : salons, en ligne, stats, classement, admin
@@ -48,7 +49,8 @@ web-game/
 │       ├── server/ChuteDesRois.js moteur de règles (pur, testable, sans réseau)
 │       ├── server/cards.js       paquet, valeurs, mélange
 │       └── client/               servi sur /games/chute-des-rois/
-│           ├── index.js          mount(root, ctx) -> { update, unmount }
+│           ├── index.js          mount(root, ctx) -> { update, unmount } : file d'états et animations
+│           ├── view.js           rendu avec le design system Tapis (table « cour »)
 │           └── style.css
 ├── test/
 ├── Dockerfile · docker-compose.yml · .env.example
@@ -109,6 +111,15 @@ Tarot français (règles FFT), 3 à 5 joueurs ; une partie = une donne par joueu
 - Décompte : 56/51/41/36 points selon les bouts ; (25 + écart) × coef., Petit au bout (10 × coef.),
   poignées 20/30/40 ; répartition à somme nulle (à 5 : preneur ×2, partenaire ×1).
 - Non gérés pour l'instant : chelem, misère.
+
+## Jeux de cartes — design
+
+La Chute des Rois et le Tarot utilisent le design system Claude Design **« Tapis »**
+(https://claude.ai/artifact/M8sPJm4BwpyyvVesz23YyD) : table « cour » (velours bleu nuit, or, parchemin) et table
+« salon » (feutre vert, laiton, ivoire), 130 cartes dessinées en code, PC 16:9 sans défilement et mobile en colonne,
+catalogue d'animations (distribution, pose, impact, K.O., carte déchirée, nouveau boss, pli ramassé, chien…).
+Pour l'importer de nouveau après une mise à jour : exporter le dossier `project/` de l'artefact puis
+`node scripts/vendor-design.mjs tapis <dossier>` (sortie dans `public/vendor/tapis/`, partagé par les jeux de cartes).
 
 ## Les Profondeurs — règles et design
 

@@ -42,10 +42,21 @@ Toute évolution doit préserver cette extensibilité :
 
 ## Jeux existants
 
-- `chute-des-rois` — La Chute des Rois (coopératif 1-4 joueurs, jeu de 52 cartes).
-- `tarot` — Tarot français FFT (3-5 joueurs ; le propriétaire joue surtout à 4, et à 5 avec appel au Roi).
-  Moteur : games/tarot/server/Tarot.js (enchères, chien/écart, appel au Roi, poignées, Petit au bout, Excuse,
-  décompte officiel, une donne par joueur). Pas encore : chelem, misère.
+- **Jeux de cartes : design system Claude Design « Tapis » du propriétaire
+  (https://claude.ai/artifact/M8sPJm4BwpyyvVesz23YyD)**, partagé par tous les jeux de cartes, importé dans
+  `public/vendor/tapis/` (servi sur `/vendor/tapis/`) par `node scripts/vendor-design.mjs tapis <dossier project>`
+  (ne pas éditer à la main). Conteneur `.tp-scope` avec `data-table`/`data-theme` = `cour` (Chute des Rois) ou
+  `salon` (Tarot) et `data-motion-host` ; préférence d'animation partagée `tapis.motion` (sans choix : le réglage
+  « animations réduites » du système). Pas de LobbyBar Tapis : la barre du Hub reste. Chaque client : `index.js`
+  (chargement, file d'états animée façon Profondeurs) + `view.js` (rendu Tapis). Bugs du bundle contournés côté
+  client (à corriger dans Claude Design puis ré-importer) : « Bouclier {pique} » littéral, accords « annulé » /
+  « Immunisé », KingCall « Appeler le Dame », boutons d'EndScreen sans effet, `play({ from: DOMRect })` qui plante,
+  DealSummary faux sur les demi-points, pas de mise en page entre 640 et ~1100 px de large.
+- `chute-des-rois` — La Chute des Rois (coopératif 1-4 joueurs, jeu de 52 cartes), table « cour » de Tapis.
+- `tarot` — Tarot français FFT (3-5 joueurs ; le propriétaire joue surtout à 4, et à 5 avec appel au Roi), table
+  « salon » de Tapis. Moteur : games/tarot/server/Tarot.js (enchères, chien/écart, appel au Roi, poignées, Petit au
+  bout, Excuse, décompte officiel, une donne par joueur). Pas encore : chelem, misère. Limite connue : téléphone
+  tenu à l'horizontale (hauteur < 560 px), la table défile.
 - `profondeurs` — Les Profondeurs (coopératif 1-4 joueurs, jeu de dés façon « One Deck Dungeon », contenu original,
   boss à 3-4 joueurs). Moteur + contenu + équilibrage faits (games/profondeurs/server/, BALANCE dans Profondeurs.js).
   **Interface FAITE avec le design system Claude Design « Torche » du propriétaire :
@@ -58,13 +69,12 @@ Toute évolution doit préserver cette extensibilité :
 
 ## Pistes notées par le propriétaire
 
-- **À faire (demandé par le propriétaire) : refaire le design ET les animations des jeux de cartes via Claude Design**,
-  puis les reporter dans le code. Le propriétaire trouve la table actuelle « pas ouf » : priorité à une vraie table
-  plein écran **PC 16:9 sans défilement**. Brief à coller dans Claude Design : `docs/design/brief-jeux-de-cartes.md`
-  (système « Tapis », thèmes `cour` / `salon`, format calqué sur « Torche »). Une première maquette existe (direction « Cour royale de nuit » : encre bleu nuit, cartes parchemin,
-  or, Cinzel) : https://claude.ai/artifact/D8nx4awbLzBEoZdMHUqfz3 — à reprendre avec la table actuelle (coéquipiers en
-  haut, légende des pouvoirs sur le tapis) et des storyboards d'animations (pose, dégâts, riposte, encaissement,
-  K.O. vers la pioche, carte déchirée, nouveau boss). Animations actuelles : games/chute-des-rois/client/animations.js.
+- **Design et animations des jeux de cartes : FAITS** avec « Tapis » (voir Jeux existants). Le brief qui a servi
+  est dans `docs/design/brief-jeux-de-cartes.md`.
+- Pistes Core relevées pendant la refonte (non faites, à proposer) : prévenir un jeu quand le salon change
+  (aujourd'hui les clients relisent `ctx.getRoom()` toutes les 1,5 s pour les joueurs déconnectés) ; permettre à
+  l'écran de fin d'un jeu de déclencher « Retour au salon » / « Rejouer » (options de jeu génériques à prévoir aussi
+  pour la difficulté du Joker).
 - **Connexion Discord : FAITE** (`src/core/auth.js`, reprise du flux de JDR-WEB sans base de données).
   Le site est public, le propriétaire ne veut pas gérer de comptes : accès filtré par serveur/rôle Discord
   (`DISCORD_GUILD_ID`, `DISCORD_ROLE_IDS`, `DISCORD_ALLOWED_IDS`). Session = cookie signé HMAC vérifié au

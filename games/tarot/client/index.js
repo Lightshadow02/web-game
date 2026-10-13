@@ -471,6 +471,8 @@ export function mount(root, ctx) {
       await ctx.sendAction(type, payload);
       return true;
     } catch (err) {
+      // « Donne suivante » cliqué en même temps qu'un autre joueur : sa demande est passée, la nouvelle donne est déjà reçue
+      if (type === 'next' && latest?.phase !== 'roundEnd') return false;
       notify({ tone: 'error', text: err.message });
       chain = chain.then(() => render()); // on efface ce que l'interface avait anticipé
       return false;
@@ -889,17 +891,17 @@ export function mount(root, ctx) {
       if (e.type === 'ecart' && e.shownTrumps?.length) {
         const list = e.shownTrumps.map(cardName);
         const text = list.length > 1 ? `${list.slice(0, -1).join(', ')} et ${list.at(-1)}` : list[0];
-        notify({ tone: 'info', title: 'Atouts écartés', text: `${who(e.playerId)} ${e.playerId === me ? 'écartes' : 'écarte'} ${text}, montrés à tous` });
+        notify({ tone: 'info', title: 'Atouts écartés', text: `${who(e.playerId)} ${e.playerId === me ? 'écartes' : 'écarte'} ${text}, ${list.length > 1 ? 'montrés' : 'montré'} à tous` });
       }
       if (e.type === 'play' && e.revealsPartner) {
         const c = next.calledCard ?? e.card;
         const called = `${calledDef(c.rank)} ${calledRankName(c.rank)}`;
         if (e.playerId === next.takerId) {
-          if (e.playerId !== me) notify({ tone: 'info', title: 'Sans partenaire', text: `${nameOf(e.playerId)} avait ${called} appelé${c.rank === 13 ? 'e' : ''} : il joue seul contre tous` });
+          if (e.playerId !== me) notify({ tone: 'info', title: 'Sans partenaire', text: `${nameOf(e.playerId)} avait ${called} appelé${c.rank === 13 ? 'e' : ''} : pas de partenaire, la donne se joue à 1 contre ${next.players.length - 1}` });
         } else if (e.playerId === me) {
           notify({ tone: 'success', title: 'Partenaire révélé', text: `Tout le monde sait maintenant que tu joues avec ${nameOf(next.takerId)}` });
         } else {
-          notify({ tone: 'success', title: 'Partenaire révélé', text: `${nameOf(e.playerId)} est ${next.takerId === me ? 'ton partenaire' : `le partenaire ${deOf(nameOf(next.takerId))}`}` });
+          notify({ tone: 'success', title: 'Partenaire révélé', text: `${nameOf(e.playerId)} joue avec ${next.takerId === me ? 'toi' : nameOf(next.takerId)}` });
         }
       }
     }
@@ -911,8 +913,6 @@ export function mount(root, ctx) {
       if (next.contract.id === 'garde_contre') notify({ tone: 'info', text: 'Garde contre le chien : il va à la défense sans être retourné' });
     }
   }
-
-  const deOf = (name) => (/^[aeiouyàâäéèêëîïôöùûüœæ]/i.test(name) ? `d’${name}` : `de ${name}`);
 
   // ================================================================ cycle de vie
 

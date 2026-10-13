@@ -17,6 +17,13 @@
 /* Pendant une transition ou une requête : pas de clic de jeu (outils, règles et interrupteur restent actifs). */
 .tp-scope.trt:is([data-animating], [data-busy]) :is(.tp-hand, .tp-actions, .tp-overpanel) { pointer-events: none; }
 
+/* Écran tactile : le survol reste collé sur la dernière carte touchée. Soulevée et passée devant, elle cacherait
+   ses voisines et fuirait sous le doigt (tape perdue pendant l'écart) : pas de levée au survol, la sélection garde la sienne. */
+@media (hover: none) {
+  .tp-scope.trt .tp-hand button.tp-card:hover:not([aria-disabled="true"]) { transform: none; z-index: auto; }
+  .tp-scope.trt .tp-hand button.tp-card[data-state~="selected"]:hover { transform: translateY(-15%); }
+}
+
 /* Portable (zone basse) : les boutons sous le pli gardent leur seule icône, pour ne pas chevaucher les cartes. */
 @container zone (max-height: 700px) {
   .tp-scope.trt .tp-trickinfo .tp-btn span { display: none; }
@@ -51,6 +58,11 @@
   .tp-scope.trt .tp-end__emblem .tp-ic { width: 26px; height: 26px; }
   .tp-scope.trt .trt-end-sheet { display: none; } /* zone basse : la feuille reste dans le tiroir « Feuille de scores » */
 }
+
+/* « ex aequo » sur la ligne du nom (Tapis le met dessous) : le classement garde sa hauteur sur les portables. */
+.tp-scope.trt .tp-rank__r { grid-template-columns: 28px auto auto 1fr auto; }
+.tp-scope.trt .tp-rank__note { grid-row: 1; grid-column: 4; }
+.tp-scope.trt .tp-rank__s { grid-column: 5; }
 .tp-scope.trt .trt-end-note { flex-basis: 100%; margin: 0; text-align: center; color: var(--text-muted); }
 .tp-scope.trt .tp-end__act { flex-wrap: wrap; justify-content: center; }
 .tp-scope.trt .trt-empty { margin: var(--space-3) 0 0; color: var(--text-muted); }
