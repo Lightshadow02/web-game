@@ -12,17 +12,34 @@ const RANK_WORD = { 1: 'As', 11: 'Valet', 12: 'Dame', 13: 'Roi' };
 const POWER_OFF = { H: 'Soin annulé', D: 'Pioche annulée', C: 'Double annulé', S: 'Bouclier annulé' };
 const GLYPH = { '♠': 'pique', '♥': 'coeur', '♦': 'carreau', '♣': 'trefle' };
 
-export const value = (c) => (c.rank <= 10 ? c.rank : { 11: 10, 12: 15, 13: 20 }[c.rank]);
+export const value = (c) => (c.rank <= 10 ? c.rank : { 11: 10, 12: 15, 13: 20 }[c.rank]); // Joker : rang 0, valeur 0
 export const total = (cards) => cards.reduce((sum, c) => sum + value(c), 0);
-/** Carte du moteur ({ suit: 'H', rank: 12, id: '12H' }) vers Tapis ({ suit: 'coeur', rank: 'D', id }). */
-export const tp = (c, extra = {}) => ({ suit: SUIT[c.suit], rank: RANK[c.rank] ?? c.rank, id: c.id, ...extra });
+export const DIFFICULTY = { facile: 'Facile', normal: 'Normal', classique: 'Classique' };
+/**
+ * Carte du moteur ({ suit: 'H', rank: 12, id: '12H' }) vers Tapis ({ suit: 'coeur', rank: 'D', id }).
+ * Tapis n'a pas de Joker : il prend la carte de l'Excuse (le Fou du Tarot, même rôle), renommée par jk().
+ */
+export const tp = (c, extra = {}) => (c.joker ? { suit: 'excuse', id: c.id, ...extra }
+  : { suit: SUIT[c.suit], rank: RANK[c.rank] ?? c.rank, id: c.id, ...extra });
+/** HTML Tapis contenant des cartes : l'Excuse devient le Joker (nom accessible, ruban, sans la mention « Bout »). */
+export const jk = (html) => (html.includes('data-suit="excuse"')
+  ? html.replaceAll('L’Excuse (bout)', 'Joker').replaceAll('>Excuse</text>', '>Joker</text>')
+    .replace(/<text[^>]*class="tp-trump__bout">Bout<\/text>/g, '')
+  : html);
 /** Identifiant Tapis d'un souverain : 'D-carreau'. */
 export const sovId = (c) => `${RANK[c.rank]}-${SUIT[c.suit]}`;
 export const pl = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`;
-/** « 7 {trefle} », « As {coeur} », « Dame {pique} » (glyphes posés par Tapis.rich). */
-export const lab = (c) => `${RANK_WORD[c.rank] ?? c.rank} {${SUIT[c.suit]}}`;
+/** Pseudo raccourci pour un bouton : « Maximilien-Alex… » (le pseudo complet reste sur la tuile). */
+export const shortName = (name, max = 16) => {
+  const chars = Array.from(String(name));
+  return chars.length > max ? `${chars.slice(0, max - 1).join('').trimEnd()}…` : String(name);
+};
+/** « 7 {trefle} », « As {coeur} », « Dame {pique} », « Joker » (glyphes posés par Tapis.rich). */
+export const lab = (c) => (c.joker ? 'Joker' : `${RANK_WORD[c.rank] ?? c.rank} {${SUIT[c.suit]}}`);
 export const atkTxt = (atk, shield) => (shield ? `${atk} − ${shield} = ${Math.max(0, atk - shield)}` : String(atk));
 export const isOver = (s) => s.phase === 'victory' || s.phase === 'defeat';
+/** « de Léa » / « d’Arthur » (élision devant une voyelle ou un h muet). */
+export const deName = (name) => (/^[aeiouyhàâäéèêëîïôöûüù]/i.test(String(name)) ? `d’${name}` : `de ${name}`);
 
 const fem = (c) => c.rank === 12;
 const bossLabel = (c) => `${RANK_WORD[c.rank]} de ${SUIT_NAME[c.suit]}`;
@@ -34,6 +51,7 @@ const immuneWord = (c) => (fem(c) ? 'immunisée' : 'immunisé');
 /** Pourquoi une sélection n'est pas un combo (miroir de validateCombo côté serveur), ou null. */
 export function comboError(cards) {
   if (cards.length <= 1) return null;
+  if (cards.some((c) => c.joker)) return 'Le Joker se joue seul';
   if (cards.length === 2 && cards.some((c) => c.rank === 1)) return null;
   const same = cards.every((c) => c.rank === cards[0].rank);
   const sum = total(cards);
@@ -74,9 +92,21 @@ export function createView(T, { me, room }) {
     const reason = comboError(sel);
     if (reason) return { ok: false, valid: false, reason, text: `${label} : combo invalide`, detail: reason };
     const boss = v.boss;
+    if (sel[0].joker) {
+      const broken = boss.immunityBroken;
+      return {
+        ok: true, valid: true, joker: true, dmg: 0,
+        text: broken ? 'Joker : pas de riposte' : 'Joker : annule l’immunité, pas de riposte',
+        detail: [
+          broken ? 'L’immunité est déjà levée' : `${theBoss(boss.card, true)} perd son immunité au {${SUIT[boss.card.suit]}} jusqu’à sa chute`,
+          v.solo ? 'Tu rejoues aussitôt' : 'Puis tu choisis qui joue',
+        ].join(' · '),
+      };
+    }
     const atk = total(sel);
-    const active = [...new Set(sel.map((c) => c.suit))].filter((s) => s !== boss.card.suit);
-    const blocked = sel.some((c) => c.suit === boss.card.suit) ? boss.card.suit : null;
+    const immune = boss.immuneSuit; // null : un Joker a levé l'immunité
+    const active = [...new Set(sel.map((c) => c.suit))].filter((s) => s !== immune);
+    const blocked = sel.some((c) => c.suit === immune) ? immune : null;
     const dmg = active.includes('C') ? atk * 2 : atk;
     const effects = [];
     const healed = active.includes('H') ? Math.min(atk, v.discardCount) : 0;
@@ -133,8 +163,11 @@ export function createView(T, { me, room }) {
 
   /** Détail « Bouclier cumulé : 4 + 5 » (contribution de chaque coup ♠ contre ce boss). */
   function shieldDetail(v) {
-    if (!v.boss?.shield || v.boss.card.suit === 'S') return null;
-    const parts = v.plays.filter((x) => x.cards.some((c) => c.suit === 'S')).map((x) => total(x.cards));
+    if (!v.boss?.shield) return null;
+    // contre un boss de Pique, seuls les coups posés après le Joker (immunité levée) ont fait bouclier
+    const joker = v.boss.card.suit === 'S' ? v.plays.findIndex((x) => x.cards.some((c) => c.joker)) : -1;
+    const plays = joker >= 0 ? v.plays.slice(joker + 1) : v.plays;
+    const parts = plays.filter((x) => x.cards.some((c) => c.suit === 'S')).map((x) => total(x.cards));
     if (parts.length < 2 || parts.reduce((a, b) => a + b, 0) !== v.boss.shield) return null;
     return `Bouclier cumulé : ${parts.join(' + ')}`;
   }
@@ -143,20 +176,26 @@ export function createView(T, { me, room }) {
     if (v.phase === 'victory') return { tone: 'win', text: 'Victoire', detail: '12/12 souverains' };
     if (v.phase === 'defeat') return { tone: 'alert', text: 'Défaite', detail: `${v.bossesDefeated}/12 souverains` };
     const cur = v.currentPlayerId;
+    if (v.acting && v.actingJoker) return v.acting === me ? { tone: 'turn', text: 'Tu joues le Joker…' } : { tone: 'wait', text: `${nameIn(v, v.acting)} joue le Joker…` };
     if (v.acting) return v.acting === me ? { tone: 'turn', text: 'Tu attaques…' } : { tone: 'wait', text: `${nameIn(v, v.acting)} attaque…` };
     const atk = v.boss ? `Attaque ${atkTxt(v.boss.attack, v.boss.shield)}` : undefined;
     const off = offline(cur) ? 'Déconnecté' : null;
+    if (v.phase === 'choose') {
+      if (cur === me) return { tone: 'turn', text: 'Qui joue ensuite ?', detail: 'Toutes les mains sont révélées' };
+      return { tone: 'wait', text: `${nameIn(v, cur)} choisit qui joue…`, detail: off ?? 'Mains révélées le temps du choix' };
+    }
+    const chosen = v.chosenBy && v.chosenBy !== cur ? `Choix ${deName(nameIn(v, v.chosenBy))}` : null;
     if (v.phase === 'defend') {
       if (cur === me) return { tone: 'alert', text: 'Riposte sur toi', detail: atk };
       return { tone: 'wait', text: `${nameIn(v, cur)} encaisse ${pl(v.pendingDamage, 'dégât')}…`, detail: off ?? atk };
     }
     if (cur === me) {
-      const text = v.replay === me && v.boss ? `Tu rejoues contre ${theBoss(v.boss.card)}` : 'À toi de jouer';
-      return { tone: 'turn', text, detail: shieldDetail(v) ?? (v.solo ? `Solo · Tour ${v.turn}` : `Tour ${v.turn}`) };
+      const text = (v.replay === me || v.chosenBy === me) && v.boss ? `Tu rejoues contre ${theBoss(v.boss.card)}` : 'À toi de jouer';
+      return { tone: 'turn', text, detail: chosen ?? shieldDetail(v) ?? (v.solo ? `Solo · Tour ${v.turn}` : `Tour ${v.turn}`) };
     }
-    const text = v.replay === cur ? `${nameIn(v, cur)} rejoue…` : `${nameIn(v, cur)} joue…`;
+    const text = v.replay === cur || v.chosenBy === cur ? `${nameIn(v, cur)} rejoue…` : `${nameIn(v, cur)} joue…`;
     const i = v.players.findIndex((p) => p.id === me);
-    let detail = off;
+    let detail = off ?? chosen;
     if (!detail && i >= 0) {
       const before = v.players[(i - 1 + v.players.length) % v.players.length];
       detail = before.id === cur ? 'Tu joues ensuite' : `Tu joues après ${before.name}`;
@@ -187,6 +226,13 @@ export function createView(T, { me, room }) {
     const renew = v.solo && v.renewalsLeft > 0
       ? { label: 'Renouveau', icon: 'renew', count: v.renewalsLeft, attrs: { 'data-act': 'renew' } } : null;
     const pass = (extra = {}) => (v.solo ? [] : [{ label: 'Passer', icon: 'pass', attrs: { 'data-act': 'yield' }, ...extra }]);
+    // « Qui joue ? » : barre d'actions sur mobile ; sur PC elle s'efface et le bouton est dans le panneau
+    if (v.phase === 'choose') {
+      if (v.currentPlayerId !== me || v.locked || v.acting) {
+        return { primary: { label: 'Attaquer', icon: 'sword', disabled: true, reason: v.locked || v.acting ? null : `${nameIn(v, v.currentPlayerId)} choisit qui joue`, attrs: { 'data-act': 'play' } } };
+      }
+      return { primary: chooseButton(v, true) };
+    }
     if (!v.isMyTurn || v.locked || v.acting) {
       return {
         primary: { label: 'Attaquer', icon: 'sword', disabled: true, reason: v.locked || v.acting ? null : 'Ce n’est pas ton tour', attrs: { 'data-act': 'play' } },
@@ -220,8 +266,9 @@ export function createView(T, { me, room }) {
     if (!sel.length) primary = { label: 'Attaquer', icon: 'sword', disabled: true, reason: 'Choisis une carte ou un combo' };
     else {
       const p = v.boss ? preview(v, sel) : { ok: false, reason: 'Aucun boss' };
-      primary = p.ok ? { label: `Attaquer · ${p.dmg}`, icon: 'sword', kbd: 'Entrée' }
-        : { label: 'Attaquer', icon: 'sword', disabled: true, reason: p.reason };
+      primary = p.joker ? { label: 'Jouer le Joker', icon: 'star', kbd: 'Entrée' }
+        : p.ok ? { label: `Attaquer · ${p.dmg}`, icon: 'sword', kbd: 'Entrée' }
+          : { label: 'Attaquer', icon: 'sword', disabled: true, reason: p.reason };
     }
     primary.attrs = { 'data-act': 'play' };
     return { primary, secondary: [...yieldBtn, ...(renew ? [renew] : [])] };
@@ -229,16 +276,32 @@ export function createView(T, { me, room }) {
 
   const actionsArea = (v) => T.ActionBar(actionsFor(v));
 
+  /** Bouton qui confirme le choix : « Faire jouer Léa » (pseudo raccourci : le bouton garde sa taille). */
+  function chooseButton(v, withReason) {
+    const pick = v.players.find((p) => p.id === v.pick);
+    const b = !pick ? { label: 'Choisir', icon: 'arrow', disabled: true, reason: withReason ? 'Choisis qui joue ensuite' : undefined }
+      : { label: pick.id === me ? 'Rejouer' : `Faire jouer ${shortName(pick.name)}`, icon: 'arrow', kbd: 'Entrée' };
+    return { ...b, attrs: { 'data-act': 'choose' } };
+  }
+  /** Bouton du panneau « Qui joue ? » (PC). */
+  const chooseGo = (v) => T.Button({ variant: 'primary', ...chooseButton(v, false) });
+
   function lastText(a) {
     if (!a) return undefined;
+    if (a.type === 'joker') return 'A joué le Joker';
     if (a.type === 'attack') return `A joué ${a.cards.map(lab).join(' + ')} : ${pl(a.damage, 'dégât')}`;
     if (a.type === 'defend') return `A encaissé ${a.damage}`;
     return 'A passé';
   }
 
   /** Bulle d'un joueur qui vient d'agir (lot d'événements affiché). */
-  function bubbleFor(e) {
+  function bubbleFor(e, v) {
     if (e.type === 'yield') return { text: 'Passe', tone: 'pass' };
+    if (e.type === 'joker') return { text: e.broken ? 'Joker : immunité levée' : 'Joker : pas de riposte' };
+    if (e.type === 'choose') {
+      if (e.targetId === e.playerId) return { text: 'Rejoue' };
+      return { text: e.targetId === me ? 'Te choisit' : `Choisit ${nameIn(v, e.targetId)}` };
+    }
     if (e.type === 'defend') return { text: `Encaisse ${e.damage}` };
     if (e.type === 'renew') return { text: 'Renouveau' };
     if (e.type !== 'attack') return null;
@@ -264,57 +327,116 @@ export function createView(T, { me, room }) {
     const b = v.boss;
     let boss = T.Boss({ card: tp(b.card, { id: undefined }), hp: b.hp, hpMax: b.maxHp, atk: b.attack, shield: b.shield, size: 'lg' })
       .replace('Bouclier {pique}', T.rich('Bouclier {pique}'));
-    if (b.card.suit === 'D') boss = boss.replace('Pioche annulé', 'Pioche annulée');
-    if (fem(b.card)) boss = boss.replace('Immunisé à', 'Immunisée à');
+    if (b.immunityBroken) {
+      boss = boss.replace(/<p class="tp-boss__immune caption">[\s\S]*?<\/p>/,
+        `<p class="tp-boss__immune cdr-freed caption">${T.icon('star')}${T.rich('Immunité levée par le Joker')}</p>`);
+    } else {
+      if (b.card.suit === 'D') boss = boss.replace('Pioche annulé', 'Pioche annulée');
+      if (fem(b.card)) boss = boss.replace('Immunisé à', 'Immunisée à');
+    }
     return view.throne + T.Sovereigns({ fallen, current: sovId(b.card) }) + boss;
   }
 
+  /** Légende des pouvoirs (celui du boss barré, sauf si un Joker l'a rétabli), plus le Joker s'il y en a. */
   function legend(v) {
-    const immune = v.boss ? SUIT[v.boss.card.suit] : undefined;
+    const immune = v.boss?.immuneSuit ? SUIT[v.boss.immuneSuit] : undefined;
     let html = T.PowerLegend({ immune });
     if (immune === 'carreau') html = html.replace('annulé</span>', 'annulée</span>');
+    if (v.boss?.immunityBroken) {
+      const s = SUIT[v.boss.card.suit];
+      html = html.replace(`data-suit="${s}">`, `data-suit="${s}" data-freed="">`)
+        .replace(new RegExp(`(data-suit="${s}" data-freed="">[\\s\\S]*?<b class="button">[^<]*)`),
+          `$1 <span class="tp-power__x cdr-power__freed caption">${T.icon('star')}rétabli${s === 'carreau' ? 'e' : ''}</span>`);
+    }
+    if (v.jokerCount > 0) {
+      const level = DIFFICULTY[v.difficulty] ?? '';
+      html = html.replace('</ul>', `<li class="tp-power cdr-power--joker" data-suit="joker"><span class="tp-power__g">${T.icon('star')}</span>`
+        + `<span class="tp-power__t"><b class="button">Joker <span class="tp-power__x caption">${T.esc(`${level} · ×${v.jokerCount}`)}</span></b>`
+        + `<span class="caption">Se joue seul : lève l’immunité du boss, pas de riposte.</span></span></li></ul>`);
+    }
     return html;
+  }
+
+  /**
+   * « Qui joue ? » : après un Joker (à plusieurs), toutes les mains révélées. Son joueur choisit (tuiles
+   * radio + bouton principal) ; les autres voient les mains en attendant. Ordre : les suivants, puis lui.
+   */
+  function choosePanel(v) {
+    if (v.phase !== 'choose' || v.locked || !v.players.some((p) => p.hand)) return '';
+    const chooser = v.currentPlayerId;
+    const mine = chooser === me;
+    const i = v.players.findIndex((p) => p.id === chooser);
+    const order = [...v.players.slice(i + 1), ...v.players.slice(0, i + 1)];
+    const tiles = order.map((p) => {
+      const hand = p.hand ?? [];
+      const meta = `<span class="cdr-who__n">${pl(hand.length, 'carte')} · </span>${pl(total(hand), 'point')}`;
+      const who = p.id === me ? 'Toi' : p.name;
+      const note = offline(p.id) ? 'Déconnecté' : '';
+      const cards = hand.length ? hand.map((c) => T.Card({ ...tp(c), size: 'sm' })).join('')
+        : '<span class="cdr-who__empty caption">Main vide</span>';
+      const inner = `<span class="cdr-who__id">${T.Avatar({ name: p.name, src: avatarOf(p.id), size: 'sm', state: offline(p.id) ? 'offline' : undefined })}`
+        + `<span class="cdr-who__txt"><b class="title-sm">${T.esc(who)}</b><span class="caption">${meta}${note ? ` · ${T.esc(note)}` : ''}</span></span></span>`
+        + `<span class="cdr-who__cards">${cards}</span>`;
+      const picked = v.pick === p.id;
+      const n = ` style="--n:${Math.max(1, hand.length)}"`;
+      return mine
+        ? `<button type="button" class="cdr-who__p"${n} role="radio" aria-checked="${picked}" data-pick="${T.esc(p.id)}"${picked ? ' data-picked=""' : ''}>${inner}</button>`
+        : `<div class="cdr-who__p"${n} role="group" aria-label="${T.esc(p.id === me ? 'Ta main' : `Main ${deName(who)}`)}">${inner}</div>`;
+    }).join('');
+    const title = mine ? 'Qui joue ?' : `${nameIn(v, chooser)} choisit qui joue`;
+    const head = `<h2 class="title-md" id="cdr-who-h">${T.esc(title)}</h2>`
+      + `<span class="caption">${T.icon('eye')} ${T.rich(mine ? 'Mains révélées à tous jusqu’à ton choix' : 'Mains révélées à tous jusqu’au choix')}</span>`;
+    return jk(`<div class="cdr-choose"><section class="tp-panel cdr-who" data-zone="choose" aria-labelledby="cdr-who-h">`
+      + (mine ? `<header class="tp-panel__h cdr-who__h"><span class="cdr-who__ht">${head}</span><span class="cdr-who__go">${chooseGo(v)}</span></header>`
+        : `<header class="tp-panel__h">${head}</header>`)
+      + `<div class="cdr-who__list"${mine ? ' role="radiogroup" aria-labelledby="cdr-who-h"' : ''}>${tiles}</div></section></div>`);
   }
 
   function table(v) {
     const meP = v.players.find((p) => p.id === me);
     const team = others(v).map((p) => {
       const bubble = v.bubbles[p.id];
-      return T.Seat({
+      const seat = jk(T.Seat({
         seat: p.id, name: p.name, avatar: avatarOf(p.id), state: seatState(v, p.id), count: p.cardCount,
         played: playsOf(v, p.id).map((c) => tp(c)), playedLabel: 'Contre ce boss',
         last: bubble ? undefined : lastText(p.lastAction), bubble,
-      });
+      }));
+      // pendant le choix, son siège dit « Choisit… » (le texte d'état seulement, jamais le pseudo)
+      return v.phase === 'choose' && p.id === v.currentPlayerId
+        ? seat.replace('Joue…</span>', 'Choisit…</span>').replace(/, Joue…(, \d+ cartes?")/, ', Choisit…$1') : seat;
     }).join('');
     const mine = playsOf(v, me);
     const mineHtml = `<div class="tp-mine" data-zone="mine"><span class="tp-mine__l label">Mes cartes posées</span><div class="tp-mine__c">${
-      mine.length ? mine.map((c) => T.Card({ ...tp(c), size: 'sm' })).join('') : '<span class="tp-mine__empty caption">Aucune contre ce boss</span>'}</div></div>`;
+      mine.length ? jk(mine.map((c) => T.Card({ ...tp(c), size: 'sm' })).join('')) : '<span class="tp-mine__empty caption">Aucune contre ce boss</span>'}</div></div>`;
     const meSeat = meP ? T.Seat({
       seat: me, name: meP.name, avatar: avatarOf(me), me: true, compact: true, state: seatState(v, me), count: v.myHand.length,
     }) : '';
     const canSelect = !v.locked && !v.acting && v.isMyTurn && (v.phase === 'attack' || v.phase === 'defend');
-    const hand = meP ? T.Hand({
+    const hand = meP ? jk(T.Hand({
       cards: v.myHand.map((c) => tp(c, { selected: v.sel.includes(c.id) })), size: 'md', multi: true, groups: false,
       interactive: canSelect, label: 'Ta main', hint: v.myHand.length ? undefined : 'Ta main est vide',
-    }) : '';
+    })) : '';
+    const panel = choosePanel(v);
     const top = v.discardTop ? tp(v.discardTop, { id: `top-${v.discardTop.id}` }) : undefined;
-    return `<div class="tp-table tp-table--cour" data-players="${v.players.length}">${
+    return `<div class="tp-table tp-table--cour" data-players="${v.players.length}"${panel ? ' data-choosing=""' : ''}>${
       area('team', team)}${
       area('castle', T.Pile({ pile: 'chateau', count: v.castleCount, size: 'sm' }) + legend(v))}${
       area('boss', bossArea(v))}${
-      area('piles', T.Pile({ pile: 'taverne', count: v.tavernCount, size: 'sm' }) + T.Pile({ pile: 'defausse', count: v.discardCount, top, size: 'sm' }))}${
+      area('piles', T.Pile({ pile: 'taverne', count: v.tavernCount, size: 'sm' }) + jk(T.Pile({ pile: 'defausse', count: v.discardCount, top, size: 'sm' })))}${
       area('mine', (meP ? mineHtml : '') + meSeat)}${
       area('status', statusArea(v))}${
-      area('hand', hand)}${
+      area('hand', hand + panel)}${
       area('actions', meP ? actionsArea(v) : '')}</div>`;
   }
 
   // ---------------------------------------------------------------- journal et fin
 
   function journal(s) {
-    const tone = (t) => (/vaincu|victoire/i.test(t) ? 'good' : /riposte|Nouveau boss|Défaite/.test(t) ? 'alert' : undefined);
+    const tone = (t) => (/vaincu|victoire|Joker/i.test(t) ? 'good' : /riposte|Nouveau boss|Défaite/.test(t) ? 'alert' : undefined);
     return T.Log({ entries: [...s.log].reverse().map((e) => ({ at: String(e.turn), text: glyphs(e.text), tone: tone(e.text) })) });
   }
+
+  const difficultyRecap = (s) => (DIFFICULTY[s.difficulty] ? [['Difficulté', DIFFICULTY[s.difficulty]]] : []);
 
   function end(s) {
     const host = room()?.hostId === me;
@@ -334,7 +456,7 @@ export function createView(T, { me, room }) {
         result: 'victoire', title: 'Victoire',
         subtitle: `Les 12 souverains sont tombés. La cour est à ${s.solo ? 'toi' : 'vous'}.`,
         extra: T.Sovereigns({ fallen }),
-        recap: [['Souverains', '12/12'], ['K.O. pile', String(kos)], ['Tours', String(s.turn)]],
+        recap: [['Souverains', '12/12'], ['K.O. pile', String(kos)], ['Tours', String(s.turn)], ...difficultyRecap(s)],
         ranking, actions,
       });
     }
@@ -352,10 +474,10 @@ export function createView(T, { me, room }) {
     } else {
       subtitle = mineLoss ? 'Tu n’avais plus de carte et ne pouvais pas passer.' : `${who} n’avait plus de carte et ne pouvait pas passer.`;
     }
-    const recap = [['Souverains', `${s.bossesDefeated}/12`], ['Tours', String(s.turn)]];
+    const recap = [['Souverains', `${s.bossesDefeated}/12`], ['Tours', String(s.turn)], ...difficultyRecap(s)];
     if (kos) recap.splice(1, 0, ['K.O. pile', String(kos)]);
     return T.EndScreen({ result: 'defaite', title: 'Défaite', subtitle, recap, actions });
   }
 
-  return Object.assign(view, { table, statusArea, actionsArea, journal, end, bubbleFor, preview });
+  return Object.assign(view, { table, statusArea, actionsArea, chooseGo, journal, end, bubbleFor, preview, choosePanel });
 }

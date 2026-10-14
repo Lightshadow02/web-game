@@ -1,7 +1,8 @@
 # Game Hub — plateforme multijoueur modulaire
 
 Hub web temps réel (Node.js · Express · Socket.io · Vanilla JS en modules ES) pour héberger
-plusieurs mini-jeux de société / cartes : **La Chute des Rois** (coopératif, 1-4 joueurs), **Tarot** (3-5 joueurs)
+plusieurs mini-jeux de société / cartes : **La Chute des Rois** (coopératif, 1-4 joueurs), **Tarot** (3-5 joueurs),
+**Blackjack** (1-5 joueurs contre la banque), **Poker Texas Hold'em** (2-8 joueurs, tournoi No Limit)
 et **Les Profondeurs** (exploration de donjon coopérative aux dés, 1-4 joueurs).
 
 ## Démarrage
@@ -41,6 +42,8 @@ web-game/
 │       └── dom.js                helper el() partagé (pas d'innerHTML)
 ├── games/                        ← UN DOSSIER = UN JEU
 │   ├── tarot/                    Tarot français (3-5 joueurs, appel au Roi à 5)
+│   ├── blackjack/                Blackjack (1-5 joueurs contre la banque)
+│   ├── poker/                    Poker Texas Hold'em No Limit en tournoi (2-8 joueurs)
 │   ├── profondeurs/              Les Profondeurs (dés, 1-4 joueurs)
 │   │   ├── server/               moteur + contenu original (héros, salles, gardiens, boss)
 │   │   └── client/               écrans au design system « Torche » (client/torche/, importé de Claude Design)
@@ -115,9 +118,41 @@ Tarot français (règles FFT), 3 à 5 joueurs ; une partie = une donne par joueu
   poignées 20/30/40 ; répartition à somme nulle (à 5 : preneur ×2, partenaire ×1).
 - Non gérés pour l'instant : chelem, misère.
 
+## Blackjack — règles implémentées
+
+- 1 à 5 joueurs, chacun contre la banque. Réglages de l'hôte dans le salon : jetons de départ (500, 1 000 ou 2 500)
+  et nombre de donnes (5, 10 ou 20).
+- Sabot de 6 jeux avec carte de coupe à 75 % : remélangé avant la donne suivante une fois la carte sortie (annoncé).
+- Mises simultanées : 10 au moins (tout ce qui reste s'il y en a moins), au plus sa cave ; « Je passe » saute la donne.
+- La banque a une carte cachée et vérifie son blackjack sur un As ou une carte de valeur 10 ; sur un As, l'assurance
+  est proposée d'abord (au plus la moitié de la mise, payée 2 pour 1). Elle tire jusqu'à 16 et reste sur tous les 17.
+- Joueur : tirer, rester, doubler sur ses deux premières cartes (aussi après une séparation), séparer deux cartes de même
+  valeur jusqu'à 4 mains (As séparés : une carte chacun ; 21 après séparation payé 1 pour 1). Pas d'abandon.
+- Paiements : blackjack 3 pour 2 arrondi à l'unité inférieure, gain 1 pour 1, égalité = mise rendue ; blackjack de la
+  banque : toutes les mises perdues sauf les blackjacks (égalité).
+- « Donne suivante » quand tous les joueurs qui ont encore des jetons ont confirmé ; sans jetons, on regarde.
+- Fin après le nombre de donnes, ou quand plus personne n'a de jetons. Stats : score = jetons finaux (gagné / perdu /
+  égalité par rapport au départ). Raccourcis pendant son tour : T, R, D, S.
+
+## Poker Texas Hold'em — règles implémentées
+
+- No Limit en tournoi (freezeout), 2 à 8 joueurs : même tapis pour tous, le dernier joueur avec des jetons gagne.
+- Réglages du salon : tapis de départ 1 000 / 2 000 / 5 000 ; montée des blindes rapide (toutes les 5 mains), normale
+  (10) ou lente (15). Blindes 10/20, 15/30, 25/50, 50/100, 75/150, 100/200, 150/300, 200/400, 300/600, 500/1000,
+  1000/2000, puis elles doublent. Pas d'ante.
+- Bouton qui avance au joueur suivant encore en jeu ; en tête-à-tête, le bouton paie la petite blinde et parle en premier
+  avant le flop.
+- Se coucher, parole, suivre, miser / relancer « à » un montant total, tapis. Mise minimum : la grosse blinde ; relance
+  minimum : la dernière relance complète ; un tapis trop court ne rouvre pas les relances.
+- Pots annexes, mise non suivie rendue, tableau déroulé quand plus personne ne peut miser. Abattage : meilleure main de 5
+  cartes parmi 7 (noms français : « Full aux Dames par les 8 ») ; partage en cas d'égalité, jeton impair au premier
+  gagnant à gauche du bouton. Sans abattage, les cartes restent cachées.
+- Après chaque main, n'importe quel joueur encore en jeu lance la suivante. Stats : score = adversaires battus.
+- Pas encore : actions anticipées, minuteur de parole, montrer ses cartes après une victoire sans abattage.
+
 ## Jeux de cartes — design
 
-La Chute des Rois et le Tarot utilisent le design system Claude Design **« Tapis »**
+La Chute des Rois, le Tarot, le Blackjack et le Poker utilisent le design system Claude Design **« Tapis »**
 (https://claude.ai/artifact/M8sPJm4BwpyyvVesz23YyD) : table « cour » (velours bleu nuit, or, parchemin) et table
 « salon » (feutre vert, laiton, ivoire), 130 cartes dessinées en code, PC 16:9 sans défilement et mobile en colonne,
 catalogue d'animations (distribution, pose, impact, K.O., carte déchirée, nouveau boss, pli ramassé, chien…).
@@ -147,6 +182,11 @@ Pour l'importer de nouveau après une mise à jour : exporter le dossier `projec
 - **Immunité** : un boss ignore le pouvoir de sa propre couleur.
 - **Pile exacte** : un boss vaincu avec exactement ses PV rejoint la pioche (Valet = 10, Dame = 15, Roi = 20).
 - **Solo** : 2 « Renouveaux » (défausser sa main et repiocher).
+- **Joker** (option « Difficulté » du salon : Facile = 2 Jokers, Normal = 1 par défaut, Classique = sans Joker), mélangé
+  dans la Taverne. Il se joue seul (valeur 0, aucun dégât) : le boss perd son immunité jusqu'à sa chute (les cartes
+  jouées ensuite déclenchent le pouvoir de sa couleur ; celles déjà posées ne gagnent rien, Pique compris, contrairement
+  au Fou de Regicide) et ne riposte pas ce tour-là. À plusieurs, toutes les mains sont révélées à toute la table le temps
+  que le joueur du Joker choisisse qui joue ensuite (lui compris) ; en solo, il rejoue. Pour encaisser, il vaut 0.
 - Victoire quand les 12 souverains sont tombés ; défaite si un joueur ne peut pas encaisser la riposte.
 
 ## Variables d'environnement

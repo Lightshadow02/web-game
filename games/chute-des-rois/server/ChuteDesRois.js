@@ -3,6 +3,12 @@
 const { BOSS_STATS, cardValue, shuffle, buildTavern, buildCastle } = require('./cards');
 
 const HAND_SIZE = { 1: 8, 2: 7, 3: 6, 4: 5 };
+/** Difficulté (option du salon) : nombre de Jokers mélangés dans la Taverne. */
+const DIFFICULTIES = {
+  facile: { label: 'Facile', jokers: 2 },
+  normal: { label: 'Normal', jokers: 1 },
+  classique: { label: 'Classique', jokers: 0 },
+};
 const SOLO_RENEWALS = 2;
 const COMBO_MAX_TOTAL = 10;
 const LOG_SIZE = 40;
@@ -15,6 +21,8 @@ const BOSS_NAMES = { 11: 'Valet', 12: 'Dame', 13: 'Roi' };
 /** « Valet de Pique » ; avec l'article : « Le Valet de Pique », « La Dame de Carreau » (journal). */
 const bossLabel = (card) => `${BOSS_NAMES[card.rank]} de ${SUIT_NAMES[card.suit]}`;
 const bossName = (card) => `${card.rank === 12 ? 'La' : 'Le'} ${bossLabel(card)}`;
+/** « du Roi de Pique » / « de la Dame de Cœur ». */
+const ofBoss = (card) => `${card.rank === 12 ? 'de la' : 'du'} ${bossLabel(card)}`;
 const fem = (card, word) => (card.rank === 12 ? `${word}e` : word);
 
 class GameError extends Error {
@@ -30,6 +38,8 @@ class GameError extends Error {
  * Phases :
  *   'attack'  le joueur actif joue une carte (ou un combo) ou passe son tour
  *   'defend'  le joueur actif défausse des cartes pour absorber l'attaque du boss
+ *   'choose'  (à plusieurs) après un Joker : son joueur choisit qui joue ensuite ;
+ *             pendant ce choix, toutes les mains sont visibles de tous
  *   'victory' / 'defeat'
  *
  * Résolution d'une attaque :
@@ -40,18 +50,26 @@ class GameError extends Error {
  *        ♠ Pique   : bouclier, réduit l'attaque du boss de N (cumulatif)
  *   2. Dégâts au boss. PV <= 0 -> vaincu (pile exacte : il rejoint la pioche !).
  *   3. Sinon, le boss riposte : attaque - bouclier, à absorber en défaussant.
+ *
+ * Joker (0 à 2 selon la difficulté, mélangés dans la Taverne) : se joue seul, vaut 0, sans dégâts.
+ * Le boss perd son immunité jusqu'à sa chute (les cartes jouées ensuite déclenchent aussi le pouvoir
+ * de sa couleur ; les précédentes ne gagnent rien) et ne riposte pas ce tour-là. En solo, le joueur rejoue.
  */
 class ChuteDesRois {
-  constructor({ players, rng = Math.random }) {
+  /** difficulty : 'facile' | 'normal' | 'classique' (sans option : 'classique', aucun Joker). */
+  constructor({ players, rng = Math.random, difficulty = 'classique' }) {
     if (players.length < 1 || players.length > 4) throw new GameError('1 à 4 joueurs requis.');
+    if (!DIFFICULTIES[difficulty]) throw new GameError(`Difficulté inconnue : ${difficulty}`);
     this.rng = rng;
+    this.difficulty = difficulty;
+    this.jokerCount = DIFFICULTIES[difficulty].jokers;
     // damage / kos : contribution publique de chaque joueur (écran de fin).
     this.players = players.map((p) => ({ id: p.id, name: p.name, hand: [], lastAction: null, damage: 0, kos: 0 }));
     this.handSize = HAND_SIZE[players.length];
     this.solo = players.length === 1;
     this.renewalsLeft = this.solo ? SOLO_RENEWALS : 0;
 
-    this.tavern = buildTavern(rng);
+    this.tavern = buildTavern(rng, this.jokerCount);
     this.castle = buildCastle(rng);
     this.discard = [];
     this.table = []; // cartes jouées contre le boss actuel
@@ -89,6 +107,8 @@ class ChuteDesRois {
         return this.defend(playerId, payload.cardIds);
       case 'renew':
         return this.renew(playerId);
+      case 'choose':
+        return this.choose(playerId, payload?.playerId);
       default:
         throw new GameError(`Action inconnue : ${type}`);
     }
@@ -112,15 +132,21 @@ class ChuteDesRois {
   getStateFor(playerId) {
     const me = this.players.find((p) => p.id === playerId);
     const current = this.currentPlayer();
+    // Après un Joker, le temps du choix : chaque main est montrée à toute la table (et seulement à ce moment-là).
+    const reveal = this.phase === 'choose';
     return {
       phase: this.phase,
       turn: this.turn,
       currentPlayerId: current.id,
       isMyTurn: current.id === playerId,
+      chooserId: reveal ? current.id : null,
       handSize: this.handSize,
+      difficulty: this.difficulty,
+      jokerCount: this.jokerCount,
       myHand: me ? sortHand(me.hand) : [],
       players: this.players.map((p) => ({
         id: p.id, name: p.name, cardCount: p.hand.length, lastAction: p.lastAction, damage: p.damage, kos: p.kos,
+        ...(reveal ? { hand: sortHand(p.hand) } : {}),
       })),
       boss: this.boss && {
         card: this.boss.card,
@@ -129,7 +155,8 @@ class ChuteDesRois {
         attack: this.boss.attack,
         shield: this.boss.shield,
         effectiveAttack: Math.max(0, this.boss.attack - this.boss.shield),
-        immuneSuit: this.boss.card.suit,
+        immuneSuit: this.boss.jokered ? null : this.boss.card.suit,
+        immunityBroken: !!this.boss.jokered,
       },
       table: this.table,
       plays: this.plays,
@@ -159,13 +186,18 @@ class ChuteDesRois {
     this.takeFromHand(player, cardIds);
     this.table.push(...cards);
     this.plays.push({ playerId, cards });
-    this.consecutiveYields = 0;
+    this.consecutiveYields = 0; // un Joker compte comme un coup joué
+    if (cards[0].joker) {
+      this.playJoker(player, cards[0]);
+      return;
+    }
 
     const boss = this.boss;
     const attack = cards.reduce((sum, c) => sum + cardValue(c), 0);
     const suits = [...new Set(cards.map((c) => c.suit))];
-    const active = suits.filter((s) => s !== boss.card.suit);
-    const blocked = suits.filter((s) => s === boss.card.suit);
+    const immune = boss.jokered ? null : boss.card.suit; // le Joker a levé l'immunité pour tout ce combat
+    const active = suits.filter((s) => s !== immune);
+    const blocked = suits.filter((s) => s === immune);
     const effects = [];
     const event = { playerId, cards, attack, healed: 0, drawn: {}, shield: 0, doubled: false, blockedSuit: blocked[0] ?? null };
 
@@ -205,6 +237,45 @@ class ChuteDesRois {
       return;
     }
     this.startDefense();
+  }
+
+  /**
+   * Joker : aucun dégât, l'immunité du boss tombe jusqu'à sa chute, pas de riposte.
+   * À plusieurs, son joueur choisit ensuite qui joue (phase 'choose', mains révélées) ; en solo, il rejoue.
+   */
+  playJoker(player, card) {
+    const boss = this.boss;
+    const broken = !boss.jokered;
+    boss.jokered = true;
+    const effects = [broken ? 'immunité levée' : 'immunité déjà levée', 'pas de riposte'];
+    this.lastAttack = { playerId: player.id, cards: [card], attack: 0, damage: 0, effects };
+    player.lastAction = { type: 'joker', cards: [card] };
+    this.emit('joker', { playerId: player.id, card, boss: boss.card, broken });
+    const what = broken ? `l’immunité ${ofBoss(boss.card)} tombe` : `l’immunité ${ofBoss(boss.card)} est déjà levée`;
+    if (this.solo) {
+      this.turn++;
+      this.addLog(`${player.name} joue le Joker : ${what}, pas de riposte. ${player.name} rejoue.`);
+      this.checkStalemate();
+      return;
+    }
+    this.phase = 'choose';
+    this.addLog(`${player.name} joue le Joker : ${what}, pas de riposte. ${player.name} choisit qui joue.`);
+  }
+
+  /** Après un Joker : son joueur désigne qui joue ensuite (lui compris) ; les mains redeviennent secrètes. */
+  choose(playerId, targetId) {
+    if (this.phase !== 'choose') throw new GameError('Ce n’est pas le moment de choisir qui joue.');
+    const chooser = this.currentPlayer();
+    if (chooser.id !== playerId) throw new GameError(`C’est à ${chooser.name} de choisir qui joue.`);
+    const index = this.players.findIndex((p) => p.id === targetId);
+    if (index < 0) throw new GameError('Ce joueur n’est pas dans la partie.');
+    const target = this.players[index];
+    this.currentIndex = index;
+    this.phase = 'attack';
+    this.turn++;
+    this.emit('choose', { playerId, targetId });
+    this.addLog(target === chooser ? `${chooser.name} choisit de rejouer.` : `${chooser.name} choisit ${target.name}.`);
+    this.checkStalemate();
   }
 
   yieldTurn(playerId) {
@@ -366,7 +437,8 @@ class ChuteDesRois {
   revealNextBoss() {
     const card = this.castle.pop();
     const stats = BOSS_STATS[card.rank];
-    this.boss = { card, hp: stats.hp, maxHp: stats.hp, attack: stats.attack, shield: 0 };
+    // jokered : un Joker a levé l'immunité de ce boss (jusqu'à sa chute ; le suivant est de nouveau immunisé)
+    this.boss = { card, hp: stats.hp, maxHp: stats.hp, attack: stats.attack, shield: 0, jokered: false };
   }
 
   canYield() {
@@ -382,6 +454,7 @@ class ChuteDesRois {
   assertTurn(playerId, phase) {
     if (this.currentPlayer().id !== playerId) throw new GameError('Ce n’est pas ton tour.');
     if (this.phase !== phase) {
+      if (this.phase === 'choose') throw new GameError('Choisis d’abord qui joue.');
       throw new GameError(phase === 'attack' ? 'Tu dois d’abord encaisser la riposte.' : 'Ce n’est pas le moment d’encaisser.');
     }
   }
@@ -412,12 +485,13 @@ class ChuteDesRois {
 
 /**
  * Combos autorisés :
- *   - une carte seule ;
+ *   - une carte seule (le Joker se joue toujours seul) ;
  *   - un As (« compagnon ») + une autre carte ;
  *   - plusieurs cartes de même valeur dont le total est <= 10 (ex. 3+3+3, 5+5, 2+2+2+2).
  */
 function validateCombo(cards) {
   if (cards.length === 1) return;
+  if (cards.some((c) => c.joker)) throw new GameError('Le Joker se joue seul.');
   const aces = cards.filter((c) => c.rank === 1);
   if (cards.length === 2 && aces.length >= 1) return;
   const sameRank = cards.every((c) => c.rank === cards[0].rank);
@@ -432,12 +506,15 @@ const RANK_LABEL = { 1: 'A', 11: 'V', 12: 'D', 13: 'R' };
 // \uFE0E force le rendu texte (et non emoji) des symboles.
 const SUIT_SYMBOL = { H: '♥\uFE0E', D: '♦\uFE0E', C: '♣\uFE0E', S: '♠\uFE0E' };
 function describe(card) {
+  if (card.joker) return 'Joker';
   return `${RANK_LABEL[card.rank] ?? card.rank}${SUIT_SYMBOL[card.suit]}`;
 }
 
+/** Ordre de la main : ♠ ♥ ♣ ♦ par rang, les Jokers à la fin. */
 const SUIT_ORDER = { S: 0, H: 1, C: 2, D: 3 };
+const order = (c) => (c.joker ? 4 : SUIT_ORDER[c.suit]);
 function sortHand(hand) {
-  return [...hand].sort((a, b) => SUIT_ORDER[a.suit] - SUIT_ORDER[b.suit] || a.rank - b.rank);
+  return [...hand].sort((a, b) => order(a) - order(b) || a.rank - b.rank || (a.id < b.id ? -1 : 1));
 }
 
-module.exports = { ChuteDesRois, GameError, validateCombo, HAND_SIZE };
+module.exports = { ChuteDesRois, GameError, validateCombo, HAND_SIZE, DIFFICULTIES };

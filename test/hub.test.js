@@ -59,6 +59,7 @@ test('parcours complet : salon, annonces, lancement, action, reconnexion', async
   await alice.waitFor(() => alice.notices.includes('Bob a rejoint le salon.'));
 
   // Lancement : chaque joueur reçoit SA main
+  assert.equal((await alice.request('room:selectGame', { gameId: 'chute-des-rois' })).ok, true);
   assert.equal((await alice.request('room:startGame')).ok, true);
   await alice.waitFor(() => alice.last['game:state'] && bob.last['game:state']);
   const aliceView = alice.last['game:state'].state;

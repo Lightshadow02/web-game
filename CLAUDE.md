@@ -49,17 +49,33 @@ Toute évolution doit préserver cette extensibilité :
   (https://claude.ai/artifact/M8sPJm4BwpyyvVesz23YyD)**, partagé par tous les jeux de cartes, importé dans
   `public/vendor/tapis/` (servi sur `/vendor/tapis/`) par `node scripts/vendor-design.mjs tapis <dossier project>`
   (ne pas éditer à la main). Conteneur `.tp-scope` avec `data-table`/`data-theme` = `cour` (Chute des Rois) ou
-  `salon` (Tarot) et `data-motion-host` ; préférence d'animation partagée `tapis.motion` (sans choix : le réglage
+  `salon` (Tarot, Blackjack, Poker) et `data-motion-host` ; préférence d'animation partagée `tapis.motion` (sans choix : le réglage
   « animations réduites » du système). Pas de LobbyBar Tapis : la barre du Hub reste. Chaque client : `index.js`
   (chargement, file d'états animée façon Profondeurs) + `view.js` (rendu Tapis). Bugs du bundle contournés côté
   client (à corriger dans Claude Design puis ré-importer) : « Bouclier {pique} » littéral, accords « annulé » /
   « Immunisé », KingCall « Appeler le Dame », boutons d'EndScreen sans effet, `play({ from: DOMRect })` qui plante,
-  DealSummary faux sur les demi-points, pas de mise en page entre 640 et ~1100 px de large.
+  DealSummary faux sur les demi-points, pas de mise en page entre 640 et ~1100 px de large, pas de carte Joker (Excuse
+  détournée par `jk()`), `anim.flip({ up: false })` qui montre la face puis bascule (retournement maison), fantôme
+  d'`anim.play()` toujours en `is-flipping` (face visible en vol), ni jetons ni pot (dessinés dans chaque jeu).
 - `chute-des-rois` — La Chute des Rois (coopératif 1-4 joueurs, jeu de 52 cartes), table « cour » de Tapis.
+  **Joker FAIT** : option `difficulty` (facile 2 / normal 1 / classique 0, défaut normal ; moteur seul sans option =
+  classique). Après un Joker à plusieurs, phase `choose` : mains de tous dans `getStateFor` (players[i].hand) seulement
+  pendant cette phase, action `choose { playerId }` réservée au joueur du Joker ; événements `joker` / `choose`.
+  Pas de rétroactivité, Pique compris (écart volontaire avec Regicide, à confirmer par le propriétaire).
 - `tarot` — Tarot français FFT (3-5 joueurs ; le propriétaire joue surtout à 4, et à 5 avec appel au Roi), table
   « salon » de Tapis. Moteur : games/tarot/server/Tarot.js (enchères, chien/écart, appel au Roi, poignées, Petit au
   bout, Excuse, décompte officiel, une donne par joueur). Pas encore : chelem, misère. Limite connue : téléphone
   tenu à l'horizontale (hauteur < 560 px), la table défile.
+- `blackjack` — Blackjack de casino (1-5 joueurs contre la banque), table « salon ». Options `chips` (500/1000/2500) et
+  `rounds` (5/10/20). Moteur games/blackjack/server/Blackjack.js (sabot de 6 jeux + coupe, assurance, doubler, séparer
+  jusqu'à 4 mains, banque reste sur tous les 17, 3 pour 2 arrondi en dessous). Carte cachée envoyée `{ hidden: true }`,
+  identifiants de cartes donnés au tirage. Client : index.js / view.js / fx.js (jetons maison sur `Tapis.Timeline`).
+- `poker` — Poker Texas Hold'em No Limit en tournoi (2-8 joueurs), table « salon » en ovale. Options `stack`
+  (1000/2000/5000) et `blinds` (rapide/normale/lente). Moteur games/poker/server/Poker.js (blindes, relances, pots
+  annexes, éliminations) + evaluator.js (noms français). Trois mises en page : `wide` (PC), `square` (640-1100 px),
+  `tall` (téléphone). Pas encore : actions anticipées, minuteur de parole.
+- Limite commune (Tarot, Blackjack, Poker) : un joueur absent bloque la table jusqu'à ce que le Core le retire ;
+  piste Core : signal de déconnexion / minuteur générique.
 - `profondeurs` — Les Profondeurs (coopératif 1-4 joueurs, jeu de dés façon « One Deck Dungeon », contenu original,
   boss à 3-4 joueurs). Moteur + contenu + équilibrage faits (games/profondeurs/server/, BALANCE dans Profondeurs.js).
   **Interface FAITE avec le design system Claude Design « Torche » du propriétaire :
@@ -87,13 +103,8 @@ Toute évolution doit préserver cette extensibilité :
   **Page Hub : FAITE** — salons ouverts en direct, joueurs en ligne, stats par jeu, dernières parties, classement.
   JDR-WEB (même app Discord) est dans un dossier voisin : `SHARED_ENV_FILE=../light-jdr/.env` est monté en lecture
   seule et on n'y lit que DISCORD_CLIENT_ID/SECRET, SESSION_SECRET (clé dérivée) et ADMIN_DISCORD_IDS.
-- **À faire (demandé par le propriétaire) : le Joker dans La Chute des Rois**, comme le Fou de Regicide :
-  1 ou 2 Jokers dans la Taverne selon la difficulté (à proposer : Normal = 1, Facile = 2, et garder un mode
-  sans Joker). Le Joker se joue seul (valeur 0) : il annule l'immunité du boss (pour la suite du combat), le boss
-  ne riposte pas ce tour-là, **toutes les mains sont alors révélées à tout le monde**, et le joueur qui l'a posé
-  **choisit qui joue ensuite** (lui compris). Les mains redeviennent secrètes après ce choix.
-  À prévoir : carte Joker côté client, panneau « Qui joue ? », animation (immunité brisée, mains retournées),
-  règles et tests. Le choix de la difficulté demandera sans doute des options de jeu génériques dans le salon (Core).
+- **Joker dans La Chute des Rois : FAIT** (voir Jeux existants). **Blackjack et Poker : FAITS** (demandés par le
+  propriétaire).
 - Améliorations proposées au propriétaire (à discuter, non commencées) : notifications Discord (webhook) des
   demandes d'accès et des salons ; invitations/salons privés ; mode spectateur ; revanche en un clic ; succès/badges
   et profils ; nouveaux jeux (Président, Belote/Coinche, Loup-garou, Uno-like...) ; report du design Claude Design ;

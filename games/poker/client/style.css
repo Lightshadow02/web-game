@@ -1,0 +1,441 @@
+/* Poker : intégration du design system « Tapis » (table « salon ») dans le Hub.
+   Cartes, sièges, boutons, statut, fenêtres : /vendor/tapis/tapis.css (chargé avant ce fichier).
+   Ici : la mise en place de la table ovale, et ce que Tapis n'a pas (jetons, pot, bouton du donneur,
+   panneau de relance), dessinés avec les tokens du système. Sélecteurs .tp-scope.pk … : ils priment
+   quel que soit l'ordre de chargement. */
+
+/* Titres du Hub (h2 en capitales dorées) neutralisés ; spécificité minimale pour que les classes Tapis gardent la main. */
+:where(.tp-scope) :is(h1, h2, h3, h4) { margin: 0; font-size: inherit; letter-spacing: normal; text-transform: none; color: inherit; }
+
+/* La hauteur est posée en JS (fit) : la table tient dans la fenêtre, sous la barre du salon. */
+.tp-scope.pk { display: block; position: relative; }
+@media (min-width: 641px) { .tp-scope.pk { min-height: 560px; } } /* zone-min-h du design */
+.tp-scope.pk .tp-app { background: transparent; }
+.tp-scope.pk .tp-zone { margin: 0; } /* le Hub entoure déjà le jeu d'une marge */
+.tp-scope.pk .pk-layer { display: contents; }
+.tp-scope.pk .pk-loading { margin: 0; padding: 2rem; text-align: center; color: var(--muted); } /* avant Tapis : couleurs du Hub */
+.tp-scope.pk .tp-decor__ring { display: none; } /* l'anneau du pli : ici la table ovale le remplace */
+@container zone (max-width: 639px) { .tp-scope.pk .tp-decor svg, .tp-scope.pk .tp-decor > * { display: none; } }
+
+/* Pendant une transition ou une requête : pas de clic de jeu (outils, règles et interrupteur restent actifs). */
+.tp-scope.pk:is([data-animating], [data-busy]) :is(.pk-act .tp-actions, .pk-raise) { pointer-events: none; }
+.tp-scope.pk[data-busy] .pk-act .tp-actions { opacity: .7; }
+
+/* ------------------------------------------------------------------ la table */
+.tp-scope.pk .pk-table {
+  --cy: 41;
+  --hole: clamp(42px, 9.4cqh, 104px);       /* cartes des autres joueurs */
+  --mine: clamp(78px, 17cqh, 196px);        /* mes deux cartes */
+  --board: min(var(--card-md), calc((100cqw - 64px) / 5.6 * 1.4));
+  --chip: clamp(15px, 2.5cqh, 26px);
+  --plate-w: clamp(150px, 12.4cqw, 236px);
+  position: absolute; inset: 0; z-index: 1; overflow: hidden;
+  /* la salle autour de la table s'assombrit vers les coins */
+  background: radial-gradient(ellipse 72% 78% at 50% calc(var(--cy) * 1%), transparent 55%, rgba(0, 0, 0, .32) 100%);
+}
+.tp-scope.pk .pk-table[data-shape="square"] {
+  --cy: 38; --plate-w: clamp(132px, 18cqw, 200px); --mine: clamp(70px, 14.5cqh, 150px); --hole: clamp(40px, 8cqh, 80px);
+  --board: min(clamp(64px, 12cqh, 140px), calc((100cqw - 64px) / 6.2 * 1.4)); /* laisse la place aux cartes et aux mises des sièges de côté */
+}
+.tp-scope.pk .pk-table[data-shape="tall"] {
+  --cy: 37; --plate-w: clamp(84px, 25cqw, 140px); --hole: clamp(30px, 5cqh, 50px); --mine: clamp(64px, 13cqh, 120px); --chip: clamp(13px, 2cqh, 20px);
+  --board: min(clamp(60px, 11cqh, 120px), calc((100cqw - 40px) / 5.4 * 1.4));
+}
+
+/* Le plateau : un rail de cuir cerclé de laiton, le feutre au centre, la ligne de mise. */
+.tp-scope.pk .pk-felt {
+  position: absolute; left: 50%; top: calc(var(--cy) * 1%); width: 70%; height: 63%; translate: -50% -50%;
+  border-radius: 50%; pointer-events: none;
+  background: linear-gradient(170deg, color-mix(in srgb, var(--rim) 70%, #000), var(--rim) 45%, color-mix(in srgb, var(--rim) 80%, #000));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent) 45%, var(--rim)),
+    0 18px 50px rgba(0, 0, 0, .55),
+    inset 0 2px 0 rgba(255, 236, 200, .08);
+}
+.tp-scope.pk .pk-felt__cloth {
+  position: absolute; inset: clamp(9px, 2cqh, 20px); border-radius: 50%;
+  background:
+    radial-gradient(ellipse 60% 55% at 50% 42%, color-mix(in srgb, var(--table-glow) 100%, #fff 4%), var(--table) 72%, var(--table-deep) 100%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent), inset 0 6px 26px rgba(0, 0, 0, .55);
+}
+.tp-scope.pk .pk-felt__cloth::after { /* la ligne de mise */
+  content: ""; position: absolute; inset: 13%; border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);
+}
+.tp-scope.pk .pk-table[data-shape="square"] .pk-felt { width: 82%; height: 58%; }
+.tp-scope.pk .pk-table[data-shape="tall"] .pk-felt { width: 94%; height: 54%; }
+.tp-scope.pk .pk-table[data-shape="tall"] .pk-bet .pk-chips__v { font-size: 12px; padding: 0 6px; }
+.tp-scope.pk .pk-table[data-shape="tall"] .pk-pot { bottom: auto; top: calc(100% + 6px); } /* téléphone : le pot sous le tableau */
+/* téléphone : les cartes cachées des autres, en petit, au coin haut de la plaque côté centre (rien d'autre n'y va) ;
+   montrées, en entier à côté de la plaque (côtés, vers le centre) ou dessous (rangée du haut), sans couvrir son texte */
+.tp-scope.pk .pk-table[data-shape="tall"] .pk-seat:not(.pk-hero) .pk-hole { --hole: clamp(20px, 3.1cqh, 26px); top: -9px; bottom: auto; left: auto; right: -9px; translate: none; z-index: 2; }
+.tp-scope.pk .pk-table[data-shape="tall"] .pk-seat[data-lr="right"]:not(.pk-hero) .pk-hole { right: auto; left: -9px; }
+/* rangée du haut et sièges sous le tableau : au coin bas (en haut, le niveau et les outils ; en bas, la place est libre) */
+.tp-scope.pk .pk-table[data-shape="tall"] .pk-seat:not([data-row="side"][data-side="top"]):not(.pk-hero) .pk-hole:not([data-shown]) { top: auto; bottom: -9px; }
+/* petite hauteur : la rangée du haut reste sous le niveau et les outils */
+.tp-scope.pk .pk-table[data-shape="tall"] .pk-seat[data-row="top"] { top: max(calc(var(--y) * 1%), 84px); }
+.tp-scope.pk .pk-table[data-shape="tall"] .pk-seat:not(.pk-hero) .pk-hole[data-shown] { --hole: clamp(30px, 4.8cqh, 46px); z-index: 3; }
+.tp-scope.pk .pk-table[data-shape="tall"] .pk-seat[data-row="side"][data-lr="left"] .pk-hole[data-shown] { top: 50%; right: auto; left: calc(100% + 4px); translate: 0 -50%; }
+.tp-scope.pk .pk-table[data-shape="tall"] .pk-seat[data-row="side"][data-lr="right"] .pk-hole[data-shown] { top: 50%; left: auto; right: calc(100% + 4px); translate: 0 -50%; }
+.tp-scope.pk .pk-table[data-shape="tall"] .pk-seat[data-row="top"] .pk-hole[data-shown] { top: calc(100% - 2px); left: 50%; right: auto; translate: -50% 0; }
+/* téléphone : la mise des sièges de côté s'accroche au bord intérieur de la plaque (jamais dessus) */
+.tp-scope.pk .pk-table[data-shape="tall"] .pk-bet[data-anchor="l"] { left: calc(var(--x) * 1% + var(--plate-w) / 2 + 6px); translate: 0 -50%; }
+.tp-scope.pk .pk-table[data-shape="tall"] .pk-bet[data-anchor="r"] { left: calc(var(--x) * 1% - var(--plate-w) / 2 - 6px); translate: -100% -50%; }
+.tp-scope.pk .pk-table[data-shape="tall"] .pk-hero .pk-plate { width: clamp(140px, 44cqw, 220px); }
+.tp-scope.pk .pk-table[data-shape="tall"] .pk-seat:not(.pk-hero) .pk-hole__c { rotate: none; translate: none; }
+.tp-scope.pk .pk-table[data-shape="tall"] .pk-seat:not(.pk-hero) .pk-hole__c + .pk-hole__c { margin-left: calc(var(--hole) * -.42); }
+.tp-scope.pk .pk-result.pk-result--compact ul { gap: 2px; }
+.tp-scope.pk .pk-result.pk-result--compact li { gap: 6px; }
+.tp-scope.pk .pk-result.pk-result--compact li > span { display: block; min-width: 0; font: 500 13px/18px var(--font-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tp-scope.pk .pk-result.pk-result--compact .body-strong { font-size: 13px; line-height: 17px; }
+.tp-scope.pk .pk-result.pk-result--compact .caption { font-size: 12px; }
+.tp-scope.pk .pk-result.pk-result--compact .caption::before { content: " · "; }
+.tp-scope.pk .pk-result.pk-result--compact .tp-ic { width: 14px; height: 14px; }
+.tp-scope.pk .pk-table[data-shape="tall"] .pk-felt__cloth::after { inset: 9%; }
+
+/* ------------------------------------------------------------------ niveau des blindes (haut gauche) */
+.tp-scope.pk .pk-info {
+  position: absolute; left: var(--pad); top: calc(var(--pad) - 4px); z-index: 5;
+  display: grid; gap: 2px; padding: 8px 14px 10px; border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--panel) 78%, transparent); border: 1px solid var(--line);
+}
+.tp-scope.pk .pk-info__k { color: var(--text-muted); }
+.tp-scope.pk .pk-info__b { display: inline-flex; align-items: center; gap: 6px; font: 700 clamp(18px, 2.6cqh, 26px) / 1.1 var(--font-display); color: var(--accent-bright); }
+.tp-scope.pk .pk-info__b .tp-ic { width: .8em; height: .8em; color: var(--accent); }
+.tp-scope.pk .pk-info__n { display: inline-flex; align-items: center; gap: 4px; color: var(--text-muted); }
+.tp-scope.pk .pk-info__n .tp-ic { width: 14px; height: 14px; }
+
+/* PC : le niveau passe en bas à gauche, en face des actions (le coin du haut reste aux sièges) ; tablette : plus court */
+.tp-scope.pk .pk-table[data-shape="wide"] .pk-info { top: auto; bottom: var(--pad); }
+.tp-scope.pk .pk-table[data-shape="square"] .pk-info__n:last-child { display: none; }
+
+/* ------------------------------------------------------------------ jetons */
+.tp-scope.pk .pk-chip {
+  --c: var(--card-red); --e: var(--card-face);
+  position: absolute; left: 0; bottom: calc(var(--i) * var(--chip) * .15);
+  width: var(--chip); height: calc(var(--chip) * .64); border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 50% 50%, var(--c) 0 50%, color-mix(in srgb, var(--e) 70%, var(--c)) 51% 55%, transparent 56%),
+    repeating-conic-gradient(from 8deg, var(--e) 0 16deg, var(--c) 16deg 45deg);
+  box-shadow: 0 calc(var(--chip) * .1) 0 color-mix(in srgb, var(--c) 52%, #000), 0 calc(var(--chip) * .16) 3px rgba(0, 0, 0, .45);
+}
+.tp-scope.pk .pk-chip[data-v="1"] { --c: var(--card-muted); --e: var(--card-face); }
+.tp-scope.pk .pk-chip[data-v="5"] { --c: var(--card-face); --e: var(--card-red); }
+.tp-scope.pk .pk-chip[data-v="25"] { --c: var(--card-red); --e: var(--card-face); }
+.tp-scope.pk .pk-chip[data-v="100"] { --c: var(--card-ink); --e: var(--accent); }
+.tp-scope.pk .pk-chip[data-v="500"] { --c: var(--fig-blue); --e: var(--card-face); }
+.tp-scope.pk .pk-chip[data-v="1000"] { --c: var(--fig-gold); --e: var(--card-ink); }
+.tp-scope.pk .pk-chip[data-v="5000"] { --c: var(--back); --e: var(--back-ornament); }
+.tp-scope.pk .pk-chip--mini { --chip: 16px; position: relative; display: inline-block; bottom: auto; flex: none; vertical-align: middle; }
+.tp-scope.pk .pk-stack {
+  position: relative; display: inline-block; flex: none; width: var(--chip);
+  height: calc(var(--chip) * .74 + (var(--n) - 1) * var(--chip) * .15);
+}
+.tp-scope.pk .pk-chips { display: inline-flex; align-items: flex-end; gap: 6px; }
+.tp-scope.pk .pk-chips__v {
+  padding: 1px 8px; border-radius: var(--radius-full); white-space: nowrap;
+  background: color-mix(in srgb, var(--table-deep) 88%, transparent); color: var(--text);
+  font: 700 clamp(12px, 1.7cqh, 15px) / 1.35 var(--font-text); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.tp-scope.pk .pk-pile { display: inline-flex; align-items: flex-end; gap: 2px; }
+.tp-scope.pk .pk-ghost { z-index: 2; pointer-events: none; }
+.tp-scope.pk .pk-float { position: absolute; z-index: 3; }
+
+/* ------------------------------------------------------------------ centre : pot, tableau, résultat */
+.tp-scope.pk .pk-center { position: absolute; left: 50%; top: calc(var(--y) * 1%); translate: -50% -50%; z-index: 2; }
+.tp-scope.pk .pk-table:not([data-phase="betting"]) .pk-center { z-index: 6; } /* le résultat passe devant les mises et le bouton */
+.tp-scope.pk .pk-board { display: flex; gap: clamp(4px, .6cqw, 10px); }
+.tp-scope.pk .pk-board .tp-card { --ch: var(--board); }
+.tp-scope.pk .pk-board__s { display: block; transition: filter .3s, opacity .3s; }
+.tp-scope.pk [data-dim] { filter: saturate(.55) brightness(.62); }
+.tp-scope.pk .pk-board .tp-card--slot { opacity: .55; }
+.tp-scope.pk .pk-pot {
+  --chip: clamp(18px, 3cqh, 30px);
+  position: absolute; left: 50%; bottom: calc(100% + clamp(6px, 1.4cqh, 14px)); translate: -50% 0;
+  display: flex; gap: clamp(10px, 1.6cqw, 28px); align-items: flex-end; white-space: nowrap;
+}
+.tp-scope.pk .pk-pot__g { display: flex; align-items: flex-end; gap: 8px; }
+.tp-scope.pk .pk-pot__l {
+  display: inline-flex; flex-direction: column; align-items: flex-start; gap: 0; padding: 3px 10px 4px; border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--table-deep) 85%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 34%, transparent);
+}
+.tp-scope.pk .pk-pot__l .label { color: var(--text-muted); font-size: 10px; line-height: 12px; }
+.tp-scope.pk .pk-pot__l b { font: 700 clamp(14px, 2cqh, 19px) / 1.15 var(--font-display); color: var(--accent-bright); }
+.tp-scope.pk .pk-result {
+  position: absolute; left: 50%; top: calc(100% + clamp(8px, 1.6cqh, 16px)); translate: -50% 0; z-index: 4;
+  width: max-content; max-width: min(640px, 92cqw);
+  padding: 8px 14px; border-radius: var(--radius-md); background: color-mix(in srgb, var(--panel) 90%, transparent);
+  border: 1px solid var(--line-strong); box-shadow: var(--shadow-panel);
+}
+.tp-scope.pk .pk-result ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.tp-scope.pk .pk-result li { display: flex; align-items: center; gap: 10px; }
+.tp-scope.pk .pk-result li > span { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; }
+.tp-scope.pk .pk-result li .tp-ic { color: var(--accent); width: 18px; height: 18px; }
+.tp-scope.pk .pk-result li[data-me] b { color: var(--accent-bright); }
+.tp-scope.pk .pk-result .caption { color: var(--text-muted); }
+.tp-scope.pk .pk-result__out .tp-ic { color: var(--danger) !important; }
+.tp-scope.pk .pk-table[data-shape="square"] .pk-center .pk-result { width: calc(var(--board) / 1.4 * 5 + 24px); max-width: none; padding: 6px 10px; }
+.tp-scope.pk .pk-act .pk-result { position: static; translate: none; width: auto; max-width: none; padding: 6px 10px; box-shadow: none; }
+.tp-scope.pk .pk-result__out .body { color: var(--text-muted); }
+
+/* ------------------------------------------------------------------ mises et bouton du donneur */
+.tp-scope.pk .pk-bet { position: absolute; left: calc(var(--x) * 1%); top: calc(var(--y) * 1%); translate: -50% -50%; z-index: 3; pointer-events: none; }
+.tp-scope.pk .pk-bet[data-empty] { width: 1px; height: 1px; }
+.tp-scope.pk .pk-dealer {
+  position: absolute; left: calc(var(--x) * 1%); top: calc(var(--y) * 1%); translate: -50% -50%; z-index: 3;
+  width: clamp(22px, 3.2cqh, 32px); aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle at 40% 35%, #fff 0, var(--card-face) 60%, var(--card-edge) 100%); color: var(--card-ink);
+  font: 800 clamp(11px, 1.6cqh, 15px) / 1 var(--font-display);
+  box-shadow: 0 2px 0 var(--card-edge), 0 4px 8px rgba(0, 0, 0, .5), inset 0 0 0 2px color-mix(in srgb, var(--card-gold) 50%, transparent);
+}
+/* fin de main : le résultat s'affiche sous le tableau, là où se pose souvent le bouton ; il reparaît (et glisse) à la main suivante */
+.tp-scope.pk .pk-table:not([data-phase="betting"]) .pk-dealer:not(.pk-dealer--in) { opacity: 0; }
+/* téléphone : le bouton est un badge de la plaque */
+.tp-scope.pk .pk-dealer.pk-dealer--in {
+  position: relative; left: auto; top: auto; translate: none; z-index: auto; width: 15px; flex: none;
+  font-size: 9px; box-shadow: 0 1px 0 var(--card-edge), inset 0 0 0 1px color-mix(in srgb, var(--card-gold) 50%, transparent);
+}
+
+/* ------------------------------------------------------------------ sièges : la plaque centrée sur sa place, les cartes glissées derrière */
+.tp-scope.pk .pk-seat {
+  position: absolute; left: calc(var(--x) * 1%); top: calc(var(--y) * 1%); translate: -50% -50%; z-index: 4;
+  width: var(--plate-w); --tuck: clamp(16px, 2.8cqh, 28px);
+}
+.tp-scope.pk .pk-plate {
+  position: relative; z-index: 1; width: 100%; flex-direction: row; align-items: center; gap: 10px;
+  padding: 7px 12px 7px 8px; border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--panel) 88%, transparent); border-color: var(--line-strong);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .4);
+  transition: opacity .3s, filter .3s;
+}
+/* bulles : au-dessus de la plaque ; sur le côté pour les sièges du haut (sinon hors de la zone) */
+.tp-scope.pk .pk-plate[data-state="active"] { border-color: var(--accent); box-shadow: var(--glow-turn); }
+.tp-scope.pk .pk-plate .tp-avatar { --av: clamp(32px, 4.6cqh, 44px); }
+.tp-scope.pk .pk-plate__t { display: flex; flex-direction: column; min-width: 0; gap: 1px; flex: 1; }
+.tp-scope.pk .pk-plate__n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: clamp(13px, 1.7cqh, 15px); line-height: 1.2; }
+.tp-scope.pk .pk-plate__c { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.tp-scope.pk .pk-plate__c .pk-chip--mini { --chip: 15px; }
+.tp-scope.pk .pk-plate__v { font: 700 clamp(14px, 1.9cqh, 17px) / 1.2 var(--font-display); color: var(--text); white-space: nowrap; }
+.tp-scope.pk .pk-plate__b { display: inline-flex; gap: 3px; margin-left: auto; }
+.tp-scope.pk .pk-plate__b .tp-badge { height: 18px; padding: 0 5px; font-size: 10px; }
+.tp-scope.pk .pk-plate__st { display: inline-flex; align-items: center; gap: 3px; font: 500 12px/15px var(--font-text); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tp-scope.pk .pk-plate__st .tp-ic { width: 13px; height: 13px; }
+.tp-scope.pk .pk-plate__st[data-tone="allin"] { color: var(--accent-bright); font-weight: 700; }
+.tp-scope.pk .pk-plate__st[data-tone="off"] { color: var(--danger); font-weight: 700; }
+.tp-scope.pk .pk-plate__st[data-tone="hand"] { color: var(--text); font-weight: 700; }
+.tp-scope.pk .pk-plate__st[data-tone="win"] { color: var(--accent-bright); font-weight: 700; }
+.tp-scope.pk .pk-plate__st:is([data-tone="hand"], [data-tone="win"]) { white-space: normal; line-height: 14px; }
+.tp-scope.pk .pk-plate[data-folded] { opacity: .62; }
+.tp-scope.pk .pk-plate[data-out] { opacity: .5; filter: grayscale(.9); }
+.tp-scope.pk .pk-plate[data-winner] { border-color: var(--accent-bright); box-shadow: var(--glow-winner); }
+.tp-scope.pk .pk-plate > .tp-bubble { z-index: 6; font-size: 14px; padding: 4px 10px; animation: pk-bubble-out .4s 3.2s both; }
+.tp-scope.pk .pk-seat[data-side="top"] .pk-plate > .tp-bubble { left: 100%; top: 50%; transform: translate(10px, -50%); }
+.tp-scope.pk .pk-seat[data-side="top"][data-lr="right"] .pk-plate > .tp-bubble { left: auto; right: 100%; transform: translate(-10px, -50%); }
+.tp-scope.pk .pk-seat[data-side="top"] .pk-plate > .tp-bubble::after { left: -4px; top: 50%; bottom: auto; transform: translateY(-50%) rotate(45deg); }
+.tp-scope.pk .pk-seat[data-side="top"][data-lr="right"] .pk-plate > .tp-bubble::after { left: auto; right: -4px; }
+@keyframes pk-bubble-out { to { opacity: 0; visibility: hidden; } }
+
+/* cartes des autres : deux cartes un peu ouvertes, glissées derrière la plaque (dessus, ou dessous pour les sièges du haut) */
+.tp-scope.pk .pk-hole { position: absolute; left: 50%; translate: -50% 0; display: flex; z-index: 0; bottom: calc(100% - var(--tuck)); transition: bottom .3s, top .3s; }
+.tp-scope.pk .pk-seat[data-side="top"] .pk-hole { bottom: auto; top: calc(100% - var(--tuck)); }
+.tp-scope.pk .pk-hole[data-shown] { --tuck: 0px; } /* cartes montrées : entièrement visibles */
+/* sièges sur les côtés : les cartes se glissent à côté de la plaque, vers le tapis (deux sièges l'un au-dessus de l'autre ne se gênent pas) */
+.tp-scope.pk .pk-table:not([data-shape="tall"]) .pk-seat[data-lr="left"]:not(.pk-hero) .pk-hole { left: calc(100% - var(--tuck)); top: 50%; bottom: auto; translate: 0 -50%; }
+.tp-scope.pk .pk-table:not([data-shape="tall"]) .pk-seat[data-lr="right"]:not(.pk-hero) .pk-hole { left: auto; right: calc(100% - var(--tuck)); top: 50%; bottom: auto; translate: 0 -50%; }
+.tp-scope.pk .pk-table:not([data-shape="tall"]) .pk-seat:is([data-lr="left"], [data-lr="right"]):not(.pk-hero) .pk-hole__c { rotate: none; translate: none; }
+.tp-scope.pk .pk-table:not([data-shape="tall"]) .pk-seat:is([data-lr="left"], [data-lr="right"]):not(.pk-hero) .pk-hole[data-shown] { --tuck: -6px; }
+.tp-scope.pk .pk-table[data-shape="square"] .pk-seat:is([data-lr="left"], [data-lr="right"]):not(.pk-hero) .pk-hole[data-shown] { --tuck: 10px; } /* tablette : sur la marge de la plaque, loin du résultat */
+.tp-scope.pk[data-motion="off"] .pk-hole { transition: none; }
+@media (prefers-reduced-motion: reduce) { .tp-scope.pk:not([data-motion="on"]) .pk-hole { transition: none; } }
+.tp-scope.pk .pk-hole .tp-card { --ch: var(--hole); box-shadow: 0 2px 6px rgba(0, 0, 0, .5); }
+.tp-scope.pk .pk-hole__c { display: block; transition: filter .3s; }
+.tp-scope.pk .pk-hole__c:first-child { rotate: -7deg; translate: 8% 3%; }
+.tp-scope.pk .pk-hole__c + .pk-hole__c { margin-left: calc(var(--hole) * -.36); rotate: 7deg; translate: -4% 3%; }
+.tp-scope.pk .pk-seat[data-side="top"] .pk-hole__c:first-child { rotate: 7deg; translate: 8% -3%; }
+.tp-scope.pk .pk-seat[data-side="top"] .pk-hole__c + .pk-hole__c { rotate: -7deg; translate: -4% -3%; }
+
+/* ------------------------------------------------------------------ moi : plaque, deux grandes cartes, ma main */
+.tp-scope.pk .pk-hero {
+  width: auto; z-index: 5;
+  display: grid; grid-template-columns: auto auto; grid-template-areas: "best best" "plate cards"; align-items: center; justify-items: center;
+  column-gap: clamp(10px, 1.4cqw, 22px); row-gap: clamp(4px, 1cqh, 10px);
+}
+.tp-scope.pk .pk-hero .pk-plate { grid-area: plate; width: var(--plate-w); }
+.tp-scope.pk .pk-hero .pk-hole { position: relative; translate: none; left: auto; bottom: auto; grid-area: cards; min-height: var(--mine); min-width: calc(var(--mine) * 1.1); }
+.tp-scope.pk .pk-hero .pk-hole .tp-card { --ch: var(--mine); box-shadow: var(--shadow-card-lift); }
+.tp-scope.pk .pk-hero .pk-hole__c + .pk-hole__c { margin-left: calc(var(--mine) * -.16); }
+.tp-scope.pk .pk-best {
+  grid-area: best; display: inline-flex; align-items: center; gap: 6px; padding: 4px 14px; border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--panel) 88%, transparent); border: 1px solid var(--line-strong);
+  font: 700 clamp(13px, 1.9cqh, 16px) / 1.3 var(--font-text); color: var(--text); white-space: nowrap;
+}
+.tp-scope.pk .pk-best .tp-ic { width: 16px; height: 16px; color: var(--accent); }
+.tp-scope.pk .pk-best--win { border-color: var(--accent); color: var(--accent-bright); box-shadow: var(--glow-turn); }
+.tp-scope.pk .pk-best--muted { color: var(--text-muted); font-weight: 500; }
+
+/* ------------------------------------------------------------------ actions (bas droite) */
+.tp-scope.pk .pk-act {
+  position: absolute; right: var(--pad); bottom: var(--pad); z-index: 6;
+  width: clamp(340px, 27cqw, 460px); display: flex; flex-direction: column; align-items: stretch; gap: 8px;
+}
+.tp-scope.pk .pk-act:has(.tp-actions) {
+  padding: 10px; border-radius: var(--radius-lg); background: color-mix(in srgb, var(--panel) 80%, transparent);
+  border: 1px solid var(--line); box-shadow: var(--shadow-panel);
+}
+.tp-scope.pk .pk-act .tp-status { align-self: stretch; justify-content: flex-start; min-width: 0; }
+.tp-scope.pk .pk-act .tp-status__d { overflow: hidden; text-overflow: ellipsis; }
+.tp-scope.pk .pk-act .tp-actions,
+.tp-scope.pk .pk-act .tp-actions__row { align-items: stretch; }
+.tp-scope.pk .pk-act .tp-actions__row { flex-wrap: nowrap; }
+.tp-scope.pk .pk-act .tp-actions__row > .tp-btn { flex: 1 1 0; padding: 4px 10px; min-width: 0; white-space: normal; line-height: 1.15; text-align: center; }
+.tp-scope.pk .pk-act .tp-actions__row > .tp-btn--primary { flex: 1.5 1 0; font-size: 15px; letter-spacing: .02em; }
+.tp-scope.pk .pk-act .tp-actions__note { text-align: left; }
+.tp-scope.pk .pk-raise { display: grid; gap: 6px; }
+.tp-scope.pk .pk-raise__q { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.tp-scope.pk .pk-q { min-height: 36px; padding: 0 6px; font-size: 14px; }
+.tp-scope.pk .pk-raise__r { display: flex; align-items: center; gap: 4px; }
+.tp-scope.pk .pk-raise__r .tp-btn--icon { width: 36px; min-height: 36px; flex: none; border: 1px solid var(--line-strong); background: var(--panel-raised); color: var(--text); }
+.tp-scope.pk .pk-range {
+  flex: 1; min-width: 0; height: 36px; margin: 0; padding: 0; border: 0; border-radius: 0; /* le Hub habille tous les input */
+  background: transparent; accent-color: var(--accent); cursor: pointer; -webkit-appearance: none; appearance: none;
+}
+.tp-scope.pk :is(.pk-range, .pk-amount input):focus { outline: none; }
+.tp-scope.pk .pk-range::-webkit-slider-runnable-track { height: 8px; border-radius: var(--radius-full); background: var(--table-deep); box-shadow: var(--shadow-well); }
+.tp-scope.pk .pk-range::-moz-range-track { height: 8px; border-radius: var(--radius-full); background: var(--table-deep); box-shadow: var(--shadow-well); }
+.tp-scope.pk .pk-range::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 22px; height: 22px; margin-top: -7px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--on-accent); box-shadow: 0 2px 4px rgba(0, 0, 0, .5);
+}
+.tp-scope.pk .pk-range::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); border: 2px solid var(--on-accent); }
+.tp-scope.pk .pk-range:focus-visible { box-shadow: var(--focus-ring); border-radius: var(--radius-sm); }
+.tp-scope.pk .pk-amount input {
+  width: 7.2ch; min-height: 36px; padding: 0 8px; border-radius: var(--radius-sm); text-align: right;
+  background: var(--table-deep); color: var(--accent-bright); border: 1px solid var(--line-strong);
+  font: 700 15px/1 var(--font-display); font-variant-numeric: tabular-nums; -moz-appearance: textfield;
+}
+.tp-scope.pk .pk-amount input::-webkit-inner-spin-button,
+.tp-scope.pk .pk-amount input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.tp-scope.pk .pk-amount input:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* ------------------------------------------------------------------ fenêtres : dernière main, fin, règles */
+.tp-scope.pk .pk-lh { display: grid; gap: var(--space-2); }
+.tp-scope.pk .pk-lh__h { color: var(--text-muted); margin-top: var(--space-2); }
+.tp-scope.pk .pk-lh__board { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.tp-scope.pk .pk-lh__hands, .tp-scope.pk .pk-lh__pots { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.tp-scope.pk .pk-lh__hands li { display: flex; align-items: center; gap: var(--space-3); padding: 6px 10px; border-radius: var(--radius-md); background: var(--panel-raised); border: 1px solid var(--line); }
+.tp-scope.pk .pk-lh__hands li[data-win] { border-color: var(--accent); }
+.tp-scope.pk .pk-lh__n { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.tp-scope.pk .pk-lh__n .caption { color: var(--text-muted); }
+.tp-scope.pk .pk-lh__c { display: flex; gap: 4px; }
+.tp-scope.pk .pk-lh__c .tp-card { --ch: clamp(48px, 8cqh, 80px); }
+.tp-scope.pk .pk-lh__g { color: var(--positive); }
+.tp-scope.pk .pk-lh__pots li { display: flex; gap: var(--space-2); align-items: center; }
+.tp-scope.pk .pk-lh__pots .tp-ic { color: var(--accent); }
+.tp-scope.pk .pk-lh__pots .caption { color: var(--text-muted); }
+.tp-scope.pk .tp-end__act { flex-wrap: wrap; justify-content: center; }
+.tp-scope.pk .pk-end-note { flex-basis: 100%; margin: 0; text-align: center; color: var(--text-muted); }
+.tp-scope.pk .tp-end { place-items: safe center; }
+.tp-scope.pk .tp-rank__r { grid-template-columns: 28px auto auto 1fr auto; }
+.tp-scope.pk .tp-rank__note { grid-row: 1; grid-column: 4; }
+.tp-scope.pk .tp-rank__s { grid-column: 5; font-size: 18px; white-space: nowrap; }
+@container zone (max-height: 700px) {
+  .tp-scope.pk .tp-end__card { padding: var(--space-5) var(--space-6); gap: var(--space-3); }
+  .tp-scope.pk .tp-end__emblem { width: 48px; height: 48px; }
+  .tp-scope.pk .tp-end__emblem .tp-ic { width: 26px; height: 26px; }
+}
+.tp-scope.pk .tp-log__e--hand { color: var(--text); font-weight: 700; border-top: 1px solid var(--line-strong); }
+.tp-scope.pk .tp-log__e--hand .body { font-weight: 700; }
+
+.tp-scope.pk .pk-rules__h { margin: var(--space-5) 0 var(--space-2); color: var(--accent); }
+.tp-scope.pk .pk-rules__boxes { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--space-2); margin: var(--space-2) 0 var(--space-4); }
+.tp-scope.pk .pk-rules__box { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-md); background: var(--panel-raised); border: 1px solid var(--line); }
+.tp-scope.pk .pk-rules__box .caption { color: var(--text-muted); }
+.tp-scope.pk .pk-rules__t { margin: var(--space-2) 0 var(--space-4); }
+.tp-scope.pk .pk-rules__t :is(td, th) { text-align: left; white-space: normal; padding: 8px 10px; }
+.tp-scope.pk .pk-rules__cards { justify-content: flex-start; margin: 0; flex-wrap: nowrap; gap: 4px; }
+.tp-scope.pk .pk-rules__ex { display: flex; align-items: center; gap: var(--space-3); }
+.tp-scope.pk .pk-rules__ex .caption { color: var(--text-muted); }
+.tp-scope.pk .pk-rules__hands { list-style: none; margin: 0 0 var(--space-4); padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: var(--space-2); }
+.tp-scope.pk .pk-rules__hands li { display: flex; align-items: center; gap: var(--space-3); padding: 6px 10px; border-radius: var(--radius-md); background: var(--panel-raised); border: 1px solid var(--line); }
+.tp-scope.pk .pk-rules__rank { width: 1.6em; text-align: center; color: var(--accent); }
+.tp-scope.pk .pk-rules__hn { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.tp-scope.pk .pk-rules__hn .caption { color: var(--text-muted); }
+.tp-scope.pk .pk-rules__hands .tp-card { --ch: clamp(40px, 6cqh, 56px); }
+.tp-scope.pk .pk-rules__d {
+  display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #fff 0, var(--card-face) 60%, var(--card-edge) 100%); color: var(--card-ink);
+  font: 800 24px/1 var(--font-display); box-shadow: 0 3px 0 var(--card-edge), 0 6px 12px rgba(0, 0, 0, .5);
+}
+
+/* ------------------------------------------------------------------ zone moyenne (tablette, petite fenêtre) : actions en bas sur toute la largeur */
+.tp-scope.pk .pk-table:is([data-shape="square"], [data-shape="tall"]) .pk-act {
+  left: var(--pad); right: var(--pad); width: auto; bottom: var(--pad);
+}
+.tp-scope.pk .pk-table[data-shape="square"] .pk-act:has(.pk-raise) {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); grid-template-areas: "status raise" "bar raise"; column-gap: 12px;
+}
+.tp-scope.pk .pk-table[data-shape="square"] .pk-act:has(.pk-raise) .tp-status { grid-area: status; }
+.tp-scope.pk .pk-table[data-shape="square"] .pk-act:has(.pk-raise) .pk-raise { grid-area: raise; align-self: center; }
+.tp-scope.pk .pk-table[data-shape="square"] .pk-act:has(.pk-raise) .tp-actions { grid-area: bar; }
+
+/* ------------------------------------------------------------------ téléphone */
+@container zone (max-width: 639px) {
+  .tp-scope.pk .pk-info { left: 6px; top: 6px; padding: 4px 10px 6px; }
+  .tp-scope.pk .pk-info__n { display: none; }
+  .tp-scope.pk .pk-plate > .tp-bubble { display: none; } /* téléphone : la ligne d'état de la plaque suffit */
+  .tp-scope.pk .tp-end h2 { font-size: 30px; line-height: 34px; }
+  .tp-scope.pk .tp-end__card { padding: var(--space-5) var(--space-4); gap: var(--space-3); }
+  .tp-scope.pk .pk-info__b { font-size: 17px; }
+  .tp-scope.pk .pk-plate { flex-direction: column; gap: 2px; padding: 5px 6px; text-align: center; }
+  .tp-scope.pk .pk-plate .tp-avatar { --av: 30px; }
+  .tp-scope.pk .pk-plate__t { align-items: center; width: 100%; }
+  .tp-scope.pk .pk-plate__n { font-size: 12px; max-width: 100%; }
+  .tp-scope.pk .pk-plate__c { justify-content: center; gap: 3px; }
+  .tp-scope.pk .pk-plate__v { font-size: 13px; }
+  .tp-scope.pk .pk-plate__b { margin-left: 0; }
+  .tp-scope.pk .pk-plate__b .tp-badge { height: 15px; font-size: 9px; padding: 0 3px; }
+  .tp-scope.pk .pk-plate__st { font-size: 11px; line-height: 13px; justify-content: center; max-width: 100%; }
+  .tp-scope.pk .pk-plate .pk-chip--mini { display: none; }
+  .tp-scope.pk .pk-seat:not(.pk-hero) .pk-plate .tp-avatar { display: none; }
+  .tp-scope.pk .pk-hero { grid-template-areas: "best best" "plate cards"; }
+  .tp-scope.pk .pk-hero .pk-plate { flex-direction: row; text-align: left; padding: 6px 10px 6px 6px; }
+  .tp-scope.pk .pk-hero .pk-plate__t { align-items: flex-start; }
+  .tp-scope.pk .pk-hero .pk-plate__c { justify-content: flex-start; }
+  .tp-scope.pk .pk-pot__l b { font-size: 14px; }
+  .tp-scope.pk .pk-act { left: 0; right: 0; bottom: 0; border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: 8px; gap: 6px; }
+  .tp-scope.pk .pk-act:not(:has(.tp-actions)) { padding: 0 8px 8px; }
+  .tp-scope.pk .pk-act .tp-status { padding: 3px 12px; min-height: 0; }
+  .tp-scope.pk .pk-act .tp-status__t { font-size: 16px; line-height: 20px; }
+  .tp-scope.pk .pk-act .tp-actions .tp-btn--primary, .tp-scope.pk .pk-act .tp-actions .tp-btn { min-height: 44px; }
+  .tp-scope.pk .pk-raise { gap: 4px; }
+  .tp-scope.pk .pk-raise__q { gap: 4px; }
+  .tp-scope.pk .pk-q, .tp-scope.pk .pk-raise__r .tp-btn--icon, .tp-scope.pk .pk-amount input { min-height: 32px; }
+  .tp-scope.pk .pk-range { height: 32px; }
+  .tp-scope.pk .pk-plate__st[data-tone="hand"], .tp-scope.pk .pk-plate__st[data-tone="win"] { white-space: normal; text-align: center; }
+  .tp-scope.pk .pk-q { font-size: 13px; }
+}
+
+/* téléphone très bas (360 × 640) : les plaques ne grandissent pas, les cartes montrées restent petites */
+@container zone (max-width: 639px) and (max-height: 600px) {
+  .tp-scope.pk .pk-table[data-shape="tall"] .pk-seat:not(.pk-hero) .pk-plate__st { white-space: nowrap; }
+  .tp-scope.pk .pk-table[data-shape="tall"] .pk-seat:not(.pk-hero) .pk-hole[data-shown] { --hole: 28px; }
+  .tp-scope.pk .pk-table[data-shape="tall"] { --board: min(clamp(52px, 10cqh, 120px), calc((100cqw - 40px) / 5.4 * 1.4)); }
+}
+
+/* ------------------------------------------------------------------ zone basse (portable 1366 × 768) */
+@container zone (max-height: 640px) {
+  .tp-scope.pk .pk-plate { padding: 5px 10px 5px 6px; gap: 8px; }
+  .tp-scope.pk .pk-plate__st { font-size: 11px; line-height: 13px; }
+  .tp-scope.pk .pk-info { padding: 5px 12px 7px; }
+  .tp-scope.pk .pk-act { gap: 6px; }
+  .tp-scope.pk .pk-act:has(.tp-actions) { padding: 8px; }
+  .tp-scope.pk .pk-act .tp-actions .tp-btn--primary { min-height: 44px; }
+  .tp-scope.pk .pk-q, .tp-scope.pk .pk-raise__r .tp-btn--icon, .tp-scope.pk .pk-amount input { min-height: 32px; }
+  .tp-scope.pk .pk-raise__r .tp-btn--icon { width: 32px; }
+  .tp-scope.pk .pk-range { height: 32px; }
+}
+
+/* Écran tactile : pas de survol collant sur les cartes. */
+@media (hover: none) {
+  .tp-scope.pk .tp-card:hover { transform: none; }
+}

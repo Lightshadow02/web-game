@@ -1,0 +1,389 @@
+/* Blackjack : intégration du design system « Tapis » (table « salon ») dans le Hub.
+   Tapis (/vendor/tapis/tapis.css, chargé avant ce fichier) donne les cartes, sièges, boutons, panneaux et le tapis ;
+   ici, la table de casino (banque, sabot, places en arc) et les jetons, dessinés avec les tokens du système.
+   Sélecteurs .tp-scope.bj … : ils priment quel que soit l'ordre de chargement. */
+
+/* Titres du Hub (h2 en capitales dorées) neutralisés ; spécificité minimale pour que les classes Tapis gardent la main. */
+:where(.tp-scope) :is(h1, h2, h3, h4) { margin: 0; font-size: inherit; letter-spacing: normal; text-transform: none; color: inherit; }
+
+/* La hauteur est posée en JS (fit) : la table tient dans la fenêtre, sous la barre du salon. */
+.tp-scope.bj { display: block; position: relative; }
+@media (min-width: 641px) and (min-height: 660px) { .tp-scope.bj { min-height: 560px; } } /* zone-min-h du design */
+.tp-scope.bj .tp-app { background: transparent; }
+.tp-scope.bj .tp-zone { margin: 0; } /* le Hub entoure déjà le jeu d'une marge */
+.tp-scope.bj .bj-layer { display: contents; }
+.tp-scope.bj .bj-loading { margin: 0; padding: 2rem; text-align: center; color: var(--muted); } /* avant Tapis : couleurs du Hub */
+.tp-scope.bj .tp-decor__ring { display: none; } /* l'anneau du Tarot : ici, le tapis imprimé */
+
+/* Pendant une transition : pas de coup joué (miser, s'assurer et passer restent possibles, tout le monde décide en même temps). */
+.tp-scope.bj[data-animating] .tp-table[data-phase="playing"] .tp-actions,
+.tp-scope.bj[data-busy] .tp-actions { pointer-events: none; }
+
+/* ------------------------------------------------------------------ jetons */
+.tp-scope.bj {
+  --chip: clamp(20px, 3.4cqh, 36px);
+  --chip-1: var(--card-face);
+  --chip-5: var(--fig-gold);
+  --chip-10: var(--fig-blue);
+  --chip-25: var(--card-red);
+  --chip-100: var(--card-ink);
+  --chip-500: color-mix(in srgb, var(--fig-blue) 48%, var(--card-red));
+}
+.tp-scope.bj .bj-chip {
+  --c: var(--chip-10); --e: var(--card-face); --ink: var(--card-face);
+  position: relative; display: inline-grid; place-items: center; flex: none; box-sizing: border-box;
+  width: var(--chip); height: var(--chip); border-radius: 50%; padding: 0; border: 0;
+  background:
+    radial-gradient(circle, var(--c) 0 37%, color-mix(in srgb, var(--e) 85%, transparent) 38% 41%, var(--c) 42% 61%, transparent 62%),
+    repeating-conic-gradient(from 8deg, var(--e) 0deg 17deg, var(--c) 17deg 45deg);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .35), 0 2px 0 color-mix(in srgb, var(--c) 55%, #000), 0 3px 6px rgba(0, 0, 0, .45);
+}
+.tp-scope.bj .bj-chip[data-v="1"] { --c: var(--chip-1); --e: var(--card-muted); --ink: var(--card-ink); }
+.tp-scope.bj .bj-chip[data-v="5"] { --c: var(--chip-5); --e: var(--card-ink); --ink: var(--card-ink); }
+.tp-scope.bj .bj-chip[data-v="10"] { --c: var(--chip-10); }
+.tp-scope.bj .bj-chip[data-v="25"] { --c: var(--chip-25); }
+.tp-scope.bj .bj-chip[data-v="100"] { --c: var(--chip-100); --e: var(--accent); --ink: var(--accent-bright); }
+.tp-scope.bj .bj-chip[data-v="500"] { --c: var(--chip-500); --e: var(--accent-bright); }
+.tp-scope.bj .bj-chip__v { font: 800 calc(var(--chip) * .27) / 1 var(--font-display); color: var(--ink); letter-spacing: -.02em; text-shadow: 0 1px 0 rgba(0, 0, 0, .35); }
+.tp-scope.bj .bj-chip[data-v="1"] .bj-chip__v,
+.tp-scope.bj .bj-chip[data-v="5"] .bj-chip__v { text-shadow: none; }
+.tp-scope.bj .bj-chip--mini { --chip: 16px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .35), 0 1px 0 color-mix(in srgb, var(--c) 55%, #000); }
+
+/* Pile de jetons : vue de dessus, chaque jeton un peu plus haut que le précédent. */
+.tp-scope.bj .bj-stack { display: inline-flex; align-items: center; gap: 6px; }
+.tp-scope.bj .bj-stack__chips { position: relative; display: block; flex: none; width: var(--chip); height: calc(var(--chip) * .64 + (var(--n) - 1) * var(--chip) * .17); }
+.tp-scope.bj .bj-stack__chips .bj-chip { position: absolute; left: 0; bottom: calc(var(--i) * var(--chip) * .17 - var(--chip) * .18); transform: scaleY(.64); }
+.tp-scope.bj .bj-stack__n { font: 700 clamp(13px, 1.9cqh, 17px) / 1 var(--font-display); color: var(--text); white-space: nowrap; text-shadow: 0 1px 2px rgba(0, 0, 0, .6); }
+.tp-scope.bj .bj-stack__x { display: inline-flex; vertical-align: -3px; margin-left: 3px; color: var(--accent-bright); }
+.tp-scope.bj .bj-stack__x .tp-ic { width: 16px; height: 16px; }
+.tp-scope.bj .bj-stack--sm { --chip: clamp(16px, 2.4cqh, 24px); gap: 4px; }
+.tp-scope.bj .bj-stack--sm .bj-stack__n { font-size: 13px; }
+.tp-scope.bj .bj-ghost { position: absolute; z-index: 2; pointer-events: none; }
+
+/* ------------------------------------------------------------------ la table */
+.tp-scope.bj .tp-table--bj {
+  --bj-gap: clamp(8px, 1.1cqw, 20px);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2.6fr) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-areas: "tray dealer ." "felt felt felt" "seats seats seats" "bar bar bar";
+  row-gap: clamp(4px, 1cqh, 14px);
+}
+.tp-scope.bj [data-area="tray"] { align-items: flex-start; gap: clamp(10px, 1.6cqw, 28px); padding-top: 4px; }
+.tp-scope.bj [data-area="dealer"] { justify-content: center; }
+.tp-scope.bj .bj-dealer-row { display: flex; align-items: flex-start; justify-content: center; gap: clamp(16px, 3.4cqw, 64px); width: 100%; }
+.tp-scope.bj .bj-discard,
+.tp-scope.bj .bj-shoe { flex: none; padding-top: clamp(24px, 4.2cqh, 46px); }
+.tp-scope.bj [data-area="felt"] { position: relative; }
+.tp-scope.bj [data-area="seats"] { justify-content: center; align-items: flex-end; }
+.tp-scope.bj [data-area="bar"] { align-items: center; min-height: calc(clamp(44px, 6.4cqh, 56px) + 14px); }
+
+.tp-scope.bj .bj-round { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: var(--radius-md); background: color-mix(in srgb, var(--table-deep) 70%, transparent); border: 1px solid var(--line); }
+.tp-scope.bj .bj-round .label { color: var(--text-muted); }
+.tp-scope.bj .bj-round .stat { color: var(--accent-bright); }
+.tp-scope.bj :is(.bj-discard, .bj-shoe) .tp-pile { --card-sm: clamp(48px, 9cqh, 104px); }
+
+/* Sabot : la pile Tapis dans un sabot de bois sombre ; la carte de coupe dépasse quand elle est sortie. */
+.tp-scope.bj .bj-shoe { position: relative; }
+.tp-scope.bj .bj-shoe .tp-pile__stack { padding: 6px 6px 6px 10px; border-radius: 8px 14px 14px 8px; background: linear-gradient(160deg, color-mix(in srgb, var(--rim) 85%, #fff 6%), var(--rim)); box-shadow: var(--shadow-well), 0 6px 14px rgba(0, 0, 0, .4); }
+.tp-scope.bj .bj-shoe[data-cut] .tp-pile__stack::before { content: ""; position: absolute; z-index: 2; left: 4px; right: 30%; top: 46%; height: 5px; border-radius: 2px; background: var(--danger); box-shadow: 0 1px 2px rgba(0, 0, 0, .5); }
+.tp-scope.bj .bj-shoe .tp-pile__hint { max-width: 14ch; }
+.tp-scope.bj .bj-shoe[data-cut] .tp-pile__hint { color: var(--danger); }
+
+/* ------------------------------------------------------------------ la banque */
+.tp-scope.bj .bj-dealer { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: clamp(4px, .9cqh, 10px); }
+.tp-scope.bj .bj-dealer__id { display: flex; align-items: center; gap: var(--space-2); min-height: 28px; }
+.tp-scope.bj .bj-dealer__name { color: var(--text-muted); }
+.tp-scope.bj .bj-dealer__note { color: var(--danger); font-weight: 700; }
+.tp-scope.bj .bj-cards--dealer { --bj-ch: var(--card-md); min-height: var(--bj-ch); }
+.tp-scope.bj .bj-cards--dealer .tp-card--slot { opacity: .45; }
+.tp-scope.bj .bj-cards--dealer .tp-card.tp-card--slot + .tp-card.tp-card--slot { margin-left: var(--space-3); }
+.tp-scope.bj .bj-rack { display: flex; gap: 3px; padding: 4px 8px 5px; border-radius: 0 0 var(--radius-md) var(--radius-md); background: color-mix(in srgb, var(--table-deep) 85%, transparent); box-shadow: var(--shadow-well); }
+.tp-scope.bj .bj-rack__c { --c: var(--chip-10); display: block; width: clamp(14px, 2cqh, 22px); height: clamp(9px, 1.3cqh, 14px); border-radius: 3px; background: repeating-linear-gradient(90deg, var(--c) 0 3px, color-mix(in srgb, var(--c) 70%, #000) 3px 4px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2); }
+.tp-scope.bj .bj-rack__c[data-v="5"] { --c: var(--chip-5); }
+.tp-scope.bj .bj-rack__c[data-v="25"] { --c: var(--chip-25); }
+.tp-scope.bj .bj-rack__c[data-v="100"] { --c: var(--chip-100); }
+.tp-scope.bj .bj-rack__c[data-v="500"] { --c: var(--chip-500); }
+
+/* Cartes d'une main : elles se chevauchent en laissant l'index visible. */
+.tp-scope.bj .bj-cards { --bj-cw: calc(var(--bj-ch) * 5 / 7); --bj-step: .44; display: flex; align-items: flex-end; justify-content: center; min-height: var(--bj-ch); }
+.tp-scope.bj .bj-cards .tp-card { --ch: var(--bj-ch); }
+.tp-scope.bj .bj-cards .tp-card + .tp-card { margin-left: calc(var(--bj-cw) * (var(--bj-step) - 1)); }
+.tp-scope.bj .bj-cards--dealer { --bj-step: .62; }
+.tp-scope.bj .bj-cards[data-count="5"] { --bj-step: .38; }
+.tp-scope.bj .bj-cards[data-count="6"] { --bj-step: .32; }
+.tp-scope.bj .bj-cards:is([data-count="7"], [data-count="8"], [data-count="9"], [data-count="10"], [data-count="11"]) { --bj-step: .25; }
+
+/* Valeur d'une main : « 7 / 17 », « 21 », « Blackjack ». */
+.tp-scope.bj .bj-value {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 2.4em; height: 26px; padding: 0 10px; border-radius: var(--radius-full);
+  background: var(--panel); border: 1px solid var(--line-strong); color: var(--text); font: 700 15px/1 var(--font-display); white-space: nowrap; box-shadow: 0 2px 6px rgba(0, 0, 0, .35);
+}
+.tp-scope.bj .bj-value[data-tone="top"] { border-color: var(--accent-bright); color: var(--accent-bright); }
+.tp-scope.bj .bj-value[data-tone="bj"] { background: var(--accent); border-color: transparent; color: var(--on-accent); }
+.tp-scope.bj .bj-value[data-tone="bust"] { background: var(--danger-fill); border-color: transparent; color: var(--text); }
+
+/* ------------------------------------------------------------------ le tapis imprimé et le centre */
+.tp-scope.bj .bj-felt { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.tp-scope.bj .bj-felt text { font-family: var(--font-display); font-weight: 700; fill: color-mix(in srgb, var(--accent) 42%, transparent); letter-spacing: .14em; }
+.tp-scope.bj .bj-felt__big { font-size: 34px; }
+.tp-scope.bj .bj-felt__small { font-size: 16px; letter-spacing: .2em; fill: color-mix(in srgb, var(--accent) 34%, transparent); }
+.tp-scope.bj .bj-felt__band-t { font-size: 15px; letter-spacing: .3em; }
+.tp-scope.bj .bj-felt__band { fill: none; stroke: color-mix(in srgb, var(--accent) 28%, transparent); stroke-width: 1.5; }
+.tp-scope.bj [data-area="felt"]:has(.bj-overpanel) .bj-felt { opacity: .35; }
+
+.tp-scope.bj .bj-center { position: relative; z-index: 2; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: clamp(4px, 1cqh, 12px); min-height: 0; }
+.tp-scope.bj .bj-overpanel { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; max-width: min(900px, 100%); }
+.tp-scope.bj .bj-status { flex: none; display: flex; justify-content: center; max-width: 100%; }
+.tp-scope.bj .bj-panel { max-height: 100%; overflow: auto; padding: var(--space-3) var(--space-5); gap: var(--space-2); }
+.tp-scope.bj .bj-panel .tp-panel__h h2 { display: inline-flex; align-items: center; gap: 8px; }
+.tp-scope.bj .bj-panel .tp-panel__h h2 .tp-ic { width: 20px; height: 20px; color: var(--accent); }
+.tp-scope.bj .bj-panel__t { margin: 0; max-width: 60ch; color: var(--text); }
+
+/* Résumé de la donne */
+.tp-scope.bj .bj-sum { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 10px; }
+.tp-scope.bj .bj-sum li { display: inline-flex; align-items: center; gap: 8px; padding: 3px 14px 3px 3px; border-radius: var(--radius-full); background: var(--panel-raised); border: 1px solid var(--line); }
+.tp-scope.bj .bj-sum li[data-me] { border-color: var(--accent); }
+.tp-scope.bj .bj-sum__n .caption { color: var(--text-muted); }
+.tp-scope.bj .bj-sum__v { font-size: 18px; }
+.tp-scope.bj .bj-sum li[data-sign="+"] .bj-sum__v { color: var(--positive); }
+.tp-scope.bj .bj-sum li[data-sign="-"] .bj-sum__v { color: var(--danger); }
+.tp-scope.bj .bj-sum li[data-sign="0"] .bj-sum__v { color: var(--text-muted); }
+
+
+/* Règlement en cours : les résultats apparaissent quand la banque a fini. */
+.tp-scope.bj[data-settling] :is(.bj-result, .bj-summary, .bj-dealer__note) { visibility: hidden; }
+/* une main perdue ne se ternit qu'une fois la banque jouée (une main sautée, elle, est déjà connue) */
+.tp-scope.bj[data-settling] .bj-hand[data-result="lose"] .bj-cards { filter: none; }
+
+/* ------------------------------------------------------------------ les places, en arc */
+.tp-scope.bj .bj-seats {
+  --n: 1; --bj-arc: clamp(0px, 5cqh, 56px);
+  display: flex; justify-content: center; align-items: flex-end; gap: var(--bj-gap); width: 100%; min-width: 0;
+  /* une place à 3 ou 4 mains s'élargit (--bj-wk), les autres se partagent le reste */
+  --bj-extra: 0;
+  --bj-seat-w: min(360px, calc((100cqw - 2 * clamp(14px, 1.8cqw, 36px) - (var(--n) - 1) * var(--bj-gap)) / (var(--n) + var(--bj-extra))));
+}
+.tp-scope.bj .bj-seats:has(.bj-hands[data-hands="3"]) { --bj-extra: .35; }
+.tp-scope.bj .bj-seats:has(.bj-hands[data-hands="4"]) { --bj-extra: .6; }
+.tp-scope.bj .bj-seats[data-n="2"] { --n: 2; }
+.tp-scope.bj .bj-seats[data-n="3"] { --n: 3; }
+.tp-scope.bj .bj-seats[data-n="4"] { --n: 4; }
+.tp-scope.bj .bj-seats[data-n="5"] { --n: 5; }
+.tp-scope.bj .bj-seat {
+  --bj-hk: 1; --bj-wk: 1;
+  --bj-ch: min(var(--card-md), 15.5cqh, calc(var(--bj-seat-w) * var(--bj-wk) * .6 / var(--bj-hk)));
+  position: relative; display: flex; flex-direction: column; align-items: stretch; gap: 6px; min-width: 0;
+  flex: 0 1 calc(var(--bj-seat-w) * var(--bj-wk)); width: calc(var(--bj-seat-w) * var(--bj-wk)); margin-bottom: calc(var(--lift) * var(--bj-arc));
+}
+.tp-scope.bj .bj-seat:has(.bj-hands[data-hands="2"]) { --bj-hk: 1.7; }
+.tp-scope.bj .bj-seat:has(.bj-hands[data-hands="3"]) { --bj-hk: 2.5; --bj-wk: 1.35; }
+.tp-scope.bj .bj-seat:has(.bj-hands[data-hands="4"]) { --bj-hk: 3.2; --bj-wk: 1.6; }
+/* 3 ou 4 mains : cartes plus serrées, « Main N » retiré à 4 (l'ordre se lit de gauche à droite) */
+.tp-scope.bj .bj-hands:is([data-hands="3"], [data-hands="4"]) .bj-cards:not([data-count="5"], [data-count="6"]) { --bj-step: .36; }
+.tp-scope.bj .bj-hands[data-hands="4"] .bj-hand__n { display: none; }
+.tp-scope.bj .bj-hands:is([data-hands="3"], [data-hands="4"]) .bj-hand { padding-inline: 3px; }
+.tp-scope.bj .bj-hands:is([data-hands="3"], [data-hands="4"]) .bj-spot { min-width: 0; padding: 2px 5px; }
+.tp-scope.bj .bj-hands:is([data-hands="3"], [data-hands="4"]) .bj-stack { gap: 3px; }
+.tp-scope.bj .bj-hands:is([data-hands="3"], [data-hands="4"]) .bj-stack__n { font-size: 12px; }
+.tp-scope.bj .bj-hands { position: relative; display: flex; justify-content: center; align-items: flex-end; gap: clamp(4px, .6cqw, 12px); min-width: 0; }
+.tp-scope.bj .bj-hand {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0;
+  padding: 4px 6px 6px; border-radius: var(--radius-lg); transition: background .2s, box-shadow .2s;
+}
+.tp-scope.bj .bj-hand__info { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 26px; }
+.tp-scope.bj .bj-hand__n { color: var(--text-muted); white-space: nowrap; }
+.tp-scope.bj .bj-hand[data-active] { background: color-mix(in srgb, var(--accent) 12%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 70%, transparent), 0 0 22px 2px color-mix(in srgb, var(--accent) 22%, transparent); }
+.tp-scope.bj .bj-hand[data-active] .bj-value { border-color: var(--accent); }
+.tp-scope.bj .bj-hand[data-result="lose"] .bj-cards,
+.tp-scope.bj .bj-hand[data-result="bust"] .bj-cards { filter: saturate(.55) brightness(.78); }
+.tp-scope.bj .bj-seat[data-pstate="sitout"] .bj-hands,
+.tp-scope.bj .bj-seat[data-pstate="out"] .bj-hands { opacity: .55; }
+
+/* Case de mise : une ellipse de laiton sur le feutre, la pile de jetons dedans. */
+.tp-scope.bj .bj-spot {
+  display: flex; align-items: center; justify-content: center; min-width: calc(var(--chip) * 2.9); min-height: calc(var(--chip) * 1.55);
+  padding: 4px 12px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  background: radial-gradient(ellipse at 50% 40%, color-mix(in srgb, var(--table-glow) 60%, transparent), color-mix(in srgb, var(--table-deep) 55%, transparent));
+}
+.tp-scope.bj .bj-spot[data-empty] { border-style: dashed; border-color: color-mix(in srgb, var(--accent) 32%, transparent); }
+.tp-scope.bj .bj-spot__l { color: color-mix(in srgb, var(--accent) 55%, transparent); }
+.tp-scope.bj .bj-seat[data-me] .bj-spot { border-color: var(--accent); }
+.tp-scope.bj .bj-spot[data-pending] { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+.tp-scope.bj .bj-spot--result { min-width: 0; padding: 2px 8px; }
+.tp-scope.bj .bj-hands[data-hands]:not([data-hands="1"]) .bj-spot--result { padding: 2px 6px; min-width: calc(var(--chip) * 2); }
+.tp-scope.bj .bj-result { display: flex; }
+.tp-scope.bj .bj-result .tp-badge { height: 26px; font-size: 12px; }
+.tp-scope.bj .bj-net { display: inline-flex; align-items: center; gap: 3px; font: 700 clamp(13px, 1.7cqh, 16px) / 1 var(--font-display); white-space: nowrap; color: var(--text); }
+.tp-scope.bj .bj-net .tp-ic { width: 14px; height: 14px; }
+.tp-scope.bj .bj-net[data-tone="positive"] { color: var(--positive); }
+.tp-scope.bj .bj-net[data-tone="danger"] { color: var(--danger); }
+.tp-scope.bj .bj-net[data-tone="muted"] { color: var(--text-muted); }
+.tp-scope.bj .bj-net[data-tone="accent"] { color: var(--accent-bright); }
+.tp-scope.bj .bj-ins { position: absolute; right: -2px; bottom: 6px; display: inline-flex; align-items: center; gap: 2px; padding: 2px 6px 2px 4px; border-radius: var(--radius-full); background: color-mix(in srgb, var(--panel) 85%, transparent); border: 1px solid var(--accent); }
+.tp-scope.bj .bj-ins > .tp-ic { width: 14px; height: 14px; color: var(--accent); }
+
+/* Plaque du joueur : siège Tapis compact + sa cave. */
+.tp-scope.bj .bj-seat .tp-seat { width: 100%; min-width: 0; padding: 6px 10px; gap: var(--space-2); }
+.tp-scope.bj .bj-seat .tp-seat__id { flex: 1 1 auto; flex-wrap: nowrap; min-width: 0; gap: 8px; }
+.tp-scope.bj .bj-seat .tp-seat__badges { margin-left: 0; flex-wrap: nowrap; }
+.tp-scope.bj .bj-seat .tp-avatar { --av: clamp(30px, 4.6cqh, 40px); }
+.tp-scope.bj .bj-seat[data-me] .tp-seat:not([data-state="active"]) { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); background: color-mix(in srgb, var(--table-deep) 82%, var(--accent) 6%); }
+.tp-scope.bj .bj-bank { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.tp-scope.bj .bj-bank__n { font-size: clamp(16px, 2.2cqh, 20px); line-height: 1; color: var(--accent-bright); }
+.tp-scope.bj .bj-seat[data-pstate="out"] .bj-bank__n { color: var(--text-faint); }
+
+/* ------------------------------------------------------------------ barre du bas : jetons à miser et actions */
+.tp-scope.bj .bj-bar { width: 100%; display: flex; align-items: center; justify-content: flex-end; gap: var(--space-4); flex-wrap: wrap; min-height: calc(clamp(44px, 6.4cqh, 56px) + 14px); }
+.tp-scope.bj .bj-tray { margin-right: auto; display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; padding: 6px 10px; border-radius: var(--radius-full); background: color-mix(in srgb, var(--table-deep) 80%, transparent); box-shadow: var(--shadow-well); }
+.tp-scope.bj .bj-tray__chips { display: flex; gap: clamp(6px, .8cqw, 12px); }
+.tp-scope.bj .bj-chip--btn { --chip: clamp(44px, 6.4cqh, 56px); cursor: pointer; transition: transform .14s cubic-bezier(.22, .8, .3, 1), box-shadow .14s; }
+.tp-scope.bj .bj-chip--btn:hover:not([aria-disabled="true"]) { transform: translateY(-3px); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .35), 0 5px 0 color-mix(in srgb, var(--c) 55%, #000), 0 8px 14px rgba(0, 0, 0, .5); }
+.tp-scope.bj .bj-chip--btn:active:not([aria-disabled="true"]) { transform: translateY(1px); }
+.tp-scope.bj .bj-chip--btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.tp-scope.bj .bj-chip--btn[aria-disabled="true"] { cursor: not-allowed; filter: grayscale(.8) brightness(.7); }
+.tp-scope.bj .bj-tray__b { min-height: 40px; }
+.tp-scope.bj .bj-bar .tp-actions { flex-direction: row; align-items: center; }
+.tp-scope.bj .bj-bar .tp-actions__row { align-items: center; }
+.tp-scope.bj .bj-bar .tp-btnwrap { position: relative; }
+.tp-scope.bj .bj-bar .tp-btn__why { position: absolute; left: 50%; bottom: calc(100% + 4px); transform: translateX(-50%); width: max-content; max-width: 220px; padding: 2px 8px; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--panel) 92%, transparent); pointer-events: none; }
+/* La raison d'un bouton secondaire désactivé apparaît au survol ou au focus (et en notification au toucher) ; celle du bouton principal reste visible. */
+.tp-scope.bj .bj-bar .tp-btnwrap:not(:has(.tp-btn--primary)) .tp-btn__why { opacity: 0; transition: opacity .16s; }
+.tp-scope.bj .bj-bar .tp-btnwrap:is(:hover, :focus-within) .tp-btn__why { opacity: 1; z-index: 3; }
+.tp-scope.bj .bj-bar .tp-btn .tp-btn__kbd { margin-left: 2px; }
+
+/* ------------------------------------------------------------------ fin de partie, tiroirs, règles */
+.tp-scope.bj .tp-end { grid-template-columns: minmax(0, 1fr); place-items: safe center; }
+.tp-scope.bj .tp-end__card { width: min(620px, 100%); min-width: 0; max-width: 100%; }
+@container zone (max-height: 760px) {
+  .tp-scope.bj .tp-end__card { padding: var(--space-5) var(--space-6); gap: var(--space-3); }
+  .tp-scope.bj .tp-end__emblem { width: 48px; height: 48px; }
+  .tp-scope.bj .tp-end__emblem .tp-ic { width: 26px; height: 26px; }
+}
+.tp-scope.bj .tp-rank__r { grid-template-columns: 28px auto auto 1fr auto; }
+.tp-scope.bj .tp-rank__note { grid-row: 1; grid-column: 4; }
+.tp-scope.bj .tp-rank__s { grid-column: 5; }
+.tp-scope.bj .bj-end-note { flex-basis: 100%; margin: 0; text-align: center; color: var(--text-muted); }
+.tp-scope.bj .tp-end__act { flex-wrap: wrap; justify-content: center; }
+.tp-scope.bj .bj-empty { margin: var(--space-3) 0 0; color: var(--text-muted); }
+.tp-scope.bj .bj-ss th:nth-child(-n+2),
+.tp-scope.bj .bj-ss td:nth-child(-n+2) { text-align: left; }
+.tp-scope.bj .bj-ss :is(th, td):nth-child(n+3) { text-align: right; }
+.tp-scope.bj .bj-ss td[data-sign="+"] { color: var(--positive); }
+.tp-scope.bj .bj-ss td[data-sign="-"] { color: var(--danger); }
+.tp-scope.bj .bj-ss tfoot td { color: var(--accent-bright); }
+
+.tp-scope.bj .bj-rules__h { margin: var(--space-5) 0 var(--space-2); color: var(--accent); }
+.tp-scope.bj .bj-rules__boxes { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: var(--space-2); margin: var(--space-2) 0 var(--space-4); }
+.tp-scope.bj .bj-rules__box { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-md); background: var(--panel-raised); border: 1px solid var(--line); }
+.tp-scope.bj .bj-rules__box .tp-rules__cards { justify-content: flex-start; margin: 0; }
+.tp-scope.bj .bj-rules__box .caption { color: var(--text-muted); }
+.tp-scope.bj .bj-rules__chips { display: flex; gap: 10px; padding: 8px 0; --chip: 46px; }
+.tp-scope.bj .bj-rules__chips .bj-chip { cursor: default; }
+.tp-scope.bj .bj-rt { margin: var(--space-2) 0 var(--space-4); }
+.tp-scope.bj .bj-rt :is(td, th) { text-align: left; white-space: normal; padding: 8px 10px; }
+
+.tp-scope.bj .bj-float { font-size: clamp(18px, 3cqh, 28px); }
+
+/* ------------------------------------------------------------------ portable (zone basse) */
+@container zone (max-height: 700px) {
+  .tp-scope.bj .tp-table--bj { row-gap: 4px; }
+  .tp-scope.bj .bj-seat .tp-seat { padding: 4px 8px; }
+  .tp-scope.bj .bj-seat .tp-seat__meta { display: none; }
+  .tp-scope.bj .bj-seat .tp-seat__meta:has(.tp-seat__turn, .tp-seat__off) { display: flex; }
+  .tp-scope.bj .bj-felt__small { display: none; }
+  .tp-scope.bj .bj-hand { padding: 2px 4px 4px; gap: 3px; }
+  .tp-scope.bj .bj-value { height: 22px; font-size: 13px; }
+  .tp-scope.bj .bj-hand__info { min-height: 22px; }
+  .tp-scope.bj .bj-round { padding: 6px 10px; }
+}
+
+/* très basse (téléphone à l'horizontale) : la table défile sous la barre d'actions, restée en bas */
+@container zone (max-height: 440px) {
+  .tp-scope.bj .tp-table--bj { overflow-y: auto; grid-template-rows: max-content max-content max-content max-content; }
+  .tp-scope.bj .tp-area[data-area="bar"] { position: sticky; bottom: 0; z-index: 12; padding: 6px 0; background: var(--table-deep); border-radius: var(--radius-lg); box-shadow: 0 -8px 16px -8px rgba(0, 0, 0, .5); }
+  .tp-scope.bj .bj-center { height: auto; }
+  .tp-scope.bj .bj-panel { max-height: none; }
+  .tp-scope.bj .bj-overpanel { flex: none; }
+  .tp-scope.bj .bj-seat { --bj-ch: min(var(--card-md), 28cqh, calc(var(--bj-seat-w) * var(--bj-wk) * .6 / var(--bj-hk))); }
+}
+
+/* ------------------------------------------------------------------ largeur intermédiaire (640 à 1100 px) */
+@container zone (max-width: 1100px) {
+  .tp-scope.bj .tp-table--bj { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+  .tp-scope.bj .bj-shoe .tp-pile__hint { display: none; }
+  .tp-scope.bj .bj-seat .tp-seat .tp-badge span { display: none; }
+  .tp-scope.bj .bj-seat .tp-seat .tp-badge { padding: 0 5px; }
+  .tp-scope.bj .bj-seat .tp-seat__you { display: none; }
+  .tp-scope.bj .bj-bank .bj-chip--mini { display: none; }
+  .tp-scope.bj .bj-felt__big { font-size: 40px; }
+  .tp-scope.bj .bj-bar .tp-btn { padding: 0 var(--space-3); }
+}
+@container zone (max-width: 1100px) {
+  .tp-scope.bj .bj-hands[data-hands="3"] .bj-hand__n { display: none; }
+  .tp-scope.bj .bj-hands:is([data-hands="3"], [data-hands="4"]) .bj-net .tp-ic { display: none; }
+  .tp-scope.bj .bj-hands:is([data-hands="3"], [data-hands="4"]) .bj-spot--result { padding: 1px 4px; }
+}
+@container zone (max-width: 900px) {
+  .tp-scope.bj .bj-hands:not([data-hands="1"]) .bj-hand__n { display: none; }
+  .tp-scope.bj .bj-hands:not([data-hands="1"]) .bj-spot { min-width: 0; padding: 2px 5px; }
+  .tp-scope.bj .bj-hands:not([data-hands="1"]) .bj-stack { gap: 3px; }
+  .tp-scope.bj .bj-hands:not([data-hands="1"]) .bj-stack__n { font-size: 12px; }
+  .tp-scope.bj .bj-seat .tp-avatar { display: none; }
+  .tp-scope.bj .bj-seat .tp-seat { padding: 4px 8px; }
+  .tp-scope.bj .bj-seat .tp-seat__name { font-size: 13px; }
+}
+
+/* ------------------------------------------------------------------ téléphone : la table passe en colonne */
+@container zone (max-width: 639px) {
+  .tp-scope.bj .tp-decor > * { display: none; }
+  .tp-scope.bj .tp-table { overflow-x: hidden; }
+  .tp-scope.bj .tp-area[data-area="tray"] { display: none; }
+  .tp-scope.bj .tp-area[data-area="dealer"] { order: 1; }
+  .tp-scope.bj .bj-dealer-row { gap: var(--space-3); }
+  .tp-scope.bj .bj-discard { display: none; }
+  .tp-scope.bj .bj-shoe { padding-top: 34px; }
+  .tp-scope.bj .bj-shoe .tp-pile { --card-sm: 46px; }
+  .tp-scope.bj .bj-shoe .tp-pile__cap,
+  .tp-scope.bj .bj-shoe .tp-pile__hint { display: none; }
+  .tp-scope.bj .tp-area[data-area="felt"] { order: 2; }
+  .tp-scope.bj .bj-felt { display: none; }
+  .tp-scope.bj .bj-center { height: auto; }
+  .tp-scope.bj .bj-overpanel { width: 100%; }
+  .tp-scope.bj .bj-panel { width: 100%; padding: var(--space-3); }
+  .tp-scope.bj .tp-area[data-area="seats"] { order: 3; }
+  .tp-scope.bj .bj-cards--dealer { --bj-ch: clamp(64px, 22cqw, 110px); }
+  .tp-scope.bj .bj-seats { --bj-arc: 0px; --bj-seat-w: auto; display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); align-items: end; }
+  .tp-scope.bj .bj-seat { width: auto; --bj-ch: min(clamp(46px, 14cqw, 72px), calc(41cqw / var(--bj-hk))); }
+  .tp-scope.bj .bj-seat[data-me] { order: -1; grid-column: 1 / -1; --bj-ch: min(clamp(64px, 23cqw, 112px), calc(80cqw / var(--bj-hk))); }
+  .tp-scope.bj .bj-seats[data-n="1"] .bj-seat { grid-column: 1 / -1; }
+  /* 3 ou 4 mains : toute la largeur, cartes à la mesure (une main de 2 cartes ≈ 1,1 hauteur de carte) */
+  .tp-scope.bj .bj-seat:not([data-me]):has(.bj-hands[data-hands="3"], .bj-hands[data-hands="4"]) { grid-column: 1 / -1; --bj-ch: min(clamp(46px, 14cqw, 72px), calc(70cqw / var(--bj-hk) / 1.25)); }
+  .tp-scope.bj .bj-seat[data-me]:has(.bj-hands[data-hands="3"], .bj-hands[data-hands="4"]) { --bj-ch: min(clamp(64px, 23cqw, 112px), calc(70cqw / var(--bj-hk) / 1.25)); }
+  .tp-scope.bj .bj-seat .tp-avatar { display: inline-flex; --av: 28px; }
+  .tp-scope.bj .bj-seat:not([data-me]) .bj-spot { min-width: calc(var(--chip) * 2.4); min-height: calc(var(--chip) * 1.3); padding: 2px 8px; }
+  .tp-scope.bj .tp-area[data-area="bar"] {
+    order: 9; position: sticky; bottom: 0; z-index: 12; margin: 0 calc(var(--space-3) * -1); padding: var(--space-2) var(--space-3) var(--space-3);
+    background: color-mix(in srgb, var(--panel) 94%, transparent); border-top: 1px solid var(--line);
+  }
+  /* une colonne : la barre reste en bas de l'écran, même quand la table est courte */
+  .tp-scope.bj .tp-table--bj { flex-flow: column nowrap; align-items: stretch; }
+  .tp-scope.bj .tp-table--bj > .tp-area { flex: none; }
+  .tp-scope.bj .tp-area[data-area="bar"] { margin-top: auto; }
+  .tp-scope.bj .tp-area[data-area="bar"]:empty { display: none; }
+  .tp-scope.bj .bj-bar { flex-direction: column; align-items: stretch; gap: var(--space-2); min-height: 0; }
+  .tp-scope.bj .bj-tray { margin: 0; justify-content: center; border-radius: var(--radius-lg); }
+  .tp-scope.bj .bj-chip--btn { --chip: 46px; }
+  .tp-scope.bj .bj-bar .tp-actions,
+  .tp-scope.bj .bj-bar .tp-actions__row { width: 100%; align-items: stretch; flex-wrap: wrap; }
+  .tp-scope.bj .bj-bar .tp-btn { flex: 1 1 0; padding: 0 var(--space-2); }
+  .tp-scope.bj .bj-bar .tp-btn--primary { flex: 2 1 auto; }
+  .tp-scope.bj .bj-bar .tp-actions__row:has(> :nth-child(3)) > .tp-btn--primary,
+  .tp-scope.bj .bj-bar .tp-actions__row:has(> :nth-child(3)) > .tp-btnwrap:last-child { flex-basis: 100%; order: -1; }
+  .tp-scope.bj .bj-bar .tp-btnwrap { flex: 1 1 0; }
+  .tp-scope.bj .bj-bar .tp-btnwrap .tp-btn { width: 100%; }
+  .tp-scope.bj .bj-bar .tp-btn__why { position: static; transform: none; background: none; padding: 0; width: auto; }
+  .tp-scope.bj .bj-bar .tp-btnwrap:not(:has(.tp-btn--primary)) .tp-btn__why { display: none; }
+  .tp-scope.bj .bj-rack { display: none; }
+  .tp-scope.bj .bj-bar .tp-btn__kbd { display: none; }
+  .tp-scope.bj .tp-end__card { padding: var(--space-4); }
+}

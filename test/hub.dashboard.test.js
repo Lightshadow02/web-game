@@ -165,6 +165,7 @@ test('fin de partie : stats enregistrées, joueurs prévenus, classement', async
 
   const { code } = await a.request('room:create', {});
   await b.request('room:join', { code });
+  assert.equal((await a.request('room:selectGame', { gameId: 'chute-des-rois' })).ok, true);
   assert.equal((await a.request('room:startGame')).ok, true);
 
   // On termine la partie (victoire) puis on laisse le Hub la constater.

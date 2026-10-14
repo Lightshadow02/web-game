@@ -1,17 +1,24 @@
+import { jk, DIFFICULTY } from './view.js';
+
 /* =====================================================================
- * Règles illustrées de « La Chute des Rois » : une fenêtre Tapis à 4 onglets.
+ * Règles illustrées de « La Chute des Rois » : une fenêtre Tapis à 5 onglets.
  * Textes statiques (aucune donnée de joueur) ; **gras** et {pique}… passent par Tapis.rich.
+ * info : { difficulty, jokerCount, solo } de la partie affichée (onglet « Le Joker »).
  * ===================================================================== */
 
-export const RULES_TABS = ['base', 'pouvoirs', 'combos', 'astuces'];
+export const RULES_TABS = ['base', 'pouvoirs', 'combos', 'joker', 'astuces'];
+const JOKERS = { facile: 2, normal: 1, classique: 0 };
 
-export function rulesDialog(T, tab = 'base') {
+export function rulesDialog(T, tab = 'base', info = {}) {
   const md = (t) => T.rich(t).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   const p = (t, cls = 'body') => `<p class="${cls}">${md(t)}</p>`;
-  const cards = (list) => `<div class="cdr-r__cards">${list.map((c) => T.Card({ ...c, size: 'sm' })).join('')}</div>`;
+  const cards = (list) => `<div class="cdr-r__cards">${jk(list.map((c) => T.Card({ ...c, size: 'sm' })).join(''))}</div>`;
   const head = (icon, title) => `<h3 class="cdr-r__h title-sm">${T.icon(icon)}<span>${md(title)}</span></h3>`;
   const example = (list, result) => `<div class="cdr-r__ex">${cards(list)}<span class="caption">${md(result)}</span></div>`;
   const c = (rank, suit) => ({ rank, suit });
+  const joker = { suit: 'excuse', id: 'JK' };
+  const level = DIFFICULTY[info.difficulty] ? info.difficulty : null;
+  const jokers = level ? JOKERS[level] : null;
 
   const base = `
     <section class="cdr-r__lead">
@@ -52,8 +59,8 @@ export function rulesDialog(T, tab = 'base') {
 
   const combos = `
     ${head('deck', 'Valeur des cartes')}
-    <ul class="cdr-r__values">${[[c('A', 'coeur'), 1], [c(5, 'pique'), 5], [c(10, 'carreau'), 10], [c('V', 'trefle'), 10], [c('D', 'coeur'), 15], [c('R', 'pique'), 20]]
-      .map(([card, v]) => `<li>${T.Card({ ...card, size: 'sm' })}<b class="stat">${v}</b></li>`).join('')}</ul>
+    <ul class="cdr-r__values">${[[c('A', 'coeur'), 1], [c(5, 'pique'), 5], [c(10, 'carreau'), 10], [c('V', 'trefle'), 10], [c('D', 'coeur'), 15], [c('R', 'pique'), 20], ...(jokers === 0 ? [] : [[joker, 0]])]
+      .map(([card, v]) => `<li>${jk(T.Card({ ...card, size: 'sm' }))}<b class="stat">${v}</b></li>`).join('')}</ul>
     ${p('Les Valets, Dames et Rois n’arrivent dans ta main que si l’équipe les a recrutés (voir Astuces).', 'body cdr-r__intro')}
     ${head('bolt', 'Combos autorisés')}
     <div class="cdr-r__grid">
@@ -64,7 +71,35 @@ export function rulesDialog(T, tab = 'base') {
         ${p('Plusieurs cartes de même valeur, si leur total ne dépasse pas 10.')}
         ${example([c(3, 'pique'), c(3, 'carreau'), c(3, 'trefle')], '→ Attaque 9 : bouclier 9, 9 cartes piochées, 18 dégâts.')}</article>
     </div>
-    ${p('Interdit : 6 + 6 (total 12), ou 2 + 5 (valeurs différentes, sans As).', 'body cdr-r__warn')}`;
+    ${p(`Interdit : 6 + 6 (total 12), ou 2 + 5 (valeurs différentes, sans As).${jokers === 0 ? '' : ' Le Joker se joue toujours seul.'}`, 'body cdr-r__warn')}`;
+
+  const levels = [['facile', 'Facile', '2 Jokers'], ['normal', 'Normal', '1 Joker'], ['classique', 'Classique', 'sans Joker']];
+  const thisGame = !level ? 'L’hôte choisit la difficulté dans le salon, avant de lancer la partie.'
+    : jokers ? `Cette partie : **${DIFFICULTY[level]}**, ${jokers === 1 ? '1 Joker mélangé' : `${jokers} Jokers mélangés`} dans la Taverne au départ.`
+      : `Cette partie se joue en **Classique** : aucun Joker dans la Taverne. L’hôte choisit la difficulté dans le salon.`;
+  const choice = info.solo ? 'En solo, pas de choix : tu rejoues aussitôt.'
+    : 'Toutes les mains sont **révélées à toute la table**. Celui qui a joué le Joker choisit qui joue ensuite, lui compris. Puis les mains redeviennent secrètes.';
+  const jokerTab = `
+    <section class="cdr-r__lead">
+      ${head('star', 'Le Joker')}
+      <div class="cdr-r__ex">${cards([joker])}<span>${p('Le Joker vaut **0** et se joue **seul** : jamais en combo, jamais avec un As. Il n’inflige aucun dégât, mais il change le combat.')}</span></div>
+    </section>
+    <ol class="cdr-r__steps">${[
+      ['Immunité levée', 'Le boss perd son immunité jusqu’à sa chute : les cartes jouées ensuite déclenchent aussi le pouvoir de sa couleur. Celles déjà posées ne gagnent rien.'],
+      ['Pas de riposte', 'Le boss ne frappe pas ce tour-ci.'],
+      ['Qui joue ?', choice],
+      ['Boss suivant', 'Il arrive de nouveau immunisé.'],
+    ].map(([t, txt], i) => `<li class="cdr-r__step"><span class="cdr-r__num stat">${i + 1}</span><span><b class="body-strong">${t}</b>${p(txt)}</span></li>`).join('')}</ol>
+    <section class="cdr-r__note">
+      ${head('heal', 'Exemple')}
+      <div class="cdr-r__ex">${cards([c('V', 'coeur')])}<span class="caption cdr-r__vs">contre</span>${cards([joker, c(7, 'coeur')])}<span class="caption">${md('→ Après le Joker, le 7 {coeur} soigne bien 7 cartes.')}</span></div>
+    </section>
+    ${p('Pour encaisser une riposte, le Joker compte 0. Il part à la défausse comme les autres cartes, peut revenir par le Soin {coeur} et compte dans la taille de ta main.')}
+    <section class="cdr-r__note">
+      ${head('user', 'Difficulté')}
+      ${p(thisGame)}
+      <ul class="cdr-r__levels">${levels.map(([id, name, n]) => `<li${id === level ? ' data-current=""' : ''}><b class="body-strong">${name}</b><span class="caption">${n}</span></li>`).join('')}</ul>
+    </section>`;
 
   const tips = [
     ['crown', 'Victoire « pile »', 'Si le boss tombe à exactement 0 PV, il rejoint ton camp : il est posé sur la Taverne et vaudra 10, 15 ou 20 en main.'],
@@ -81,6 +116,7 @@ export function rulesDialog(T, tab = 'base') {
     { id: 'base', label: 'L’essentiel', body: `<div class="cdr-r">${base}</div>` },
     { id: 'pouvoirs', label: 'Pouvoirs', body: `<div class="cdr-r">${pouvoirs}</div>` },
     { id: 'combos', label: 'Combos et valeurs', body: `<div class="cdr-r">${combos}</div>` },
+    { id: 'joker', label: 'Le Joker', body: `<div class="cdr-r">${jokerTab}</div>` },
     { id: 'astuces', label: 'Astuces', body: `<div class="cdr-r">${astuces}</div>` },
   ];
   return T.Dialog({

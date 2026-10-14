@@ -18,7 +18,7 @@
 @container zone (max-width: 639px) { .tp-scope.cdr .tp-decor svg { display: none; } }
 
 /* pendant une animation, pas de clic de jeu (outils, règles et interrupteur restent actifs) */
-.tp-scope.cdr[data-animating] :is(.tp-table .tp-hand, .tp-table .tp-actions) { pointer-events: none; }
+.tp-scope.cdr[data-animating] :is(.tp-table .tp-hand, .tp-table .tp-actions, .tp-table .cdr-who) { pointer-events: none; }
 
 /* légende des pouvoirs : un clic ouvre les règles sur l'onglet « Pouvoirs » */
 .tp-scope.cdr .tp-table .tp-power { cursor: help; }
@@ -37,6 +37,16 @@
   .tp-scope.cdr .tp-boss__info { gap: 4px; }
 }
 
+/* Légende avec la ligne Joker (5 pouvoirs) : sans descriptions plus tôt que Tapis (≤ 700 px), puis sur deux colonnes,
+   pour ne jamais déborder sur « Mes cartes posées » (1280 × 800, 1280 × 720, 1024 × 768…) */
+@container zone (max-height: 760px) and (min-width: 640px) {
+  .tp-scope.cdr .tp-table--cour [data-area="castle"] .tp-powers:has(.cdr-power--joker) .tp-power .caption { display: none; }
+}
+@container zone (max-height: 660px) and (min-width: 640px) {
+  .tp-scope.cdr .tp-table--cour [data-area="castle"] .tp-powers:has(.cdr-power--joker) { grid-template-columns: 1fr 1fr; gap: 6px; width: min(320px, 100%); }
+  .tp-scope.cdr .tp-table--cour [data-area="castle"] .tp-powers:has(.cdr-power--joker) .tp-power { padding: 4px 8px; }
+}
+
 /* cartes encaissées par un coéquipier : posées un instant sur son avatar, puis envoyées à la défausse */
 .tp-scope.cdr .cdr-temp { position: absolute; z-index: 20; display: flex; transform: translate(-50%, -50%); pointer-events: none; }
 .tp-scope.cdr .cdr-temp .tp-card + .tp-card { margin-left: calc(var(--card-sm) * -0.55); }
@@ -45,6 +55,76 @@
 @container zone (min-width: 640px) {
   .tp-scope.cdr .tp-zone:has(> .tp-drawer[data-open]) > .tp-toasts { right: calc(min(380px, 86%) + var(--pad)); }
 }
+
+/* ---------------------------------------------------------------- Joker
+   La carte vient de l'Excuse de Tapis (le Fou du Tarot) : fond d'atout et anneau d'or, renommée « Joker » en JS. */
+
+/* immunité levée : la pastille du boss et la légende passent du danger (pointillés rouges) à l'or */
+.tp-scope.cdr .tp-boss__immune.cdr-freed { color: var(--accent-bright); border: 1px solid color-mix(in srgb, var(--accent) 70%, transparent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.tp-scope.cdr .tp-power[data-freed] { border-color: color-mix(in srgb, var(--accent) 70%, transparent); }
+.tp-scope.cdr .tp-power__x.cdr-power__freed { color: var(--accent-bright); }
+.tp-scope.cdr .tp-power[data-suit="joker"] .tp-power__g { background: var(--card-trump); box-shadow: inset 0 0 0 2px var(--card-gold); }
+.tp-scope.cdr .tp-power[data-suit="joker"] .tp-power__x { color: var(--text-muted); font-weight: 600; }
+
+/* « Qui joue ? » : panneau posé sur la main (PC), à sa place dans la colonne (mobile) */
+/* largeur : --cdr-choose-max est mesurée en JS (index.js, fitChoose) pour ne jamais couvrir « Mes cartes posées » ni mon siège */
+.tp-scope.cdr .cdr-choose { position: absolute; left: 50%; bottom: 0; z-index: 6; transform: translateX(-50%); width: max-content; max-width: min(1100px, var(--cdr-choose-max, 92cqw)); }
+.tp-scope.cdr .tp-table[data-choosing] [data-area="hand"] > .tp-hand { visibility: hidden; }
+.tp-scope.cdr .tp-table[data-choosing] [data-area="status"] { visibility: hidden; }
+.tp-scope.cdr .cdr-who { gap: var(--space-3); padding: var(--space-3) var(--space-4) var(--space-4); }
+.tp-scope.cdr .cdr-who .tp-panel__h { justify-content: space-between; }
+.tp-scope.cdr .cdr-who .tp-panel__h .caption { display: inline-flex; align-items: center; gap: 6px; }
+.tp-scope.cdr .cdr-who .tp-panel__h .caption .tp-ic { width: 16px; height: 16px; color: var(--accent); }
+/* celui qui choisit : titre et mention à gauche, bouton de confirmation à droite (comme l'appel au Roi du Tarot) */
+.tp-scope.cdr .cdr-who__h { align-items: center; row-gap: var(--space-2); }
+.tp-scope.cdr .cdr-who__ht { display: flex; flex-direction: column; gap: 2px; }
+.tp-scope.cdr .cdr-who__ht .caption { white-space: nowrap; }
+.tp-scope.cdr .cdr-who__go { flex: none; margin-left: auto; } /* trop étroit (pseudos très longs) : passe à la ligne, à droite */
+.tp-scope.cdr .cdr-who__go .tp-btn { white-space: nowrap; }
+/* PC : la barre d'actions s'efface le temps du choix (le panneau porte le bouton et dit qui choisit) */
+@container zone (min-width: 640px) {
+  .tp-scope.cdr .tp-table[data-choosing] [data-area="actions"] { visibility: hidden; }
+}
+.tp-scope.cdr .cdr-who__list { display: flex; gap: var(--space-3); justify-content: center; }
+.tp-scope.cdr .cdr-who__p {
+  --ch: clamp(48px, 8.2cqh, 92px); --px: var(--space-3); --ov: .36;
+  /* la tuile rétrécit (pseudo tronqué) sans jamais passer sous la largeur de ses cartes (--n posé par view.js) */
+  flex: 0 1 auto; min-width: calc(var(--ch) * (5 / 7 + (var(--n, 1) - 1) * (5 / 7 - var(--ov))) + 2 * var(--px) + 4px);
+  display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2);
+  margin: 0; padding: var(--space-2) var(--px) var(--space-3); font: inherit; color: var(--text); text-align: left;
+  border-radius: var(--radius-md); border: 1px solid var(--line); background: var(--panel-raised);
+}
+.tp-scope.cdr button.cdr-who__p { cursor: pointer; transition: border-color var(--dur-fast, .16s), box-shadow var(--dur-fast, .16s), transform var(--dur-fast, .16s); }
+.tp-scope.cdr button.cdr-who__p:hover { border-color: var(--line-strong); transform: translateY(-2px); }
+.tp-scope.cdr button.cdr-who__p[aria-checked="true"] { border-color: var(--accent); box-shadow: var(--glow-select); }
+.tp-scope.cdr button.cdr-who__p:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.tp-scope.cdr .cdr-who__id { display: flex; align-items: center; gap: var(--space-2); min-width: 0; max-width: 100%; }
+.tp-scope.cdr .cdr-who__txt { display: flex; flex-direction: column; min-width: 0; }
+.tp-scope.cdr .cdr-who__txt b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 14em; }
+.tp-scope.cdr .cdr-who__txt .caption { color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tp-scope.cdr .cdr-who__cards { display: flex; align-items: flex-end; min-height: var(--ch); padding-right: 2px; }
+.tp-scope.cdr .cdr-who__cards .tp-card { --ch: inherit; flex: none; }
+.tp-scope.cdr .cdr-who__cards .tp-card + .tp-card { margin-left: calc(var(--ch) * var(--ov) * -1); }
+.tp-scope.cdr .cdr-who__empty { color: var(--text-muted); font-style: italic; align-self: center; }
+
+/* PC étroit (tablette, petite fenêtre : table dessinée à 1100 px puis réduite) : tuiles compactes */
+@container zone (min-width: 640px) and (max-width: 1300px) {
+  .tp-scope.cdr .cdr-who { padding: var(--space-2) var(--space-3) var(--space-3); gap: var(--space-2); }
+  .tp-scope.cdr .cdr-who__list { gap: var(--space-2); }
+  .tp-scope.cdr .cdr-who__p { --px: var(--space-2); --ov: .5; padding: 6px var(--px) var(--space-2); }
+  .tp-scope.cdr .cdr-who__id .tp-avatar,
+  .tp-scope.cdr .cdr-who__n { display: none; }
+  .tp-scope.cdr .cdr-who__txt b { max-width: 7.5em; }
+  .tp-scope.cdr .cdr-who__go .tp-btn__kbd { display: none; }
+}
+
+/* effets maison (texte flottant, éclat d'or du Joker), sur la couche d'effets de la zone */
+.tp-scope.cdr .cdr-float { position: absolute; left: 0; top: 0; white-space: nowrap; font: 700 clamp(18px, 2.6cqh, 30px)/1 var(--font-display); color: var(--text); text-shadow: 0 2px 0 rgba(0, 0, 0, .45), 0 0 18px rgba(0, 0, 0, .55); }
+.tp-scope.cdr .cdr-float--gold { color: var(--accent-bright); font-size: clamp(22px, 3.4cqh, 40px); }
+.tp-scope.cdr .cdr-jokerflash { position: absolute; border-radius: 50%; pointer-events: none; mix-blend-mode: screen;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent-bright) 85%, white) 0 12%, color-mix(in srgb, var(--accent) 55%, transparent) 30%, transparent 66%),
+    repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--accent-bright) 45%, transparent) 0 4deg, transparent 4deg 22deg);
+  -webkit-mask: radial-gradient(circle, #000 35%, transparent 70%); mask: radial-gradient(circle, #000 35%, transparent 70%); }
 
 /* fenêtres */
 .tp-scope.cdr .cdr-muted { color: var(--text-muted); }
@@ -94,6 +174,26 @@
 .tp-scope.cdr .cdr-r__ti { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: var(--radius-full); background: var(--table-deep); color: var(--accent); }
 .tp-scope.cdr .cdr-r__ti .tp-ic { width: 20px; height: 20px; }
 
+/* règles : niveaux de difficulté */
+.tp-scope.cdr .cdr-r__levels { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.tp-scope.cdr .cdr-r__levels li { display: flex; align-items: baseline; gap: 6px; padding: 6px 12px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--panel-raised); }
+.tp-scope.cdr .cdr-r__levels li .caption { color: var(--text-muted); }
+.tp-scope.cdr .cdr-r__levels li[data-current] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.tp-scope.cdr .cdr-r__levels li[data-current] b { color: var(--accent-bright); }
+
 @container zone (max-width: 639px) {
   .tp-scope.cdr .cdr-r__grid { grid-template-columns: minmax(0, 1fr); }
+  /* « Qui joue ? » en tête de colonne, sous les outils, à la place de la main (qu'il montre déjà) ;
+     son en-tête dit déjà ce que dirait le statut */
+  .tp-scope.cdr .cdr-choose { position: static; transform: none; width: 100%; max-width: none; }
+  .tp-scope.cdr .tp-table[data-choosing] [data-area="hand"] { order: 0; }
+  .tp-scope.cdr .tp-table[data-choosing] [data-area="hand"] > .tp-hand { display: none; }
+  .tp-scope.cdr .tp-table[data-choosing] [data-area="status"] { display: none; }
+  .tp-scope.cdr .cdr-who { padding: var(--space-3); }
+  .tp-scope.cdr .cdr-who .tp-panel__h { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .tp-scope.cdr .cdr-who__go { display: none; } /* mobile : le bouton reste dans la barre d'actions */
+  .tp-scope.cdr .cdr-who__list { flex-wrap: wrap; justify-content: stretch; }
+  .tp-scope.cdr .cdr-who__p { --ch: 58px; flex: 1 1 calc(50% - var(--space-3)); min-width: 0; }
+  .tp-scope.cdr .cdr-who__txt b { max-width: 9em; }
+  .tp-scope.cdr .cdr-who__id { max-width: none; }
 }

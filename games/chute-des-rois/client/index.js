@@ -1,4 +1,4 @@
-import { createView, SUIT, tp, total, pl, atkTxt, theBoss, isOver } from './view.js';
+import { createView, SUIT, tp, jk, total, pl, atkTxt, theBoss, isOver } from './view.js';
 import { rulesDialog } from './rules.js';
 
 /* =====================================================================
@@ -8,7 +8,7 @@ import { rulesDialog } from './rules.js';
  *
  * Module monté par le Hub : mount(root, ctx) -> { update(state), unmount() }.
  * Le serveur fait autorité ; ce module affiche l'état et envoie
- * 'play', 'yield', 'defend' et 'renew'.
+ * 'play', 'yield', 'defend', 'renew' et 'choose' (qui joue après un Joker).
  *
  * Mouvement : chaque nouvel état est joué événement par événement. Les animations
  * qui retirent quelque chose (pose, dégâts, K.O., encaissement) jouent sur l'écran
@@ -111,8 +111,9 @@ export function mount(root, ctx) {
   let endHtml = '';
   const timers = new Set();
   const ui = {
-    sel: [], selKey: '', bubbles: {}, replay: null, endHidden: false,
-    dialog: null, rulesTab: 'base', opener: null, roomKey: '',
+    sel: [], selKey: '', bubbles: {}, replay: null, chosen: null, pick: null, endHidden: false,
+    dialog: null, rulesTab: 'base', opener: null, roomKey: '', jokersSeen: new Set(), jokerTip: null,
+    choiceScroll: null, // défilement de la colonne (mobile) avant « Qui joue ? », rendu après le choix
   };
 
   const later = (ms, fn) => {
@@ -146,6 +147,7 @@ export function mount(root, ctx) {
     Object.assign(app.style, base
       ? { width: `${base}px`, height: `${h / scale}px`, transform: `scale(${scale})`, transformOrigin: '0 0' }
       : { width: '', height: '', transform: '', transformOrigin: '' });
+    if (zone) fitChoose();
   }
   fit();
   window.addEventListener('resize', fit);
@@ -209,6 +211,8 @@ export function mount(root, ctx) {
       if (disposed) return;
       if (!animate) notices(fresh);
       renderFinal({ table: !shown });
+      if (!animate && next.phase === 'choose' && prev?.phase !== 'choose') choiceIntoView();
+      if (next.phase !== 'choose') restoreChoiceScroll();
       if (deal && live()) await animDeal(next).catch((err) => console.error('[cdr] animation', err));
       if (animate && live() && isOver(next) && !isOver(prev)) await endAnimation(next);
     } finally {
@@ -227,25 +231,52 @@ export function mount(root, ctx) {
     if (key !== ui.selKey) {
       ui.selKey = key;
       ui.sel = [];
+      ui.pick = null;
     }
     const inHand = new Set(next.myHand.map((c) => c.id));
     ui.sel = ui.sel.filter((id) => inHand.has(id));
     if (fresh.length) {
       ui.bubbles = {};
       for (const e of fresh) {
-        const b = V.bubbleFor(e);
+        const b = V.bubbleFor(e, next);
         if (b && e.playerId !== me) ui.bubbles[e.playerId] = b;
       }
-      // « Tu rejoues contre… » : seulement contre le boss qui vient d'arriver
-      ui.replay = fresh.some((e) => e.type === 'newBoss') && next.boss ? { pid: next.currentPlayerId, boss: next.boss.card.id } : null;
+      // « Tu rejoues contre… » : contre le boss qui vient d'arriver, ou après un Joker en solo
+      const replay = fresh.some((e) => e.type === 'newBoss' || (e.type === 'joker' && next.solo));
+      ui.replay = replay && next.boss ? { pid: next.currentPlayerId, boss: next.boss.card.id } : null;
+      // « Choix de Léa » : le joueur désigné après un Joker, le temps de son tour
+      const choice = fresh.findLast((e) => e.type === 'choose');
+      ui.chosen = choice ? { pid: choice.targetId, by: choice.playerId, turn: next.turn } : null;
+    }
+    // Un Joker arrive dans ma main : rappel de ses règles (une fois par Joker et par partie affichée).
+    // Le rappel disparaît dès qu'un Joker est joué ou que je n'en ai plus (sur mobile il couvrirait « Qui joue ? »).
+    const joker = next.myHand.find((c) => c.joker && !ui.jokersSeen.has(c.id));
+    if (fresh.some((e) => e.type === 'joker') || !next.myHand.some((c) => c.joker) || isOver(next)) {
+      ui.jokerTip?.remove();
+      ui.jokerTip = null;
+    }
+    if (joker) {
+      next.myHand.filter((c) => c.joker).forEach((c) => ui.jokersSeen.add(c.id));
+      const delay = !prev ? 2400 : fresh.length && live() ? 1400 : 0; // après la distribution ou l'animation du lot
+      if (!isOver(next)) {
+        later(delay, () => {
+          if (ui.jokerTip?.isConnected || !(state ?? next).myHand.some((c) => c.joker)) return;
+          ui.jokerTip = notify({
+            tone: 'info', title: 'Joker en main', timeout: 7000,
+            text: next.solo ? 'Joue-le seul : le boss perd son immunité et ne riposte pas, puis tu rejoues.'
+              : 'Joue-le seul : le boss perd son immunité et ne riposte pas, puis tu choisis qui joue.',
+          });
+        });
+      }
     }
     if (isOver(next) && (!prev || !isOver(prev))) ui.endHidden = false;
     if (ui.dialog === 'renew' && (isOver(next) || !next.isMyTurn || !next.renewalsLeft)) closeDialog();
   }
 
   const viewOf = (s, extra = {}) => ({
-    ...s, sel: ui.sel, bubbles: ui.bubbles, endHidden: ui.endHidden, locked: false, acting: null,
+    ...s, sel: ui.sel, pick: ui.pick, bubbles: ui.bubbles, endHidden: ui.endHidden, locked: false, acting: null,
     replay: ui.replay && s.boss?.card.id === ui.replay.boss ? ui.replay.pid : null,
+    chosenBy: ui.chosen && ui.chosen.turn === s.turn && ui.chosen.pid === s.currentPlayerId && s.phase !== 'choose' ? ui.chosen.by : null,
     ...extra,
   });
 
@@ -275,13 +306,15 @@ export function mount(root, ctx) {
     const active = document.activeElement;
     const focus = old.contains(active)
       ? (active.dataset.cardId ? `.tp-hand [data-card-id="${CSS.escape(active.dataset.cardId)}"]`
-        : active.dataset.act ? `[data-act="${CSS.escape(active.dataset.act)}"]` : null)
+        : active.dataset.pick ? `[data-pick="${CSS.escape(active.dataset.pick)}"]`
+          : active.dataset.act ? `[data-act="${CSS.escape(active.dataset.act)}"]` : null)
       : null;
     ui.roomKey = roomKey(); // sièges dessinés avec le salon actuel (le relevé du salon compare à cette clé)
     const node = T.node(V.table(v));
     old.replaceWith(node);
     if (scroll) node.scrollTop = scroll;
     wireTable(node);
+    fitChoose();
     if (focus) {
       const target = node.querySelector(focus);
       if (target) {
@@ -291,6 +324,25 @@ export function mount(root, ctx) {
     }
   }
 
+  /**
+   * « Qui joue ? » sur PC : centré sous le boss, il s'élargit tant qu'il ne couvre pas « Mes cartes posées »
+   * ni mon siège (leur largeur dépend des cartes posées et du pseudo) ; au-delà, les tuiles se resserrent.
+   */
+  function fitChoose() {
+    const panel = q('.tp-table .cdr-choose');
+    if (!panel) return;
+    const left = qa('.tp-table [data-area="mine"] > *').filter(visible);
+    if (getComputedStyle(panel).position !== 'absolute' || !left.length) {
+      panel.style.removeProperty('--cdr-choose-max'); // colonne mobile : le panneau suit la colonne
+      return;
+    }
+    const area = panel.parentElement.getBoundingClientRect();
+    const center = area.left + area.width / 2;
+    const edge = Math.max(...left.map((el) => el.getBoundingClientRect().right));
+    const half = (center - edge) / scale - 16;
+    panel.style.setProperty('--cdr-choose-max', `${Math.max(320, Math.floor(half * 2))}px`);
+  }
+
   /** Aperçu tronqué sur les petits écrans : le texte complet reste au survol. */
   const titlePreview = (root) => root.querySelectorAll('.tp-preview').forEach((p) => { p.title = p.textContent.trim(); });
 
@@ -298,7 +350,9 @@ export function mount(root, ctx) {
     titlePreview(node);
     const hand = node.querySelector('.tp-hand');
     if (hand?.querySelector('button.tp-card')) T.interact.hand(hand, { multi: true, onChange: onSelect });
-    node.querySelectorAll('.tp-power').forEach((p) => { p.title = 'Voir les pouvoirs dans les règles'; });
+    node.querySelectorAll('.tp-power').forEach((p) => {
+      p.title = p.dataset.suit === 'joker' ? 'Voir le Joker dans les règles' : 'Voir les pouvoirs dans les règles';
+    });
   }
 
   function renderEnd() {
@@ -330,6 +384,19 @@ export function mount(root, ctx) {
     if (ac && state.players.some((p) => p.id === me)) ac.innerHTML = V.actionsArea(v);
   }
 
+  /** Tuile choisie dans « Qui joue ? » : seuls les états des tuiles et le bouton principal changent (le focus reste). */
+  function onPick(id) {
+    ui.pick = id;
+    qa('.tp-table .cdr-who__p[data-pick]').forEach((b) => {
+      const on = b.dataset.pick === id;
+      b.setAttribute('aria-checked', String(on));
+      b.toggleAttribute('data-picked', on);
+    });
+    updateSelectionUi();
+    const go = q('.tp-table .cdr-who__go');
+    if (go && state) go.innerHTML = V.chooseGo(viewOf(state));
+  }
+
   function resyncSelection() {
     const hand = q('.tp-table .tp-hand');
     ui.sel = hand ? [...hand.querySelectorAll('button.tp-card[aria-pressed="true"]')].map((c) => c.dataset.cardId) : [];
@@ -337,8 +404,9 @@ export function mount(root, ctx) {
   }
 
   function notify(o) {
-    if (T && zone) T.notify(zone, o);
-    else ctx.toast(o.text, o.tone === 'error' ? 'error' : 'success');
+    if (T && zone) return T.notify(zone, o);
+    ctx.toast(o.text, o.tone === 'error' ? 'error' : 'success');
+    return null;
   }
 
   /** Annonces d'un lot non animé (rattrapage, animations coupées). */
@@ -348,7 +416,24 @@ export function mount(root, ctx) {
       if (e.type === 'bossDefeated' && e.exact) notify({ tone: 'success', title: 'K.O. pile', text: `${theBoss(e.card, true)} rejoint la Taverne.` });
       if (e.type === 'newBoss') notify({ tone: 'info', title: 'Immunité', text: `${theBoss(e.card, true)} annule le pouvoir {${SUIT[e.card.suit]}}.` });
       if (e.type === 'blocked') notify({ tone: 'info', title: 'Riposte bloquée', text: 'Le bouclier absorbe toute l’attaque.' });
+      if (e.type === 'joker') notify(jokerNotice(e));
+      if (e.type === 'choose' && e.playerId !== me) notify(chooseNotice(e)); // celui qui choisit le sait déjà
     }
+  }
+
+  function jokerNotice(e) {
+    const who = e.playerId === me ? 'Tu joues' : `${nameOf(e.playerId)} joue`;
+    return {
+      tone: 'success', title: 'Joker',
+      text: e.broken ? `${who} le Joker : ${theBoss(e.boss)} perd son immunité au {${SUIT[e.boss.suit]}}, pas de riposte.`
+        : `${who} le Joker : pas de riposte.`,
+    };
+  }
+
+  function chooseNotice(e) {
+    const by = e.playerId === me ? 'Tu choisis' : `${nameOf(e.playerId)} choisit`;
+    if (e.targetId === e.playerId) return { tone: 'info', title: 'Qui joue', text: e.playerId === me ? 'Tu rejoues.' : `${nameOf(e.playerId)} rejoue.` };
+    return { tone: 'info', title: 'Qui joue', text: e.targetId === me ? `${nameOf(e.playerId)} te choisit : à toi de jouer.` : `${by} ${nameOf(e.targetId)}.` };
   }
 
   // ================================================================ animations
@@ -404,6 +489,13 @@ export function mount(root, ctx) {
         case 'blocked': showFinal(); await animBlocked(e, next); break;
         case 'defend': await animDefend(e, cv); shown = false; showFinal(); await animAfterDefend(e, next); break;
         case 'renew': await animRenew(cv, next, showFinal); break;
+        case 'joker':
+          cv = await animJoker(e, cv, next);
+          shown = false;
+          showFinal();
+          if (target.phase === 'choose') await animReveal();
+          break;
+        case 'choose': await animConceal(); shown = false; showFinal(); restoreChoiceScroll(); await animAfterChoose(e, next); break;
         default: break; // victory / defeat : l'écran de fin vient après le lot
       }
       if (disposed) return false;
@@ -424,7 +516,8 @@ export function mount(root, ctx) {
     }
     const boss0 = cv.boss;
     if (!boss0) return cv;
-    const active = [...new Set(e.cards.map((c) => c.suit))].filter((s) => s !== boss0.card.suit);
+    // pouvoirs actifs selon le serveur : blockedSuit est la couleur annulée par l'immunité (null après un Joker)
+    const active = [...new Set(e.cards.map((c) => c.suit))].filter((s) => s !== e.blockedSuit);
     const drawn = Object.values(e.drawn ?? {}).reduce((a, b) => a + b, 0);
     const shield1 = lethal ? boss0.shield : boss0.shield + e.shield;
     const vA = {
@@ -524,6 +617,203 @@ export function mount(root, ctx) {
     return out;
   }
 
+  // ---------------------------------------------------------------- Joker
+
+  /** Effets maison (Tapis n'a ni éclat d'immunité brisée ni texte flottant public) : une couche .tp-fx de la zone. */
+  function fxLayer(tl) {
+    const layer = document.createElement('div');
+    layer.className = 'tp-fx cdr-fx';
+    layer.setAttribute('aria-hidden', 'true');
+    zone.append(layer);
+    return tl.node(layer);
+  }
+
+  /** Texte qui s'élève au-dessus d'un point (en px de la zone). */
+  function floatText(tl, layer, text, x, y, cls, at, align = 'center') {
+    const el = document.createElement('span');
+    el.className = `cdr-float ${cls ?? ''}`;
+    el.innerHTML = T.rich(text);
+    layer.append(el);
+    const ox = align === 'start' ? '0%' : '-50%';
+    el.style.transformOrigin = align === 'start' ? 'left center' : 'center';
+    const tr = (dy, sc) => `translate(${x}px, ${y + dy}px) translate(${ox}, -50%) scale(${sc})`;
+    tl.add(el, [
+      { transform: tr(12, 0.6), opacity: 0 },
+      { transform: tr(-6, 1.08), opacity: 1, offset: 0.18 },
+      { transform: tr(-18, 1), opacity: 1, offset: 0.78 },
+      { transform: tr(-30, 1), opacity: 0 },
+    ], { duration: 1500, delay: at, easing: T.motion.ease.out });
+  }
+
+  /** Un élément qui surgit à sa place (courbe « back » du design). */
+  function pop(el, delay = 0) {
+    const tl = new T.Timeline({ delay });
+    tl.add(el, [{ opacity: 0, transform: 'scale(.6)' }, { opacity: 1, transform: 'scale(1.08)', offset: 0.6 }, { opacity: 1, transform: 'none' }], { duration: 420, easing: T.motion.ease.back });
+    return tl.start();
+  }
+
+  /**
+   * Joker : la carte se pose (depuis ma main ou l'avatar du coéquipier), puis l'immunité vole en éclats
+   * (pastille du boss et marque « annulé » de la légende), un éclat d'or traverse le boss ; pas de riposte.
+   */
+  async function animJoker(e, cv, next) {
+    const mine = e.playerId === me;
+    const fromBox = mine && visible(handCard(e.card.id)) ? boxIn(handCard(e.card.id)) : null;
+    const boss0 = cv.boss;
+    const vA = {
+      ...cv, locked: true, acting: e.playerId, actingJoker: true, myHand: next.myHand,
+      players: next.players.map(({ hand, ...p }) => p), phase: 'attack',
+      plays: [...cv.plays, { playerId: e.playerId, cards: [e.card] }],
+    };
+    renderTable(vA);
+    const tls = [];
+    const sel = `[data-card-id="${CSS.escape(e.card.id)}"]`;
+    const card = mine ? q(`.tp-table .tp-mine__c ${sel}`) : seatEl(e.playerId)?.querySelector(`.tp-seat__pcards ${sel}`);
+    const src = mine ? fromBox : fromSeat(e.playerId);
+    let t = 0;
+    if (visible(card) && src) {
+      const tl = T.anim.play(card, { from: src, flip: !mine });
+      tls.push(tl);
+      t = tl.end;
+    }
+    const bubble = mine ? null : seatEl(e.playerId)?.querySelector('.tp-bubble');
+    if (visible(bubble)) tls.push(T.anim.bubble(bubble));
+
+    const bossCard = q('.tp-table .tp-boss__card .tp-card');
+    const pill = q('.tp-table .tp-boss__immune');
+    const atk = q('.tp-table .tp-boss__atk');
+    const tl = new T.Timeline({ delay: Math.max(0, t - 80) });
+    const layer = fxLayer(tl);
+    if (visible(bossCard)) {
+      const b = boxIn(bossCard);
+      const flash = document.createElement('span');
+      flash.className = 'cdr-jokerflash';
+      flash.style.cssText = `left:${b.cx}px;top:${b.cy}px;width:${b.w * 1.9}px;height:${b.w * 1.9}px`;
+      layer.append(flash);
+      tl.add(flash, [
+        { transform: 'translate(-50%, -50%) scale(.15) rotate(-40deg)', opacity: 0 },
+        { transform: 'translate(-50%, -50%) scale(1) rotate(0deg)', opacity: 1, offset: 0.35 },
+        { transform: 'translate(-50%, -50%) scale(1.5) rotate(25deg)', opacity: 0 },
+      ], { duration: 900, easing: T.motion.ease.out });
+      tl.add(bossCard, [{ filter: 'none' }, { filter: 'brightness(1.35) saturate(1.2)', offset: 0.3 }, { filter: 'none' }], { duration: 900, easing: T.motion.ease.inOut });
+    }
+    // « Pas de riposte » s'élève sur le tapis à côté de l'attaque du boss (jamais sur son portrait)
+    if (visible(atk)) {
+      const ab = boxIn(atk);
+      const zw = zone.getBoundingClientRect().width / scale;
+      const right = ab.x + ab.w + 16 + 190 < zw;
+      floatText(tl, layer, 'Pas de riposte', right ? ab.x + ab.w + 16 : ab.cx, right ? ab.cy : ab.y - 14, '', e.broken ? 700 : 250, right ? 'start' : 'center');
+    }
+    tls.push(tl.start());
+    if (e.broken && boss0 && !boss0.immunityBroken) {
+      // la pastille rouge vole en éclats et devient la pastille d'or, sans bouger la mise en page
+      const at = t + 140;
+      if (visible(pill)) {
+        tls.push(T.anim.shatter(pill, { delay: at, keep: true }));
+        later(at, () => {
+          pill.className = 'tp-boss__immune cdr-freed caption';
+          pill.innerHTML = T.icon('star') + T.rich('Immunité levée par le Joker');
+          tls.push(pop(pill, 120));
+        });
+      }
+      // légende : la marque « annulé » éclate, le pouvoir de la couleur du boss est rétabli
+      const suit = SUIT[boss0.card.suit];
+      const power = q(`.tp-table .tp-power[data-suit="${suit}"]`);
+      const mark = power?.querySelector('.tp-power__x');
+      if (power && mark) {
+        if (visible(mark)) tls.push(T.anim.shatter(mark, { delay: at + 120, keep: true }));
+        later(at + 120, () => {
+          const freed = T.node(`<span class="tp-power__x cdr-power__freed caption">${T.icon('star')}rétabli${suit === 'carreau' ? 'e' : ''}</span>`);
+          mark.replaceWith(freed);
+          power.removeAttribute('data-immune');
+          power.setAttribute('data-freed', '');
+          tls.push(pop(freed, 100));
+          const glow = new T.Timeline();
+          glow.add(power, [{ boxShadow: '0 0 0 0 transparent' }, { boxShadow: '0 0 0 3px var(--accent-bright), 0 0 18px var(--accent)', offset: 0.3 }, { boxShadow: '0 0 0 0 transparent' }], { duration: 800, easing: T.motion.ease.out });
+          tls.push(glow.start());
+        });
+      }
+      await new Promise((resolve) => later(at + 140, resolve)); // les animations lancées en différé sont dans tls
+    }
+    await allDone(tls);
+    return {
+      ...vA, acting: null, actingJoker: false,
+      boss: boss0 && { ...boss0, immuneSuit: null, immunityBroken: true },
+    };
+  }
+
+  /**
+   * En colonne (mobile, tablette), la table défile : « Qui joue ? » y passe en tête (CSS), juste sous les outils,
+   * et on y remonte (sans faire défiler la page). Le défilement d'avant est rendu après le choix.
+   */
+  function choiceIntoView() {
+    const table = q('.tp-table');
+    const panel = q('.tp-table .cdr-choose');
+    if (!table || !visible(panel) || table.scrollHeight <= table.clientHeight + 1) return;
+    ui.choiceScroll ??= table.scrollTop;
+    const pad = parseFloat(getComputedStyle(table).paddingTop) || 0; // sous les outils (règles, journal…)
+    const top = (panel.getBoundingClientRect().top - table.getBoundingClientRect().top) / scale + table.scrollTop - pad;
+    table.scrollTop = Math.max(0, top);
+  }
+
+  function restoreChoiceScroll() {
+    if (ui.choiceScroll == null) return;
+    const table = q('.tp-table');
+    if (table) table.scrollTop = ui.choiceScroll;
+    ui.choiceScroll = null;
+  }
+
+  /** « Qui joue ? » s'ouvre, puis chaque main se retourne, joueur après joueur. */
+  async function animReveal() {
+    const panel = q('.tp-table .cdr-who');
+    if (!visible(panel)) return;
+    choiceIntoView();
+    const tls = [];
+    const enter = new T.Timeline();
+    enter.add(panel, [{ opacity: 0, transform: 'translateY(14px) scale(.97)' }, { opacity: 1, transform: 'none' }], { duration: 320, easing: T.motion.ease.back });
+    tls.push(enter.start());
+    let i = 0;
+    for (const tile of panel.querySelectorAll('.cdr-who__p')) {
+      tile.querySelectorAll('.tp-card').forEach((c, k) => tls.push(T.anim.flip(c, { delay: 260 + i * 160 + k * 55 })));
+      i++;
+    }
+    await allDone(tls);
+  }
+
+  /** Retourne une carte face cachée (Tapis.anim.flip({ up: false }) finit face visible avant de basculer). */
+  function flipDown(card, delay) {
+    const tl = new T.Timeline({ delay });
+    tl.add(card, [
+      { transform: 'perspective(900px) rotateY(0deg)' },
+      { transform: 'perspective(900px) rotateY(90deg) scale(1.06)', offset: 0.5 },
+      { transform: 'perspective(900px) rotateY(180deg)' },
+    ], { duration: T.motion.dur.flip, easing: T.motion.ease.inOut });
+    tl.then(() => T.Card.flip(card, false));
+    return tl.start();
+  }
+
+  /** Le choix est fait : les mains se retournent face cachée, le panneau se replie. */
+  async function animConceal() {
+    const panel = q('.tp-table .cdr-who');
+    if (!visible(panel)) return;
+    const cards = [...panel.querySelectorAll('.tp-card')];
+    const tls = cards.map((c, k) => flipDown(c, k * 30));
+    const out = new T.Timeline({ delay: T.motion.dur.flip + cards.length * 30 + 120 });
+    out.add(panel, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(10px) scale(.98)' }], { duration: 240, easing: T.motion.ease.in });
+    tls.push(out.start());
+    await allDone(tls);
+  }
+
+  /** Après le choix : bulle du joueur qui a choisi, le halo passe au joueur désigné. */
+  async function animAfterChoose(e, next) {
+    const tls = [];
+    const bubble = e.playerId === me ? null : seatEl(e.playerId)?.querySelector('.tp-bubble');
+    if (visible(bubble)) tls.push(T.anim.bubble(bubble));
+    tls.push(animTurn(e.playerId, next.currentPlayerId, 200));
+    if (e.playerId !== me) notify(chooseNotice(e));
+    await allDone(tls);
+  }
+
   /** Boss vaincu : K.O. vers la Taverne (pile à 0) ou carte déchirée vers la défausse ; la table se vide. */
   async function animFall(e, cv) {
     const card = q('.tp-table .tp-boss__card .tp-card');
@@ -618,7 +908,7 @@ export function mount(root, ctx) {
         temp.className = 'cdr-temp';
         temp.style.left = `${b.cx}px`;
         temp.style.top = `${b.cy}px`;
-        temp.innerHTML = e.cards.map((c) => T.Card({ ...tp(c), size: 'sm' })).join('');
+        temp.innerHTML = jk(e.cards.map((c) => T.Card({ ...tp(c), size: 'sm' })).join(''));
         zone.append(temp);
         tls.push(T.anim.pay([...temp.querySelectorAll('.tp-card')], discard));
       }
@@ -696,6 +986,7 @@ export function mount(root, ctx) {
       case 'defend': send('defend', { cardIds: selectedIds() }); break;
       case 'renew': openDialog('renew'); break;
       case 'renew-ok': closeDialog(); send('renew'); break;
+      case 'choose': if (ui.pick) send('choose', { playerId: ui.pick }); break;
       default: break;
     }
   }
@@ -712,9 +1003,16 @@ export function mount(root, ctx) {
     if (!ui.dialog) ui.opener = document.activeElement;
     ui.dialog = name;
     const layer = q('[data-layer="dialog"]');
-    layer.innerHTML = name === 'regles' ? rulesDialog(T, ui.rulesTab) : renewDialog();
+    layer.innerHTML = name === 'regles' ? rulesDialog(T, ui.rulesTab, rulesInfo()) : renewDialog();
     T.interact.tabs(layer);
     (layer.querySelector('[role="tab"][aria-selected="true"]') ?? layer.querySelector('.tp-dialog__f .tp-btn--primary') ?? layer.querySelector('[data-close]'))?.focus();
+  }
+
+  /** Ce que la fenêtre des règles dit de cette partie : difficulté (Jokers) et mode solo. */
+  function rulesInfo() {
+    const s = state ?? latest;
+    const options = ctx.getRoom()?.gameOptions ?? {};
+    return { difficulty: s?.difficulty ?? options.difficulty, jokerCount: s?.jokerCount, solo: s?.solo };
   }
 
   function closeDialog() {
@@ -770,7 +1068,8 @@ export function mount(root, ctx) {
       } else closeDialog();
       return;
     }
-    if (t.closest('.tp-table .tp-power')) { openRules('pouvoirs'); return; }
+    const power = t.closest('.tp-table .tp-power');
+    if (power) { openRules(power.dataset.suit === 'joker' ? 'joker' : 'pouvoirs'); return; }
     const button = t.closest('[data-act]');
     if (!button || button.getAttribute('aria-disabled') === 'true') return; // Tapis : désactivé = aria-disabled, le clic passe
     const name = button.dataset.act;
@@ -784,6 +1083,15 @@ export function mount(root, ctx) {
     act(name);
   }
 
+  /** Tuiles de « Qui joue ? » (avant data-act : une tuile n'est pas une action). */
+  function onPickClick(e) {
+    const tile = e.target.closest?.('.tp-table .cdr-who__p[data-pick]');
+    if (!tile || !T || !zone) return;
+    e.stopImmediatePropagation();
+    if (animating || busy || !state || state.phase !== 'choose') return;
+    onPick(tile.dataset.pick);
+  }
+
   function onKey(e) {
     if (!T || !zone) return;
     if (e.key === 'Escape') {
@@ -794,6 +1102,22 @@ export function mount(root, ctx) {
         setDrawer(drawer, false);
         q(`.tp-tools [data-open="${drawer.id}"]`)?.focus({ preventScroll: true });
       }
+      return;
+    }
+    const tile = e.target.closest?.('.tp-table .cdr-who__p[data-pick]');
+    if (tile && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+      e.preventDefault(); // groupe radio : les flèches déplacent le choix
+      const tiles = qa('.tp-table .cdr-who__p[data-pick]');
+      const step = e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 1;
+      const nextTile = tiles[(tiles.indexOf(tile) + step + tiles.length) % tiles.length];
+      nextTile.focus();
+      if (!animating && !busy) onPick(nextTile.dataset.pick);
+      return;
+    }
+    if (e.key === 'Enter' && e.target.closest?.('.cdr-who__p[data-picked]')) {
+      e.preventDefault(); // tuile déjà choisie : Entrée confirme (bouton du panneau sur PC, de la barre sur mobile)
+      const primary = qa('.tp-table [data-act="choose"]').find(visible);
+      if (primary && primary.getAttribute('aria-disabled') !== 'true') primary.click();
       return;
     }
     if (e.key === 'Enter' && e.target.closest?.('.tp-hand button.tp-card')) {
@@ -818,6 +1142,7 @@ export function mount(root, ctx) {
     if (tab) ui.rulesTab = tab.dataset.tab;
   };
 
+  host.addEventListener('click', onPickClick);
   host.addEventListener('click', onClick);
   host.addEventListener('click', onTab);
   host.addEventListener('keydown', onKey);
