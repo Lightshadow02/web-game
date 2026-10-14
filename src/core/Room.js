@@ -1,6 +1,7 @@
 'use strict';
 
 const { UserError } = require('./utils');
+const { resolveOptions } = require('./gameRegistry');
 
 /**
  * Un salon : liste des joueurs, hôte, jeu sélectionné et partie en cours.
@@ -23,6 +24,7 @@ class Room {
     this.hostId = null;
     this.selectedGameId = registry.list()[0]?.id ?? null;
     this.game = null; // { id, instance }
+    this.gameOptions = {}; // gameId -> { optionId: value } choisis par l'hôte
     this.createdAt = Date.now();
   }
 
@@ -104,6 +106,18 @@ class Room {
     this.broadcastState();
   }
 
+  /** L'hôte règle une option du jeu sélectionné (difficulté, jetons de départ...). */
+  setOption(playerId, optionId, value) {
+    this.assertHost(playerId);
+    if (this.game) throw new UserError('Impossible de changer les options pendant une partie.');
+    const game = this.registry.get(this.selectedGameId);
+    const opt = game?.options?.find((o) => o.id === optionId);
+    if (!opt) throw new UserError('Option inconnue.');
+    if (!opt.choices.some((c) => c.value === value)) throw new UserError('Valeur impossible pour cette option.');
+    this.gameOptions[game.id] = { ...this.gameOptions[game.id], [optionId]: value };
+    this.broadcastState();
+  }
+
   startGame(playerId) {
     this.assertHost(playerId);
     if (this.game) throw new UserError('Une partie est déjà en cours.');
@@ -122,6 +136,7 @@ class Room {
 
     const instance = gameModule.createGame({
       players: players.map(({ id, name }) => ({ id, name })),
+      options: resolveOptions(gameModule, this.gameOptions[gameModule.id]),
     });
     this.game = { id: gameModule.id, instance, recorded: false };
     this.broadcastState();
@@ -179,6 +194,8 @@ class Room {
       hostId: this.hostId,
       status: this.status,
       selectedGameId: this.selectedGameId,
+      // options du jeu sélectionné (ou en cours), valeurs par défaut comprises
+      gameOptions: resolveOptions(this.registry.get(this.game?.id ?? this.selectedGameId), this.gameOptions[this.game?.id ?? this.selectedGameId]),
       gameId: this.game?.id ?? null,
       maxPlayers: this.maxPlayers,
       players: [...this.players.values()].map((p) => ({

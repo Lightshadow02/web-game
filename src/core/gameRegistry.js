@@ -15,7 +15,11 @@
  *   getResult()                            // optionnel, pour les stats :
  *     -> { summary, players: [{ playerId, result: 'win'|'loss'|'draw', score? }] }
  *
- * Champ optionnel du module : scoreLabel (libellé du score affiché dans les stats).
+ * Champs optionnels du module :
+ *   scoreLabel  libellé du score affiché dans les stats ;
+ *   options     réglages choisis par l'hôte dans le salon avant de lancer, transmis à
+ *               createGame({ players, options }) sous la forme { [id]: value } :
+ *               [{ id, label, default, choices: [{ value, label, description? }] }]
  *
  * Le dossier games/<id>/client est servi en statique sur /games/<id>/ et doit
  * exposer un module ES "index.js" (voir public/js/app.js pour l'interface).
@@ -39,6 +43,12 @@ class GameRegistry {
     }
     if (this.games.has(gameModule.id)) {
       throw new Error(`Jeu déjà enregistré : ${gameModule.id}`);
+    }
+    for (const opt of gameModule.options ?? []) {
+      const values = (opt.choices ?? []).map((c) => c.value);
+      if (!opt.id || !opt.label || !values.length || !values.includes(opt.default)) {
+        throw new Error(`Option de jeu invalide dans ${gameModule.id} : ${opt.id ?? '?'}`);
+      }
     }
     this.games.set(gameModule.id, { module: gameModule, clientDir });
   }
@@ -73,6 +83,10 @@ class GameRegistry {
       scoreLabel: g.scoreLabel ?? null,
       minPlayers: g.minPlayers,
       maxPlayers: g.maxPlayers,
+      options: (g.options ?? []).map(({ id, label, default: def, choices }) => ({
+        id, label, default: def,
+        choices: choices.map(({ value, label: l, description }) => ({ value, label: l, description: description ?? '' })),
+      })),
     }));
   }
 
@@ -83,4 +97,14 @@ class GameRegistry {
   }
 }
 
-module.exports = { GameRegistry };
+/** Options d'un jeu avec leurs valeurs par défaut, complétées par les choix de l'hôte (valeurs inconnues ignorées). */
+function resolveOptions(gameModule, chosen = {}) {
+  const out = {};
+  for (const opt of gameModule?.options ?? []) {
+    const value = chosen[opt.id];
+    out[opt.id] = opt.choices.some((c) => c.value === value) ? value : opt.default;
+  }
+  return out;
+}
+
+module.exports = { GameRegistry, resolveOptions };

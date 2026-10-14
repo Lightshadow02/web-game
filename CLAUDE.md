@@ -11,7 +11,10 @@ Toute évolution doit préserver cette extensibilité :
 - **Pas de chat** (retiré à la demande du propriétaire, la voix passe par Discord) : le jeu occupe toute la
   largeur du salon ; les annonces du salon (`room:notice` : arrivée, départ, nouvel hôte) s'affichent en notification.
 - **Un jeu = un dossier `games/<id>/`**, découvert automatiquement au démarrage :
-  - `server/index.js` : `{ id, name, description, minPlayers, maxPlayers, createGame({ players }) }`
+  - `server/index.js` : `{ id, name, description, minPlayers, maxPlayers, createGame({ players, options }) }`
+    - `options` (facultatif) : réglages génériques choisis par l'hôte dans le salon (Core : `room:setOption`),
+      `[{ id, label, default, choices: [{ value, label, description? }] }]` ; `createGame` reçoit `{ [id]: value }`
+      (valeurs par défaut comprises) et la vue du salon les affiche (`room.gameOptions`).
     - l'instance expose `handleAction(playerId, type, payload)` (lève une erreur avec
       `err.isGameError = true` pour un message affichable) et `getStateFor(playerId)` (vue privée).
     - pour les stats du Hub : `isOver()` et `getResult()` -> `{ summary, players: [{ playerId, result: 'win'|'loss'|'draw', score }] }`
@@ -73,8 +76,7 @@ Toute évolution doit préserver cette extensibilité :
   est dans `docs/design/brief-jeux-de-cartes.md`.
 - Pistes Core relevées pendant la refonte (non faites, à proposer) : prévenir un jeu quand le salon change
   (aujourd'hui les clients relisent `ctx.getRoom()` toutes les 1,5 s pour les joueurs déconnectés) ; permettre à
-  l'écran de fin d'un jeu de déclencher « Retour au salon » / « Rejouer » (options de jeu génériques à prévoir aussi
-  pour la difficulté du Joker).
+  l'écran de fin d'un jeu de déclencher « Retour au salon » / « Rejouer ». (Options de jeu génériques : FAITES.)
 - **Connexion Discord : FAITE** (`src/core/auth.js`, reprise du flux de JDR-WEB sans base de données).
   Le site est public, le propriétaire ne veut pas gérer de comptes : accès filtré par serveur/rôle Discord
   (`DISCORD_GUILD_ID`, `DISCORD_ROLE_IDS`, `DISCORD_ALLOWED_IDS`). Session = cookie signé HMAC vérifié au

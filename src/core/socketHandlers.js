@@ -7,7 +7,7 @@ const { UserError } = require('./utils');
  *
  * Client -> serveur (tous acceptent un callback d'acquittement `ack({ ok, error })`) :
  *   room:create { name }        room:join { code, name }     room:leave
- *   room:selectGame { gameId }  room:startGame               room:endGame
+ *   room:selectGame { gameId }  room:setOption { optionId, value }  room:startGame  room:endGame
  *   game:action { type, payload }
  *
  *   hub:get                      stats:get                    stats:leaderboard { gameId }
@@ -139,6 +139,7 @@ function registerSocketHandlers(io, manager, auth = null, store = null) {
     });
 
     on('room:selectGame', ({ gameId }) => requireRoom().selectGame(session.playerId, gameId));
+    on('room:setOption', ({ optionId, value }) => requireRoom().setOption(session.playerId, optionId, value));
     on('room:startGame', () => requireRoom().startGame(session.playerId));
     on('room:endGame', () => requireRoom().endGame(session.playerId));
 

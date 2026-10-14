@@ -195,6 +195,7 @@ function renderRoom() {
   );
 
   const selected = gameById(room.selectedGameId);
+  renderGameOptions(selected, room, host);
   const count = room.players.length;
   let hint = '';
   if (!selected) hint = 'Aucun jeu sélectionné.';
@@ -211,6 +212,42 @@ function renderRoom() {
   $('#game-root').classList.toggle('hidden', !playing);
   if (playing) ensureGameMounted(room.gameId);
   else unmountGame();
+}
+
+/** Options du jeu sélectionné : l'hôte les règle, les autres joueurs les voient. */
+function renderGameOptions(game, room, host) {
+  const options = game?.options ?? [];
+  $('#game-options').replaceChildren(
+    ...options.map((opt) => {
+      const value = room.gameOptions?.[opt.id] ?? opt.default;
+      const current = opt.choices.find((c) => c.value === value) ?? opt.choices[0];
+      const id = `opt-${opt.id}`;
+      const control = host
+        ? el(
+            'select',
+            {
+              id,
+              class: 'select',
+              onchange: (e) => {
+                const choice = opt.choices[Number(e.target.value)];
+                request('room:setOption', { optionId: opt.id, value: choice.value }).catch((err) => {
+                  toast(err.message, 'error');
+                  renderRoom();
+                });
+              },
+            },
+            ...opt.choices.map((c, i) => el('option', { value: String(i), selected: c === current }, c.label)),
+          )
+        : el('span', { id, class: 'game-option-value' }, current.label);
+      return el(
+        'div',
+        { class: 'game-option' },
+        el(host ? 'label' : 'span', host ? { for: id } : {}, opt.label),
+        control,
+        current.description && el('p', { class: 'game-option-desc' }, current.description),
+      );
+    }),
+  );
 }
 
 // ------------------------------------------------------------------ montage des jeux

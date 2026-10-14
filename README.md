@@ -64,13 +64,16 @@ web-game/
 ```js
 module.exports = {
   id: 'mon-jeu', name: 'Mon Jeu', description: '...', minPlayers: 2, maxPlayers: 6,
-  createGame: ({ players }) => ({
+  createGame: ({ players, options }) => ({
     handleAction(playerId, type, payload) { /* lever une erreur avec err.isGameError = true si invalide */ },
     getStateFor(playerId) { /* état visible par CE joueur */ },
     isOver() { /* optionnel */ },
     getResult() { /* optionnel, pour les stats : { summary, players: [{ playerId, result: 'win'|'loss'|'draw', score }] } */ },
   }),
   scoreLabel: 'Points', // optionnel : libellé du score dans les stats
+  // optionnel : réglages choisis par l'hôte dans le salon, reçus dans createGame({ options }) -> { difficulte: 'normal' }
+  options: [{ id: 'difficulte', label: 'Difficulté', default: 'normal',
+    choices: [{ value: 'facile', label: 'Facile', description: '...' }, { value: 'normal', label: 'Normal' }] }],
 };
 ```
 
