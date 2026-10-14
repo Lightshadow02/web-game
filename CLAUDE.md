@@ -61,7 +61,8 @@ Toute évolution doit préserver cette extensibilité :
   **Joker FAIT** : option `difficulty` (facile 2 / normal 1 / classique 0, défaut normal ; moteur seul sans option =
   classique). Après un Joker à plusieurs, phase `choose` : mains de tous dans `getStateFor` (players[i].hand) seulement
   pendant cette phase, action `choose { playerId }` réservée au joueur du Joker ; événements `joker` / `choose`.
-  Pas de rétroactivité, Pique compris (écart volontaire avec Regicide, à confirmer par le propriétaire).
+  Pas de rétroactivité, Pique compris : seules les cartes jouées APRÈS le Joker comptent (choix confirmé par le
+  propriétaire, écart volontaire avec le Fou de Regicide).
 - `tarot` — Tarot français FFT (3-5 joueurs ; le propriétaire joue surtout à 4, et à 5 avec appel au Roi), table
   « salon » de Tapis. Moteur : games/tarot/server/Tarot.js (enchères, chien/écart, appel au Roi, poignées, Petit au
   bout, Excuse, décompte officiel, une donne par joueur). Pas encore : chelem, misère. Limite connue : téléphone
@@ -103,6 +104,9 @@ Toute évolution doit préserver cette extensibilité :
   **Page Hub : FAITE** — salons ouverts en direct, joueurs en ligne, stats par jeu, dernières parties, classement.
   JDR-WEB (même app Discord) est dans un dossier voisin : `SHARED_ENV_FILE=../light-jdr/.env` est monté en lecture
   seule et on n'y lit que DISCORD_CLIENT_ID/SECRET, SESSION_SECRET (clé dérivée) et ADMIN_DISCORD_IDS.
+- **À faire (demandé par le propriétaire) : refaire un peu l'affichage du Hub** (accueil, page Hub, salon : liste des
+  jeux devenue longue, options sous la liste, bouton « Lancer » hors écran en 1366×768). Garder le thème partagé et
+  `el()` ; à proposer au propriétaire avant de coder (éventuellement un brief Claude Design comme pour Tapis).
 - **Joker dans La Chute des Rois : FAIT** (voir Jeux existants). **Blackjack et Poker : FAITS** (demandés par le
   propriétaire).
 - Améliorations proposées au propriétaire (à discuter, non commencées) : notifications Discord (webhook) des

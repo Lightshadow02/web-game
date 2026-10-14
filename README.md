@@ -184,8 +184,8 @@ Pour l'importer de nouveau après une mise à jour : exporter le dossier `projec
 - **Solo** : 2 « Renouveaux » (défausser sa main et repiocher).
 - **Joker** (option « Difficulté » du salon : Facile = 2 Jokers, Normal = 1 par défaut, Classique = sans Joker), mélangé
   dans la Taverne. Il se joue seul (valeur 0, aucun dégât) : le boss perd son immunité jusqu'à sa chute (les cartes
-  jouées ensuite déclenchent le pouvoir de sa couleur ; celles déjà posées ne gagnent rien, Pique compris, contrairement
-  au Fou de Regicide) et ne riposte pas ce tour-là. À plusieurs, toutes les mains sont révélées à toute la table le temps
+  jouées ensuite déclenchent le pouvoir de sa couleur ; celles déjà posées ne gagnent rien, Pique compris : seules les
+  cartes jouées après le Joker comptent) et ne riposte pas ce tour-là. À plusieurs, toutes les mains sont révélées à toute la table le temps
   que le joueur du Joker choisisse qui joue ensuite (lui compris) ; en solo, il rejoue. Pour encaisser, il vaut 0.
 - Victoire quand les 12 souverains sont tombés ; défaite si un joueur ne peut pas encaisser la riposte.
 
