@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 320 180" role="img" aria-label="Blackjack : un As et un Roi, des jetons">
+  <defs>
+    <radialGradient id="felt" cx="50%" cy="20%" r="95%">
+      <stop offset="0" stop-color="#2a6447"/><stop offset=".55" stop-color="#1c4632"/><stop offset="1" stop-color="#0d2419"/>
+    </radialGradient>
+    <linearGradient id="face" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbf7ec"/><stop offset="1" stop-color="#ece3cc"/></linearGradient>
+    <filter id="sh" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000" flood-opacity=".45"/></filter>
+    <path id="spade" d="M0 -11 C3 -6 11 -1.5 11 3.5 C11 7.5 7 9 4 7.5 C2.6 6.8 1.6 5.6 1 4.4 C1.4 7.5 2.6 9.6 4.4 11 L-4.4 11 C-2.6 9.6 -1.4 7.5 -1 4.4 C-1.6 5.6 -2.6 6.8 -4 7.5 C-7 9 -11 7.5 -11 3.5 C-11 -1.5 -3 -6 0 -11 Z"/>
+    <path id="heart" d="M0 9 C-3 6 -11 1 -11 -4.5 C-11 -9 -6 -11 -3 -9 C-1.6 -8 -.6 -6.6 0 -5.4 C.6 -6.6 1.6 -8 3 -9 C6 -11 11 -9 11 -4.5 C11 1 3 6 0 9 Z"/>
+    <g id="chip">
+      <ellipse cx="0" cy="3" rx="22" ry="8" fill="#000" opacity=".25"/>
+      <ellipse cx="0" cy="0" rx="22" ry="8" fill="currentColor"/>
+      <ellipse cx="0" cy="0" rx="22" ry="8" fill="none" stroke="#f7f1e3" stroke-width="3" stroke-dasharray="5 6"/>
+      <ellipse cx="0" cy="-.5" rx="14" ry="5" fill="none" stroke="#f7f1e3" stroke-opacity=".55" stroke-width="1"/>
+    </g>
+  </defs>
+  <rect width="320" height="180" fill="url(#felt)"/>
+  <path d="M-10 128 Q160 58 330 128" fill="none" stroke="#dbb666" stroke-opacity=".35" stroke-width="1.5"/>
+  <path d="M-10 140 Q160 70 330 140" fill="none" stroke="#dbb666" stroke-opacity=".2" stroke-width="1"/>
+  <text x="160" y="58" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="11" letter-spacing="3" fill="#dbb666" fill-opacity=".55">BLACKJACK PAYÉ 3 POUR 2</text>
+  <g filter="url(#sh)">
+    <g transform="translate(120 112) rotate(-9)">
+      <rect x="-30" y="-42" width="60" height="84" rx="6" fill="url(#face)" stroke="#c9b893"/>
+      <text x="-23" y="-26" font-family="Georgia, serif" font-weight="700" font-size="15" fill="#1c1b22">A</text>
+      <use xlink:href="#spade" transform="translate(-18 -14) scale(.45)" fill="#1c1b22"/>
+      <use xlink:href="#spade" transform="translate(0 6) scale(1.35)" fill="#1c1b22"/>
+    </g>
+    <g transform="translate(166 106) rotate(7)">
+      <rect x="-30" y="-42" width="60" height="84" rx="6" fill="url(#face)" stroke="#c9b893"/>
+      <text x="-23" y="-26" font-family="Georgia, serif" font-weight="700" font-size="15" fill="#b3263a">R</text>
+      <use xlink:href="#heart" transform="translate(-18 -14) scale(.45)" fill="#b3263a"/>
+      <rect x="-17" y="-20" width="34" height="50" rx="3" fill="none" stroke="#b3263a" stroke-opacity=".5"/>
+      <path d="M-11 -6 L-11 -14 L-5.5 -9 L0 -16 L5.5 -9 L11 -14 L11 -6 Z" fill="#d9a93a" stroke="#76520e" stroke-width=".8"/>
+      <use xlink:href="#heart" transform="translate(0 12) scale(.9)" fill="#b3263a"/>
+    </g>
+  </g>
+  <g transform="translate(250 132)">
+    <use xlink:href="#chip" color="#9c2a2a" transform="translate(0 0)"/>
+    <use xlink:href="#chip" color="#9c2a2a" transform="translate(0 -7)"/>
+    <use xlink:href="#chip" color="#1f53a0" transform="translate(0 -14)"/>
+    <use xlink:href="#chip" color="#1c1b22" transform="translate(0 -21)"/>
+    <use xlink:href="#chip" color="#dbb666" transform="translate(0 -28)"/>
+  </g>
+  <g transform="translate(62 146)">
+    <use xlink:href="#chip" color="#1f53a0"/>
+    <use xlink:href="#chip" color="#16653a" transform="translate(0 -7)"/>
+  </g>
+  <text x="290" y="40" text-anchor="end" font-family="Georgia, serif" font-weight="700" font-size="34" fill="#dbb666" fill-opacity=".9">21</text>
+</svg>

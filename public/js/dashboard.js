@@ -20,9 +20,62 @@ export function timeAgo(ts) {
   return "à l'instant";
 }
 
-function avatar(user, size = 'sm') {
+export function avatar(user, size = 'sm') {
   if (user.avatarUrl) return el('img', { class: `avatar avatar-${size}`, src: user.avatarUrl, alt: '' });
   return el('span', { class: `avatar avatar-${size} avatar-initial`, 'aria-hidden': 'true' }, (user.name || '?')[0].toUpperCase());
+}
+
+/** Icône du sprite de index.html (#i-<name>). */
+export function icon(name) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', 'ico');
+  svg.setAttribute('aria-hidden', 'true');
+  const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+  use.setAttribute('href', `#i-${name}`);
+  svg.append(use);
+  return svg;
+}
+
+/** Vignette d'un jeu (games/<id>/client/cover.svg), ou son initiale à défaut. */
+export function cover(game) {
+  if (game?.cover) return el('img', { class: 'cover', src: game.cover, alt: '', loading: 'lazy', decoding: 'async' });
+  return el('span', { class: 'cover cover-fallback', 'aria-hidden': 'true' }, (game?.name || '?')[0]);
+}
+
+const playersText = (g) => (g.minPlayers === g.maxPlayers ? `${g.minPlayers} joueurs` : `${g.minPlayers} à ${g.maxPlayers} joueurs`);
+
+// ------------------------------------------------------------------ catalogue des jeux
+
+export function renderCatalog(games, { onPlay }) {
+  $('#catalog').replaceChildren(
+    ...games.map((g) =>
+      el('li', {},
+        el('button', {
+          class: 'game-tile',
+          title: `Ouvrir un salon de ${g.name}`,
+          onclick: async (e) => {
+            const btn = e.currentTarget;
+            btn.disabled = true;
+            try { await onPlay(g.id); } finally { btn.disabled = false; }
+          },
+        },
+        cover(g),
+        el('span', { class: 'game-tile-body' },
+          el('span', { class: 'game-tile-head' },
+            el('span', { class: 'game-tile-name' }, g.name),
+            el('span', { class: 'players-range' }, icon('users'), playersText(g)),
+          ),
+          el('p', {}, g.description),
+          el('span', { class: 'game-tile-cta' }, icon('play'), 'Ouvrir une table'),
+        )),
+      ),
+    ),
+  );
+}
+
+/** Vignettes décoratives de l'écran de connexion. */
+export function renderCoverStrip(games) {
+  $('#login-games').replaceChildren(...games.map((g) => el('li', {}, cover(g), el('span', {}, g.name))));
 }
 
 const empty = (text) => el('li', { class: 'empty' }, text);
@@ -30,10 +83,11 @@ const plural = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`;
 
 // ------------------------------------------------------------------ salons & en ligne
 
-export function renderLobby(lobby, { onJoin }) {
+export function renderLobby(lobby, { onJoin, games = [] }) {
   const rooms = lobby.rooms ?? [];
   $('#online-count').textContent = lobby.onlineCount ?? 0;
-  $('#room-count').textContent = rooms.length ? `(${rooms.length})` : '';
+  $('#room-count').textContent = rooms.length;
+  $('#room-count').classList.toggle('hidden', !rooms.length);
 
   $('#room-list').replaceChildren(
     ...(rooms.length
@@ -43,6 +97,7 @@ export function renderLobby(lobby, { onJoin }) {
           return el(
             'li',
             { class: `room-item ${playing ? 'is-playing' : ''}` },
+            cover(games.find((g) => g.id === room.gameId) ?? { name: room.gameName }),
             el(
               'div',
               { class: 'room-main' },
@@ -51,7 +106,7 @@ export function renderLobby(lobby, { onJoin }) {
                 el('span', { class: `room-status ${playing ? 'playing' : 'open'}` }, playing ? 'En partie' : 'Ouvert'),
               ),
               el('div', { class: 'room-meta muted' },
-                `Salon ${room.code} · hôte ${room.hostName ?? '—'} · ${room.playerCount}/${room.maxPlayers} joueur${room.maxPlayers > 1 ? 's' : ''}`),
+                'Salon ', el('b', {}, room.code), ` · hôte ${room.hostName ?? '—'} · ${room.playerCount}/${room.maxPlayers}`),
               el('div', { class: 'avatar-stack' }, room.players.slice(0, 6).map((p) => avatar(p, 'xs'))),
             ),
             el(
@@ -66,7 +121,7 @@ export function renderLobby(lobby, { onJoin }) {
             ),
           );
         })
-      : [empty('Aucun salon ouvert pour le moment. Créez-en un !')]),
+      : [empty('Aucune table ouverte pour le moment : choisis un jeu ci-dessus pour en ouvrir une.')]),
   );
 
   const online = lobby.online ?? [];
@@ -76,7 +131,7 @@ export function renderLobby(lobby, { onJoin }) {
           el('li', { class: 'user-row' },
             avatar(u),
             el('span', { class: 'user-row-name' }, u.name),
-            el('span', { class: 'muted small' }, u.roomCode ? `salon ${u.roomCode}` : 'au Hub'),
+            el('span', { class: `where-pill ${u.roomCode ? 'in-room' : ''}` }, u.roomCode ? `salon ${u.roomCode}` : 'au Hub'),
           ),
         )
       : [empty(lobby.onlineCount ? `${lobby.onlineCount} joueur(s) connecté(s)` : 'Personne pour le moment.')]),
@@ -89,25 +144,28 @@ export function renderStats({ stats, recent }, games) {
   const nameOf = (id) => games.find((g) => g.id === id)?.name ?? id;
   const scoreLabel = (id) => games.find((g) => g.id === id)?.scoreLabel;
 
+  const gameOf = (id) => games.find((g) => g.id === id) ?? { id, name: id };
   $('#stats-cards').replaceChildren(
     ...(stats.length
       ? stats.map((s) => {
           const rate = s.played ? Math.round((s.wins / s.played) * 100) : 0;
+          const label = scoreLabel(s.gameId);
           return el(
             'article',
             { class: 'stat-card' },
+            cover(gameOf(s.gameId)),
             el('h3', {}, nameOf(s.gameId)),
-            el('div', { class: 'stat-grid' },
+            el('div', { class: 'stat-line' },
               stat(s.played, s.played > 1 ? 'parties' : 'partie'),
               stat(s.wins, s.wins > 1 ? 'victoires' : 'victoire'),
-              stat(`${rate}%`, 'réussite'),
-              s.bestScore !== null && stat(s.bestScore, scoreLabel(s.gameId) ? `record · ${scoreLabel(s.gameId).toLowerCase()}` : 'meilleur score'),
+              stat(`${rate} %`, 'réussite'),
+              s.bestScore !== null && stat(s.bestScore, label ? `record (${label.toLowerCase()})` : 'record'),
             ),
-            el('div', { class: 'rate-bar', role: 'img', 'aria-label': `${rate}% de victoires` },
+            el('div', { class: 'rate-bar', role: 'img', 'aria-label': `${rate} % de victoires` },
               el('span', { style: `width:${rate}%` })),
           );
         })
-      : [el('p', { class: 'muted' }, 'Pas encore de partie terminée. Vos statistiques apparaîtront ici.')]),
+      : [el('p', { class: 'stats-empty' }, 'Pas encore de partie terminée : tes statistiques apparaîtront ici.')]),
   );
 
   $('#recent-list').replaceChildren(
@@ -115,6 +173,7 @@ export function renderStats({ stats, recent }, games) {
       ? recent.map((m) =>
           el('li', { class: 'recent-item' },
             el('span', { class: `result-pill ${m.result}` }, { win: 'Victoire', loss: 'Défaite', draw: 'Égalité' }[m.result]),
+            cover(gameOf(m.gameId)),
             el('div', { class: 'recent-main' },
               el('strong', {}, nameOf(m.gameId)),
               el('span', { class: 'muted small' },

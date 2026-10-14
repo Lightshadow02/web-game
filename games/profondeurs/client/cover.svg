@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 320 180" role="img" aria-label="Les Profondeurs : une porte de donjon éclairée par une torche, et des dés">
+  <defs>
+    <radialGradient id="glow" cx="22%" cy="40%" r="70%">
+      <stop offset="0" stop-color="#8a4208" stop-opacity=".85"/><stop offset=".35" stop-color="#3d2312" stop-opacity=".9"/><stop offset="1" stop-color="#120d09"/>
+    </radialGradient>
+    <linearGradient id="stone" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a3a2b"/><stop offset="1" stop-color="#2b2118"/></linearGradient>
+    <radialGradient id="flame" cx="50%" cy="70%" r="60%"><stop offset="0" stop-color="#fff1c2"/><stop offset=".4" stop-color="#ffc266"/><stop offset="1" stop-color="#e8892b"/></radialGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="6"/></filter>
+    <filter id="sh" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000" flood-opacity=".5"/></filter>
+    <g id="die"><rect x="-17" y="-17" width="34" height="34" rx="7" fill="currentColor"/><rect x="-17" y="-17" width="34" height="34" rx="7" fill="none" stroke="#000" stroke-opacity=".35" stroke-width="1.5"/><rect x="-14" y="-15" width="28" height="8" rx="4" fill="#fff" opacity=".12"/></g>
+  </defs>
+  <rect width="320" height="180" fill="url(#glow)"/>
+  <g fill="#000" opacity=".22">
+    <rect x="0" y="22" width="56" height="26"/><rect x="60" y="0" width="70" height="20"/><rect x="250" y="30" width="70" height="28"/><rect x="230" y="120" width="60" height="26"/><rect x="0" y="130" width="46" height="26"/>
+  </g>
+  <g fill="none" stroke="#000" stroke-opacity=".28">
+    <path d="M0 50 H320 M0 100 H320 M0 150 H320 M40 0 V50 M110 50 V100 M260 0 V50 M300 100 V150 M70 100 V150 M200 150 V180"/>
+  </g>
+  <path d="M120 180 V92 Q120 30 172 30 Q224 30 224 92 V180 Z" fill="url(#stone)"/>
+  <path d="M134 180 V96 Q134 46 172 46 Q210 46 210 96 V180 Z" fill="#0a0705"/>
+  <g fill="none" stroke="#1a130d" stroke-width="2">
+    <path d="M120 92 Q120 30 172 30 Q224 30 224 92"/>
+    <path d="M150 33 L153 47 M172 30 V46 M194 33 L191 47 M131 52 L143 60 M213 52 L201 60"/>
+  </g>
+  <g fill="#f6d36b">
+    <ellipse cx="162" cy="112" rx="4" ry="2.2"/><ellipse cx="182" cy="112" rx="4" ry="2.2"/>
+  </g>
+  <g fill="#ffc266" opacity=".35" filter="url(#blur)"><ellipse cx="172" cy="112" rx="18" ry="6"/></g>
+  <g transform="translate(76 80)">
+    <circle r="34" fill="#e8892b" opacity=".35" filter="url(#blur)"/>
+    <rect x="-4" y="6" width="8" height="46" rx="2" fill="#5a3a20" stroke="#2b2118"/>
+    <rect x="-7" y="2" width="14" height="8" rx="2" fill="#735208"/>
+    <path d="M0 -26 C8 -16 12 -8 9 -1 C7 4 3 6 0 6 C-3 6 -7 4 -9 -1 C-12 -8 -6 -14 -3 -20 C-2 -14 0 -12 2 -12 C3 -16 1 -21 0 -26 Z" fill="url(#flame)"/>
+  </g>
+  <g filter="url(#sh)">
+    <use xlink:href="#die" color="#b83d30" transform="translate(246 138) rotate(-8)"/>
+    <use xlink:href="#die" color="#3567b8" transform="translate(284 128) rotate(10)"/>
+    <use xlink:href="#die" color="#d9a520" transform="translate(262 100) rotate(4)"/>
+  </g>
+  <g fill="#f7f1e3">
+    <g transform="translate(246 138) rotate(-8)"><circle cx="-8" cy="-8" r="3"/><circle cx="8" cy="8" r="3"/><circle cx="8" cy="-8" r="3"/><circle cx="-8" cy="8" r="3"/><circle r="3"/></g>
+    <g transform="translate(284 128) rotate(10)"><circle cx="-8" cy="-8" r="3"/><circle cx="8" cy="8" r="3"/><circle r="3"/></g>
+    <g transform="translate(262 100) rotate(4)"><circle cx="-8" cy="-8" r="3"/><circle cx="8" cy="-8" r="3"/><circle cx="-8" cy="0" r="3"/><circle cx="8" cy="0" r="3"/><circle cx="-8" cy="8" r="3"/><circle cx="8" cy="8" r="3"/></g>
+  </g>
+</svg>

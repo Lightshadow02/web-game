@@ -23,6 +23,7 @@
  *
  * Le dossier games/<id>/client est servi en statique sur /games/<id>/ et doit
  * exposer un module ES "index.js" (voir public/js/app.js pour l'interface).
+ * Optionnel : client/cover.svg, vignette du jeu (320 × 180) affichée par le Hub.
  */
 
 const fs = require('fs');
@@ -50,7 +51,8 @@ class GameRegistry {
         throw new Error(`Option de jeu invalide dans ${gameModule.id} : ${opt.id ?? '?'}`);
       }
     }
-    this.games.set(gameModule.id, { module: gameModule, clientDir });
+    const cover = clientDir && fs.existsSync(path.join(clientDir, 'cover.svg')) ? `/games/${gameModule.id}/cover.svg` : null;
+    this.games.set(gameModule.id, { module: gameModule, clientDir, cover });
   }
 
   loadFromDirectory(gamesDir) {
@@ -76,8 +78,9 @@ class GameRegistry {
 
   /** Liste publique envoyée aux clients. */
   list() {
-    return [...this.games.values()].map(({ module: g }) => ({
+    return [...this.games.values()].map(({ module: g, cover }) => ({
       id: g.id,
+      cover,
       name: g.name,
       description: g.description ?? '',
       scoreLabel: g.scoreLabel ?? null,

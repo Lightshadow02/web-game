@@ -30,6 +30,7 @@ test('options de jeu : validation, réglage par l’hôte, transmission à creat
   const registry = new GameRegistry();
   registry.register(fakeGame(received));
   assert.deepEqual(registry.list()[0].options.map((o) => o.id), ['mode', 'jetons']);
+  assert.equal(registry.list()[0].cover, null, 'pas de vignette sans client/cover.svg');
 
   // option invalide refusée à l'enregistrement
   assert.throws(() => registry.register({ ...fakeGame([]), id: 'casse', options: [{ id: 'x', label: 'X', default: 3, choices: [{ value: 1, label: '1' }] }] }));
@@ -60,4 +61,11 @@ test('resolveOptions : valeurs par défaut et valeurs inconnues ignorées', () =
   assert.deepEqual(resolveOptions(mod, { mode: 'facile', jetons: 7 }), { mode: 'facile', jetons: 100 });
   assert.deepEqual(resolveOptions(null), {});
   assert.deepEqual(resolveOptions({ id: 'sans' }), {});
+});
+
+test('vignettes : chaque jeu livré a sa cover.svg, servie sur /games/<id>/cover.svg', () => {
+  const path = require('path');
+  const registry = new GameRegistry();
+  registry.loadFromDirectory(path.join(__dirname, '..', 'games'));
+  for (const g of registry.list()) assert.equal(g.cover, `/games/${g.id}/cover.svg`);
 });

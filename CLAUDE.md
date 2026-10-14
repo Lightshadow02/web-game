@@ -23,6 +23,8 @@ Toute évolution doit préserver cette extensibilité :
     `export function mount(root, ctx) { return { update(state), unmount() } }`
     avec `ctx = { me, getRoom(), sendAction(type, payload), toast(msg, type) }`.
   - `client/style.css` : styles préfixés par une classe propre au jeu (ex. `.cdr`) pour ne pas fuir dans le Hub.
+  - `client/cover.svg` (facultatif) : vignette 320 × 180 du jeu, affichée par le Hub (catalogue, salon, tables, stats) ;
+    sans elle, le Hub affiche l'initiale du jeu.
 - Le serveur fait autorité : le client n'envoie que des intentions, ne jamais exposer la main des autres joueurs.
 - Réutiliser le thème partagé (variables CSS de `public/css/style.css`) et le helper `el()` de `public/js/dom.js`
   (pas d'`innerHTML` avec des données utilisateur).
@@ -104,9 +106,12 @@ Toute évolution doit préserver cette extensibilité :
   **Page Hub : FAITE** — salons ouverts en direct, joueurs en ligne, stats par jeu, dernières parties, classement.
   JDR-WEB (même app Discord) est dans un dossier voisin : `SHARED_ENV_FILE=../light-jdr/.env` est monté en lecture
   seule et on n'y lit que DISCORD_CLIENT_ID/SECRET, SESSION_SECRET (clé dérivée) et ADMIN_DISCORD_IDS.
-- **À faire (demandé par le propriétaire) : refaire un peu l'affichage du Hub** (accueil, page Hub, salon : liste des
-  jeux devenue longue, options sous la liste, bouton « Lancer » hors écran en 1366×768). Garder le thème partagé et
-  `el()` ; à proposer au propriétaire avant de coder (éventuellement un brief Claude Design comme pour Tapis).
+- **Refonte de l'affichage du Hub : FAITE** — esprit « salon » de Tapis (feutre vert, laiton, ivoire ; polices Cinzel +
+  Alegreya Sans servies depuis `/vendor/tapis/fonts/`), limitée aux conteneurs `.hub-ui` pour ne pas toucher les jeux.
+  Accueil : catalogue des jeux (un clic = un salon avec ce jeu), tables ouvertes, carnet à onglets (stats, historique,
+  classement). Salon : places libres, code d'invitation, tuiles de jeux, fiche du jeu choisi avec options et « Lancer »
+  (fixé en bas sur téléphone). Barre du salon d'une seule ligne et 53 px de haut (les jeux s'y fient), jeu en cours
+  affiché au centre. Notifications en haut. Textes du Hub au tutoiement, comme les jeux.
 - **Joker dans La Chute des Rois : FAIT** (voir Jeux existants). **Blackjack et Poker : FAITS** (demandés par le
   propriétaire).
 - Améliorations proposées au propriétaire (à discuter, non commencées) : notifications Discord (webhook) des

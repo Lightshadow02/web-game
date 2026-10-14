@@ -88,7 +88,9 @@ export function mount(root, ctx) {   // ctx : { me, getRoom(), sendAction(type, 
 }
 ```
 
-3. Redémarrer : le jeu apparaît dans la liste du salon. Aucune modification du Core n'est nécessaire.
+3. Facultatif : `games/<mon-jeu>/client/cover.svg`, vignette 320 × 180 affichée par le Hub.
+4. Redémarrer : le jeu apparaît dans le catalogue de l'accueil et dans la liste du salon. Aucune modification du Core
+   n'est nécessaire.
 
 Le serveur fait autorité : le client n'envoie que des intentions (`game:action`), le moteur valide,
 puis le Core diffuse à chaque joueur sa propre vue (`getStateFor`) — les mains adverses ne quittent jamais le serveur.

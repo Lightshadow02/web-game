@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 320 180" role="img" aria-label="La Chute des Rois : une couronne qui tombe devant le Valet, la Dame et le Roi">
+  <defs>
+    <radialGradient id="velvet" cx="50%" cy="30%" r="85%">
+      <stop offset="0" stop-color="#2a3c6b"/><stop offset=".55" stop-color="#16213a"/><stop offset="1" stop-color="#0a0f1d"/>
+    </radialGradient>
+    <linearGradient id="face" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbf7ec"/><stop offset="1" stop-color="#ece3cc"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6d98e"/><stop offset=".5" stop-color="#d9b65c"/><stop offset="1" stop-color="#9a6c1a"/></linearGradient>
+    <filter id="sh" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000" flood-opacity=".5"/></filter>
+    <filter id="blur"><feGaussianBlur stdDeviation="8"/></filter>
+    <path id="spade" d="M0 -11 C3 -6 11 -1.5 11 3.5 C11 7.5 7 9 4 7.5 C2.6 6.8 1.6 5.6 1 4.4 C1.4 7.5 2.6 9.6 4.4 11 L-4.4 11 C-2.6 9.6 -1.4 7.5 -1 4.4 C-1.6 5.6 -2.6 6.8 -4 7.5 C-7 9 -11 7.5 -11 3.5 C-11 -1.5 -3 -6 0 -11 Z"/>
+    <path id="heart" d="M0 9 C-3 6 -11 1 -11 -4.5 C-11 -9 -6 -11 -3 -9 C-1.6 -8 -.6 -6.6 0 -5.4 C.6 -6.6 1.6 -8 3 -9 C6 -11 11 -9 11 -4.5 C11 1 3 6 0 9 Z"/>
+    <g id="club"><circle cx="0" cy="-5.5" r="5"/><circle cx="-5.6" cy="2" r="5"/><circle cx="5.6" cy="2" r="5"/><path d="M-1 2 C-1.3 6 -2.6 9 -4.6 11 L4.6 11 C2.6 9 1.3 6 1 2 Z"/></g>
+    <g id="card"><rect x="-30" y="-42" width="60" height="84" rx="6" fill="url(#face)" stroke="#c9b893"/><rect x="-22" y="-32" width="44" height="64" rx="3" fill="#1b2547" opacity=".08"/></g>
+  </defs>
+  <rect width="320" height="180" fill="url(#velvet)"/>
+  <g fill="#f0d58a">
+    <circle cx="30" cy="24" r="1"/><circle cx="64" cy="58" r=".8"/><circle cx="286" cy="22" r="1.2"/><circle cx="250" cy="60" r=".8"/><circle cx="300" cy="96" r=".9"/><circle cx="18" cy="110" r=".8"/><circle cx="110" cy="16" r=".7"/>
+  </g>
+  <ellipse cx="160" cy="132" rx="120" ry="30" fill="#d9b65c" opacity=".12" filter="url(#blur)"/>
+  <g filter="url(#sh)">
+    <g transform="translate(112 118) rotate(-14)">
+      <use xlink:href="#card"/>
+      <text x="-23" y="-26" font-family="Georgia, serif" font-weight="700" font-size="15" fill="#1c1b22">V</text>
+      <use xlink:href="#club" transform="translate(-18 -14) scale(.45)" fill="#1c1b22"/>
+      <use xlink:href="#club" transform="translate(0 8) scale(1.2)" fill="#2f4c8a"/>
+    </g>
+    <g transform="translate(208 118) rotate(14)">
+      <use xlink:href="#card"/>
+      <text x="-23" y="-26" font-family="Georgia, serif" font-weight="700" font-size="15" fill="#b3263a">D</text>
+      <use xlink:href="#heart" transform="translate(-18 -14) scale(.45)" fill="#b3263a"/>
+      <use xlink:href="#heart" transform="translate(0 8) scale(1.2)" fill="#b3263a"/>
+    </g>
+    <g transform="translate(160 110)">
+      <use xlink:href="#card"/>
+      <text x="-23" y="-26" font-family="Georgia, serif" font-weight="700" font-size="15" fill="#1c1b22">R</text>
+      <use xlink:href="#spade" transform="translate(-18 -14) scale(.45)" fill="#1c1b22"/>
+      <use xlink:href="#spade" transform="translate(0 10) scale(1.25)" fill="#1c1b22"/>
+      <path d="M-22 22 L-8 6 L-2 14 L8 -2" fill="none" stroke="#9c2a2a" stroke-width="1.6" stroke-linecap="round"/>
+    </g>
+  </g>
+  <g transform="translate(160 40) rotate(-18)" filter="url(#sh)">
+    <path d="M-30 12 L-34 -14 L-17 -2 L0 -22 L17 -2 L34 -14 L30 12 Z" fill="url(#gold)" stroke="#76520e" stroke-width="1.2" stroke-linejoin="round"/>
+    <rect x="-31" y="10" width="62" height="9" rx="2" fill="url(#gold)" stroke="#76520e" stroke-width="1.2"/>
+    <circle cx="0" cy="14.5" r="3" fill="#b3263a"/><circle cx="-18" cy="14.5" r="2.2" fill="#2f4c8a"/><circle cx="18" cy="14.5" r="2.2" fill="#16653a"/>
+    <circle cx="-34" cy="-14" r="2.6" fill="#f6d98e"/><circle cx="0" cy="-22" r="2.8" fill="#f6d98e"/><circle cx="34" cy="-14" r="2.6" fill="#f6d98e"/>
+  </g>
+  <g stroke="#f0d58a" stroke-opacity=".45" stroke-linecap="round" stroke-width="1.5">
+    <path d="M116 8 L124 22"/><path d="M200 4 L196 18"/><path d="M134 2 L139 12"/>
+  </g>
+</svg>

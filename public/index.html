@@ -3,38 +3,62 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0e110d" />
   <title>Game Hub</title>
+  <link rel="preload" href="/vendor/tapis/fonts/cinzel-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
+  <!-- Icônes du Hub (utilisées avec <svg><use href="#i-..."/></svg>) -->
+  <svg width="0" height="0" class="sr-only" aria-hidden="true">
+    <symbol id="i-spade" viewBox="-12 -12 24 24"><path d="M0 -11 C3 -6 11 -1.5 11 3.5 C11 7.5 7 9 4 7.5 C2.6 6.8 1.6 5.6 1 4.4 C1.4 7.5 2.6 9.6 4.4 11 L-4.4 11 C-2.6 9.6 -1.4 7.5 -1 4.4 C-1.6 5.6 -2.6 6.8 -4 7.5 C-7 9 -11 7.5 -11 3.5 C-11 -1.5 -3 -6 0 -11 Z" fill="currentColor"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1.2 1.2M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1.2-1.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></symbol>
+    <symbol id="i-enter" viewBox="0 0 24 24"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4M10 16l4-4-4-4M14 12H4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-exit" viewBox="0 0 24 24"><path d="M10 20H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h4M15 16l4-4-4-4M19 12H9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M10 6l-6 6 6 6M4 12h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21v-1a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v1M16 3.5a4 4 0 0 1 0 7.5M18 14a6 6 0 0 1 4 5.6V21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-crown" viewBox="0 0 24 24"><path d="M3 18 2 7l5.5 4L12 4l4.5 7L22 7l-1 11z" fill="currentColor"/></symbol>
+    <symbol id="i-discord" viewBox="0 0 24 24"><path d="M19.6 5.3A17 17 0 0 0 15.4 4l-.5 1a15.6 15.6 0 0 0-5.8 0L8.6 4a17 17 0 0 0-4.2 1.3C1.7 9.3 1 13.2 1.3 17a17 17 0 0 0 5.2 2.6l1.1-1.8a11 11 0 0 1-1.7-.8l.4-.3a12.2 12.2 0 0 0 11.4 0l.4.3a11 11 0 0 1-1.7.8l1.1 1.8a17 17 0 0 0 5.2-2.6c.4-4.4-.7-8.3-3.1-11.7zM8.5 14.7c-1 0-1.9-1-1.9-2.1s.8-2.1 1.9-2.1 1.9 1 1.9 2.1-.8 2.1-1.9 2.1zm7 0c-1 0-1.9-1-1.9-2.1s.8-2.1 1.9-2.1 1.9 1 1.9 2.1-.8 2.1-1.9 2.1z" fill="currentColor"/></symbol>
+  </svg>
+
   <!-- ===================================================== CONNEXION (Discord) -->
-  <section id="screen-login" class="screen center-screen hidden">
-    <div class="home-card">
-      <h1 class="logo">♠&#xFE0E; ♥&#xFE0E; <span>Game Hub</span> ♦&#xFE0E; ♣&#xFE0E;</h1>
-      <p class="tagline">Des jeux de cartes entre amis, en temps réel.</p>
-      <a id="btn-discord" class="btn btn-discord btn-block" href="/auth/discord">Se connecter avec Discord</a>
-      <p class="muted center small">Première visite ? Votre demande sera envoyée à l'administrateur.</p>
-      <p id="login-error" class="error" role="alert"></p>
+  <section id="screen-login" class="screen hub-ui welcome-screen hidden">
+    <div class="welcome">
+      <div class="welcome-card">
+        <p class="kicker">Salon de jeux entre amis</p>
+        <h1 class="hero-brand"><svg class="brand-suit" aria-hidden="true"><use href="#i-spade"/></svg> Game Hub</h1>
+        <p class="tagline">Cartes, casino et donjon, en temps réel. La voix, c'est sur Discord.</p>
+        <a id="btn-discord" class="btn btn-discord btn-lg btn-block" href="/auth/discord">
+          <svg class="ico" aria-hidden="true"><use href="#i-discord"/></svg> Se connecter avec Discord
+        </a>
+        <p class="muted center small">Première visite ? Ta demande part chez l'admin : tu entres dès qu'il accepte.</p>
+        <p id="login-error" class="error" role="alert"></p>
+      </div>
+      <ul id="login-games" class="cover-strip" aria-label="Les jeux du salon"></ul>
     </div>
   </section>
 
   <!-- ===================================================== DEMANDE EN ATTENTE / REFUSÉE -->
-  <section id="screen-pending" class="screen center-screen hidden">
-    <div class="home-card center">
-      <img id="pending-avatar" class="avatar avatar-lg hidden" alt="" />
-      <h1 id="pending-title" class="pending-title">Demande envoyée</h1>
-      <p id="pending-text" class="muted"></p>
-      <p id="pending-wait" class="pending-wait"><span class="pulse-dot"></span> Cette page se met à jour toute seule.</p>
-      <button class="btn btn-ghost btn-small js-logout">Changer de compte</button>
+  <section id="screen-pending" class="screen hub-ui welcome-screen hidden">
+    <div class="welcome">
+      <div class="welcome-card center">
+        <img id="pending-avatar" class="avatar avatar-lg hidden" alt="" />
+        <h1 id="pending-title" class="pending-title">Demande envoyée</h1>
+        <p id="pending-text" class="muted"></p>
+        <p id="pending-wait" class="pending-wait"><span class="pulse-dot"></span> Cette page se met à jour toute seule.</p>
+        <button class="btn btn-ghost btn-small js-logout">Changer de compte</button>
+      </div>
     </div>
   </section>
 
   <!-- ===================================================== HUB (accueil connecté) -->
-  <section id="screen-home" class="screen hidden">
+  <section id="screen-home" class="screen hub-ui hidden">
     <header class="topbar hub-topbar">
-      <div class="brand">♠&#xFE0E; <span>Game Hub</span></div>
+      <div class="brand"><svg class="brand-suit" aria-hidden="true"><use href="#i-spade"/></svg> <span>Game Hub</span></div>
       <div class="topbar-actions">
-        <span class="online-pill"><span class="status-dot"></span> <span id="online-count">0</span> en ligne</span>
+        <span class="online-pill" title="Joueurs connectés au Hub"><span class="status-dot"></span> <span id="online-count">0</span> en ligne</span>
         <div id="user-chip" class="user-chip hidden">
           <img id="user-avatar" class="avatar avatar-sm hidden" alt="" />
           <strong id="user-name"></strong>
@@ -46,43 +70,66 @@
 
     <div class="hub-layout">
       <main class="hub-main">
-        <section class="panel hub-welcome">
-          <h1 id="welcome-title">Bienvenue !</h1>
-          <p class="muted">Créez un salon et partagez son code, ou rejoignez une partie ouverte.</p>
-          <div class="play-row">
+        <section class="hero">
+          <div class="hero-text">
+            <p class="kicker">Ce soir au salon</p>
+            <h1 id="welcome-title">Bienvenue !</h1>
+            <p class="hero-sub">Ouvre une table et partage son code, ou rejoins une partie en cours de préparation.</p>
+          </div>
+          <div class="hero-actions">
             <label id="field-name" class="field">
-              <span>Votre pseudo</span>
+              <span>Ton pseudo</span>
               <input id="input-name" maxlength="20" autocomplete="nickname" placeholder="ex. Lancelot" />
             </label>
-            <button id="btn-create" class="btn btn-primary">Créer un salon</button>
+            <button id="btn-create" class="btn btn-primary btn-lg">
+              <svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg> Créer un salon
+            </button>
             <form id="form-join" class="join-row">
               <label class="sr-only" for="input-code">Code du salon</label>
               <input id="input-code" maxlength="5" placeholder="CODE" autocomplete="off" spellcheck="false" />
-              <button class="btn">Rejoindre</button>
+              <button class="btn btn-lg"><svg class="ico" aria-hidden="true"><use href="#i-enter"/></svg> Rejoindre</button>
             </form>
+            <p id="home-error" class="error" role="alert"></p>
           </div>
-          <p id="home-error" class="error" role="alert"></p>
         </section>
 
-        <section class="panel">
-          <h2>Salons <span id="room-count" class="muted"></span></h2>
+        <section class="hub-section" aria-labelledby="catalog-title">
+          <div class="section-head">
+            <h2 id="catalog-title">Les jeux</h2>
+            <p class="muted">Un clic sur un jeu ouvre un salon avec ce jeu.</p>
+          </div>
+          <ul id="catalog" class="catalog"></ul>
+        </section>
+
+        <section class="hub-section" aria-labelledby="rooms-title">
+          <div class="section-head">
+            <h2 id="rooms-title">Tables <span id="room-count" class="count-pill hidden"></span></h2>
+          </div>
           <ul id="room-list" class="room-list"></ul>
         </section>
 
-        <section id="panel-stats" class="panel hidden">
-          <h2>Mes statistiques</h2>
-          <div id="stats-cards" class="stats-cards"></div>
-          <h3 class="subhead">Dernières parties</h3>
-          <ul id="recent-list" class="recent-list"></ul>
-        </section>
-
-        <section id="panel-leaderboard" class="panel hidden">
-          <div class="panel-head">
-            <h2>Classement</h2>
-            <label class="sr-only" for="lb-game">Jeu</label>
-            <select id="lb-game" class="select"></select>
+        <section id="panel-stats" class="hub-section panel hidden" aria-labelledby="stats-title">
+          <div class="section-head">
+            <h2 id="stats-title">Mon carnet</h2>
+            <div class="tabs" role="tablist" aria-label="Mon carnet">
+              <button class="tab" role="tab" id="tab-btn-stats" aria-controls="tab-stats" aria-selected="true" data-tab="stats">Statistiques</button>
+              <button class="tab" role="tab" id="tab-btn-recent" aria-controls="tab-recent" aria-selected="false" data-tab="recent" tabindex="-1">Historique</button>
+              <button class="tab" role="tab" id="tab-btn-lb" aria-controls="panel-leaderboard" aria-selected="false" data-tab="lb" tabindex="-1">Classement</button>
+            </div>
           </div>
-          <ol id="lb-list" class="lb-list"></ol>
+          <div id="tab-stats" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-stats">
+            <div id="stats-cards" class="stats-cards"></div>
+          </div>
+          <div id="tab-recent" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-recent" hidden>
+            <ul id="recent-list" class="recent-list"></ul>
+          </div>
+          <div id="panel-leaderboard" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-lb" hidden>
+            <div class="lb-head">
+              <label for="lb-game" class="muted">Jeu</label>
+              <select id="lb-game" class="select"></select>
+            </div>
+            <ol id="lb-list" class="lb-list"></ol>
+          </div>
         </section>
       </main>
 
@@ -110,34 +157,65 @@
 
   <!-- ===================================================== SALON + JEU -->
   <section id="screen-room" class="screen hidden">
-    <header class="topbar">
-      <div class="room-code">
-        Salon <strong id="room-code"></strong>
-        <button id="btn-copy" class="btn btn-ghost btn-small" title="Copier le lien d'invitation">Copier le lien</button>
+    <header class="topbar room-topbar hub-ui">
+      <div class="room-id">
+        <span class="room-label">Salon</span>
+        <strong id="room-code"></strong>
+        <button id="btn-copy" class="btn btn-ghost btn-small" title="Copier le lien d'invitation">
+          <svg class="ico" aria-hidden="true"><use href="#i-link"/></svg><span class="hide-xs">Copier le lien</span>
+        </button>
       </div>
+      <div id="room-game" class="room-game hidden"></div>
       <div class="topbar-actions">
-        <button id="btn-end-game" class="btn btn-small hidden">Retour au salon</button>
-        <button id="btn-leave" class="btn btn-danger btn-small">Quitter</button>
+        <button id="btn-end-game" class="btn btn-small hidden">
+          <svg class="ico" aria-hidden="true"><use href="#i-back"/></svg><span class="hide-xs">Retour au salon</span>
+        </button>
+        <button id="btn-leave" class="btn btn-danger btn-small">
+          <svg class="ico" aria-hidden="true"><use href="#i-exit"/></svg>Quitter
+        </button>
       </div>
     </header>
 
     <div class="room-layout">
       <main class="room-main">
         <!-- Lobby -->
-        <div id="lobby" class="lobby">
-          <div class="panel">
+        <div id="lobby" class="lobby hub-ui">
+          <aside class="panel lobby-players">
             <h2>Joueurs <span id="player-count" class="muted"></span></h2>
             <ul id="player-list" class="player-list"></ul>
-          </div>
+            <div class="invite">
+              <p class="muted small">Invite tes amis avec le code</p>
+              <button id="btn-copy-invite" class="invite-code" title="Copier le lien d'invitation"></button>
+            </div>
+          </aside>
 
-          <div class="panel">
-            <h2>Choix du jeu</h2>
-            <p id="game-hint" class="muted"></p>
-            <div id="game-list" class="game-list"></div>
-            <div id="game-options" class="game-options"></div>
-            <button id="btn-start" class="btn btn-primary btn-block">Lancer la partie</button>
-            <p id="start-hint" class="muted center"></p>
-          </div>
+          <section class="lobby-main">
+            <div class="panel lobby-games">
+              <div class="section-head">
+                <h2>Choix du jeu</h2>
+                <p id="game-hint" class="muted"></p>
+              </div>
+              <div id="game-list" class="game-list"></div>
+            </div>
+
+            <div id="game-detail" class="panel game-detail">
+              <img id="detail-cover" class="detail-cover" alt="" />
+              <div class="detail-body">
+                <div class="detail-head">
+                  <h3 id="detail-name"></h3>
+                  <span id="detail-players" class="players-range"></span>
+                </div>
+                <p id="detail-desc" class="detail-desc"></p>
+                <div id="game-options" class="game-options"></div>
+              </div>
+              <div class="start-bar">
+                <p id="start-hint" class="muted"></p>
+                <button id="btn-start" class="btn btn-primary btn-lg">
+                  <svg class="ico" aria-hidden="true"><use href="#i-play"/></svg> Lancer la partie
+                </button>
+              </div>
+            </div>
+          </section>
         </div>
 
         <!-- Conteneur dans lequel le module du jeu se monte -->
@@ -146,8 +224,8 @@
     </div>
   </section>
 
-  <div id="toasts" class="toasts"></div>
-  <div id="connection-banner" class="connection-banner hidden">Connexion au serveur perdue, reconnexion...</div>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <div id="connection-banner" class="connection-banner hidden">Connexion au serveur perdue, reconnexion…</div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script type="module" src="/js/app.js"></script>

@@ -1,5 +1,5 @@
 import { el, $ } from './dom.js';
-import { renderLobby, renderStats, renderLeaderboard, renderAdmin } from './dashboard.js';
+import { renderLobby, renderStats, renderLeaderboard, renderAdmin, renderCatalog, renderCoverStrip, cover, avatar, icon } from './dashboard.js';
 
 /* =====================================================================
  * Client du Hub : connexion, salons et montage des modules de jeu.
@@ -79,7 +79,7 @@ function readName() {
   if (state.auth.user) return state.auth.user.name; // mode Discord : nom imposé par le serveur
   const name = nameInput.value.trim();
   if (name.length < 2) {
-    homeError('Entrez un pseudo (2 caractères minimum).');
+    homeError('Choisis un pseudo (2 caractères minimum).');
     nameInput.focus();
     return null;
   }
@@ -87,15 +87,17 @@ function readName() {
   return name;
 }
 
-$('#btn-create').addEventListener('click', async () => {
+async function createRoom(gameId = null) {
   const name = readName();
   if (!name) return;
   try {
     await request('room:create', { name });
+    if (gameId) await request('room:selectGame', { gameId });
   } catch (err) {
     homeError(err.message);
   }
-});
+}
+$('#btn-create').addEventListener('click', () => createRoom());
 
 async function joinRoom(code) {
   const name = readName();
@@ -112,7 +114,7 @@ $('#form-join').addEventListener('submit', async (e) => {
   const name = readName();
   if (!name) return;
   const code = codeInput.value.trim().toUpperCase();
-  if (code.length < 4) return homeError('Entrez le code du salon (4 ou 5 lettres).');
+  if (code.length < 4) return homeError('Entre le code du salon (4 ou 5 lettres).');
   try {
     await request('room:join', { code, name });
   } catch (err) {
@@ -136,83 +138,123 @@ $('#btn-end-game').addEventListener('click', () => {
   request('room:endGame').catch((err) => toast(err.message, 'error'));
 });
 
-$('#btn-start').addEventListener('click', () => {
-  request('room:startGame').catch((err) => toast(err.message, 'error'));
+let startPending = false;
+$('#btn-start').addEventListener('click', async () => {
+  startPending = true;
+  $('#btn-start').disabled = true;
+  try {
+    await request('room:startGame');
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    startPending = false;
+    if (state.room) renderRoom();
+  }
 });
 
-$('#btn-copy').addEventListener('click', async () => {
+async function copyInvite() {
   const link = `${location.origin}/?room=${state.room.code}`;
   try {
     await navigator.clipboard.writeText(link);
     toast('Lien copié !', 'success');
   } catch {
-    prompt('Copiez ce lien :', link);
+    prompt('Copie ce lien :', link);
   }
-});
+}
+$('#btn-copy').addEventListener('click', copyInvite);
+$('#btn-copy-invite').addEventListener('click', copyInvite);
 
 function renderRoom() {
   const room = state.room;
+  const host = isHost();
+  const playing = room.status === 'playing';
+  const selected = gameById(room.selectedGameId);
+  const count = room.players.length;
   $('#room-code').textContent = room.code;
-  $('#btn-end-game').classList.toggle('hidden', !(isHost() && room.status === 'playing'));
+  $('#btn-copy-invite').textContent = room.code;
+  $('#btn-end-game').classList.toggle('hidden', !(host && playing));
 
-  // Joueurs
-  $('#player-count').textContent = `(${room.players.length}/${room.maxPlayers})`;
+  // Jeu en cours affiché dans la barre du salon
+  const current = playing ? gameById(room.gameId) : null;
+  $('#room-game').classList.toggle('hidden', !current);
+  $('#room-game').replaceChildren(...(current ? [current.cover && el('img', { src: current.cover, alt: '' }), el('span', {}, current.name)] : []));
+
+  // Joueurs (+ places libres jusqu'au maximum du jeu choisi)
+  const seats = Math.min(room.maxPlayers, selected?.maxPlayers ?? room.maxPlayers);
+  $('#player-count').textContent = `${count}/${seats}`;
   $('#player-list').replaceChildren(
-    ...room.players.map((p) =>
-      el(
+    ...room.players.map((p, i) => {
+      const me = p.id === state.me.playerId;
+      return el(
         'li',
-        { class: `player ${p.connected ? '' : 'offline'}` },
-        el('span', { class: 'status-dot', title: p.connected ? 'Connecté' : 'Déconnecté' }),
-        p.avatarUrl && el('img', { class: 'avatar avatar-sm', src: p.avatarUrl, alt: '' }),
+        { class: `player ${p.connected ? '' : 'offline'} ${me ? 'is-me' : ''} ${i >= seats ? 'seat-extra' : ''}` },
+        avatar(p, 'md'),
         el('span', { class: 'player-name' }, p.name),
-        p.isHost && el('span', { class: 'badge' }, '👑 Hôte'),
-        p.id === state.me.playerId && el('span', { class: 'badge badge-me' }, 'Vous'),
-      ),
-    ),
+        p.isHost && el('span', { class: 'badge', title: 'Hôte du salon' }, icon('crown'), 'Hôte'),
+        me && el('span', { class: 'badge badge-me' }, 'Toi'),
+        el('span', { class: 'status-dot', title: p.connected ? 'Connecté' : 'Déconnecté' }),
+      );
+    }),
+    ...Array.from({ length: Math.max(0, seats - count) }, () =>
+      el('li', { class: 'player seat-free' }, el('span', { class: 'seat-ring' }), 'Place libre')),
   );
 
-  // Jeux
-  const host = isHost();
-  $('#game-hint').textContent = host
-    ? 'Choisissez le jeu pour ce salon.'
-    : "L'hôte choisit le jeu.";
+  // Choix du jeu
+  $('#game-hint').textContent = host ? 'Choisis le jeu de la table.' : "L'hôte choisit le jeu.";
   $('#game-list').replaceChildren(
     ...state.games.map((g) => {
-      const selected = g.id === room.selectedGameId;
-      const fits = room.players.length >= g.minPlayers && room.players.length <= g.maxPlayers;
+      const isSel = g.id === room.selectedGameId;
+      const fits = count >= g.minPlayers && count <= g.maxPlayers;
       return el(
         'button',
         {
-          class: `game-card ${selected ? 'selected' : ''}`,
+          class: `game-card ${isSel ? 'selected' : ''}`,
           disabled: !host,
-          onclick: () => !selected && request('room:selectGame', { gameId: g.id }).catch((err) => toast(err.message, 'error')),
+          'aria-pressed': String(isSel),
+          title: g.description,
+          onclick: () => !isSel && request('room:selectGame', { gameId: g.id }).catch((err) => toast(err.message, 'error')),
         },
-        el('strong', {}, g.name),
-        el('span', { class: `players-range ${fits ? '' : 'warn'}` }, `${g.minPlayers}–${g.maxPlayers} joueurs`),
-        el('p', {}, g.description),
+        cover(g),
+        isSel && el('span', { class: 'check', 'aria-hidden': 'true' }, '✓'),
+        el('span', { class: 'game-card-body' },
+          el('strong', {}, g.name),
+          el('span', { class: `players-range ${fits ? '' : 'warn'}` }, playersText(g)),
+        ),
       );
     }),
   );
 
-  const selected = gameById(room.selectedGameId);
+  // Détail du jeu choisi : description, options, lancement
+  $('#game-detail').classList.toggle('hidden', !selected);
+  if (selected) {
+    const fits = count >= selected.minPlayers && count <= selected.maxPlayers;
+    if (selected.cover) $('#detail-cover').src = selected.cover;
+    else $('#detail-cover').removeAttribute('src');
+    $('#detail-name').textContent = selected.name;
+    $('#detail-players').className = `players-range ${fits ? '' : 'warn'}`;
+    $('#detail-players').replaceChildren(icon('users'), playersText(selected));
+    $('#detail-desc').textContent = selected.description;
+  }
   renderGameOptions(selected, room, host);
-  const count = room.players.length;
   let hint = '';
-  if (!selected) hint = 'Aucun jeu sélectionné.';
+  if (!selected) hint = 'Aucun jeu choisi.';
   else if (count < selected.minPlayers || count > selected.maxPlayers)
-    hint = `${selected.name} nécessite ${selected.minPlayers} à ${selected.maxPlayers} joueurs.`;
-  else if (!host) hint = "En attente du lancement par l'hôte...";
+    hint = `${selected.name} se joue ${selected.minPlayers === selected.maxPlayers ? `à ${selected.minPlayers}` : `de ${selected.minPlayers} à ${selected.maxPlayers}`} joueurs : vous êtes ${count}.`;
+  else if (!host) hint = "En attente du lancement par l'hôte…";
+  else hint = count === 1 ? 'Tu joues seul : invite tes amis avec le code, ou lance-toi.' : `${count} joueurs à table.`;
   $('#start-hint').textContent = hint;
   $('#btn-start').classList.toggle('hidden', !host);
-  $('#btn-start').disabled = !selected || count < selected.minPlayers || count > selected.maxPlayers;
+  $('#btn-start').disabled = !selected || count < selected.minPlayers || count > selected.maxPlayers || startPending;
 
   // Lobby vs jeu
-  const playing = room.status === 'playing';
   $('#lobby').classList.toggle('hidden', playing);
+  $('#lobby').classList.toggle('is-host', host);
   $('#game-root').classList.toggle('hidden', !playing);
   if (playing) ensureGameMounted(room.gameId);
   else unmountGame();
 }
+
+const playersText = (g) => (g.minPlayers === g.maxPlayers ? `${g.minPlayers} joueurs` : `${g.minPlayers} à ${g.maxPlayers} joueurs`);
 
 /** Options du jeu sélectionné : l'hôte les règle, les autres joueurs les voient. */
 function renderGameOptions(game, room, host) {
@@ -294,6 +336,8 @@ socket.on('session', ({ token, playerId, roomCode }) => {
 
 socket.on('games:list', (games) => {
   state.games = games;
+  renderCatalog(games, { onPlay: createRoom });
+  renderLobby(state.lobby, { onJoin: joinRoom, games });
   if (state.room) renderRoom();
   renderLeaderboardSelect();
 });
@@ -346,7 +390,7 @@ socket.on('connect_error', (err) => {
 
 socket.on('hub:lobby', (lobby) => {
   state.lobby = lobby;
-  renderLobby(lobby, { onJoin: joinRoom });
+  renderLobby(lobby, { onJoin: joinRoom, games: state.games });
 });
 
 socket.on('stats:changed', () => {
@@ -409,17 +453,58 @@ async function decide(user, status) {
 }
 
 function refreshDashboard() {
-  renderLobby(state.lobby, { onJoin: joinRoom });
+  renderLobby(state.lobby, { onJoin: joinRoom, games: state.games });
   loadStats();
   loadLeaderboard();
   loadAdmin();
 }
 
+// ------------------------------------------------------------------ carnet (onglets)
+
+const tabs = [...document.querySelectorAll('#panel-stats [role="tab"]')];
+function selectTab(tab) {
+  for (const t of tabs) {
+    const on = t === tab;
+    t.setAttribute('aria-selected', String(on));
+    t.tabIndex = on ? 0 : -1;
+    $(`#${t.getAttribute('aria-controls')}`).hidden = !on;
+  }
+  try { localStorage.setItem('hub.tab', tab.dataset.tab); } catch { /* navigation privée */ }
+}
+for (const tab of tabs) {
+  tab.addEventListener('click', () => selectTab(tab));
+  tab.addEventListener('keydown', (e) => {
+    const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+    if (!step) return;
+    const next = tabs[(tabs.indexOf(tab) + step + tabs.length) % tabs.length];
+    selectTab(next);
+    next.focus();
+  });
+}
+const savedTab = tabs.find((t) => t.dataset.tab === store.get('hub.tab'));
+if (savedTab) selectTab(savedTab);
+
+function greeting() {
+  const h = new Date().getHours();
+  return h >= 18 || h < 5 ? 'Bonsoir' : 'Bonjour';
+}
+
+let loginGamesLoaded = false;
+async function loadLoginGames() {
+  if (loginGamesLoaded) return;
+  try {
+    renderCoverStrip(await fetch('/api/games').then((r) => r.json()));
+    loginGamesLoaded = true;
+  } catch {
+    /* décoratif : rien à faire */
+  }
+}
+
 // ------------------------------------------------------------------ connexion Discord
 
 const AUTH_ERRORS = {
-  refuse: "Accès refusé : votre compte Discord n'est pas autorisé sur ce site.",
-  erreur: 'La connexion Discord a échoué, réessayez.',
+  refuse: "Accès refusé : ton compte Discord n'est pas autorisé sur ce site.",
+  erreur: 'La connexion Discord a échoué, réessaie.',
 };
 
 let pendingTimer = null;
@@ -434,6 +519,7 @@ function renderAuth() {
 
   if (enabled && !user) {
     showScreen('login');
+    loadLoginGames();
     return;
   }
   if (enabled && user.status !== 'approved') {
@@ -441,7 +527,7 @@ function renderAuth() {
     $('#pending-title').textContent = rejected ? 'Accès refusé' : 'Demande envoyée';
     $('#pending-text').textContent = rejected
       ? "L'administrateur n'a pas autorisé ce compte Discord."
-      : `Bonjour ${user.name} ! Un administrateur doit valider votre accès. Vous entrerez automatiquement dès qu'il aura accepté.`;
+      : `Bonjour ${user.name} ! Un administrateur doit valider ton accès. Tu entreras automatiquement dès qu'il aura accepté.`;
     $('#pending-wait').classList.toggle('hidden', rejected);
     $('#pending-avatar').src = user.avatarUrl || '';
     $('#pending-avatar').classList.toggle('hidden', !user.avatarUrl);
@@ -456,9 +542,8 @@ function renderAuth() {
   $('#btn-logout').classList.toggle('hidden', !discord);
   $('#field-name').classList.toggle('hidden', Boolean(discord));
   $('#panel-stats').classList.toggle('hidden', !discord);
-  $('#panel-leaderboard').classList.toggle('hidden', !discord);
   $('#panel-admin').classList.toggle('hidden', !user?.isAdmin);
-  $('#welcome-title').textContent = discord ? `Bonjour ${user.name} !` : 'Bienvenue !';
+  $('#welcome-title').textContent = discord ? `${greeting()}, ${user.name} !` : 'Bienvenue au salon !';
   if (discord) {
     $('#user-name').textContent = user.name;
     $('#user-avatar').src = user.avatarUrl || '';

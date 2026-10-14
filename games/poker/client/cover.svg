@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 320 180" role="img" aria-label="Poker : le tableau de cinq cartes, des jetons et le bouton du donneur">
+  <defs>
+    <radialGradient id="felt" cx="50%" cy="45%" r="60%">
+      <stop offset="0" stop-color="#2a6447"/><stop offset=".7" stop-color="#1c4632"/><stop offset="1" stop-color="#123122"/>
+    </radialGradient>
+    <radialGradient id="room" cx="50%" cy="0%" r="110%">
+      <stop offset="0" stop-color="#252a21"/><stop offset="1" stop-color="#0e110d"/>
+    </radialGradient>
+    <linearGradient id="face" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbf7ec"/><stop offset="1" stop-color="#ece3cc"/></linearGradient>
+    <filter id="sh" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000" flood-opacity=".45"/></filter>
+    <path id="spade" d="M0 -11 C3 -6 11 -1.5 11 3.5 C11 7.5 7 9 4 7.5 C2.6 6.8 1.6 5.6 1 4.4 C1.4 7.5 2.6 9.6 4.4 11 L-4.4 11 C-2.6 9.6 -1.4 7.5 -1 4.4 C-1.6 5.6 -2.6 6.8 -4 7.5 C-7 9 -11 7.5 -11 3.5 C-11 -1.5 -3 -6 0 -11 Z"/>
+    <path id="heart" d="M0 9 C-3 6 -11 1 -11 -4.5 C-11 -9 -6 -11 -3 -9 C-1.6 -8 -.6 -6.6 0 -5.4 C.6 -6.6 1.6 -8 3 -9 C6 -11 11 -9 11 -4.5 C11 1 3 6 0 9 Z"/>
+    <path id="diamond" d="M0 -11 L8 0 L0 11 L-8 0 Z"/>
+    <g id="back">
+      <rect x="-19" y="-27" width="38" height="54" rx="4" fill="#7a1f2b" stroke="#dbb666" stroke-width="1"/>
+      <rect x="-14.5" y="-22.5" width="29" height="45" rx="2" fill="none" stroke="#dbb666" stroke-opacity=".7" stroke-width=".8"/>
+      <path d="M0 -10 L7 0 L0 10 L-7 0 Z" fill="none" stroke="#dbb666" stroke-width="1"/>
+    </g>
+    <g id="chip">
+      <ellipse cx="0" cy="2.5" rx="15" ry="5.5" fill="#000" opacity=".25"/>
+      <ellipse cx="0" cy="0" rx="15" ry="5.5" fill="currentColor"/>
+      <ellipse cx="0" cy="0" rx="15" ry="5.5" fill="none" stroke="#f7f1e3" stroke-width="2.2" stroke-dasharray="3.5 4.5"/>
+    </g>
+  </defs>
+  <rect width="320" height="180" fill="url(#room)"/>
+  <ellipse cx="160" cy="100" rx="176" ry="88" fill="#3b2216"/>
+  <ellipse cx="160" cy="100" rx="176" ry="88" fill="none" stroke="#dbb666" stroke-opacity=".5" stroke-width="1.5"/>
+  <ellipse cx="160" cy="100" rx="160" ry="74" fill="url(#felt)"/>
+  <ellipse cx="160" cy="100" rx="118" ry="48" fill="none" stroke="#dbb666" stroke-opacity=".25"/>
+  <g filter="url(#sh)">
+    <g transform="translate(80 94)">
+      <rect x="-19" y="-27" width="38" height="54" rx="4" fill="url(#face)" stroke="#c9b893"/>
+      <text x="-14" y="-12" font-family="Georgia, serif" font-weight="700" font-size="12" fill="#b3263a">A</text>
+      <use xlink:href="#heart" transform="translate(0 6) scale(.95)" fill="#b3263a"/>
+    </g>
+    <g transform="translate(120 94)">
+      <rect x="-19" y="-27" width="38" height="54" rx="4" fill="url(#face)" stroke="#c9b893"/>
+      <text x="-14" y="-12" font-family="Georgia, serif" font-weight="700" font-size="12" fill="#1c1b22">R</text>
+      <use xlink:href="#spade" transform="translate(0 6) scale(.95)" fill="#1c1b22"/>
+    </g>
+    <g transform="translate(160 94)">
+      <rect x="-19" y="-27" width="38" height="54" rx="4" fill="url(#face)" stroke="#c9b893"/>
+      <text x="-14" y="-12" font-family="Georgia, serif" font-weight="700" font-size="12" fill="#b3263a">10</text>
+      <use xlink:href="#diamond" transform="translate(0 6) scale(.95)" fill="#b3263a"/>
+    </g>
+    <use xlink:href="#back" transform="translate(200 94)"/>
+    <use xlink:href="#back" transform="translate(240 94)"/>
+  </g>
+  <g transform="translate(160 160)">
+    <use xlink:href="#chip" color="#9c2a2a" transform="translate(-12 0)"/>
+    <use xlink:href="#chip" color="#9c2a2a" transform="translate(-12 -5)"/>
+    <use xlink:href="#chip" color="#1c1b22" transform="translate(-12 -10)"/>
+    <use xlink:href="#chip" color="#1f53a0" transform="translate(14 2)"/>
+    <use xlink:href="#chip" color="#dbb666" transform="translate(14 -3)"/>
+  </g>
+  <g transform="translate(268 48)" filter="url(#sh)">
+    <circle r="13" fill="#f7f1e3" stroke="#c9b893" stroke-width="1.5"/>
+    <circle r="10" fill="none" stroke="#1c1b22" stroke-opacity=".3"/>
+    <text y="5" text-anchor="middle" font-family="Georgia, serif" font-weight="700" font-size="14" fill="#1c1b22">D</text>
+  </g>
+  <g transform="translate(52 44)" opacity=".95">
+    <use xlink:href="#chip" color="#16653a"/>
+    <use xlink:href="#chip" color="#16653a" transform="translate(0 -5)"/>
+  </g>
+</svg>
