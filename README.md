@@ -2,7 +2,8 @@
 
 Hub web temps réel (Node.js · Express · Socket.io · Vanilla JS en modules ES) pour héberger
 plusieurs mini-jeux de société / cartes : **La Chute des Rois** (coopératif, 1-4 joueurs), **Tarot** (3-5 joueurs),
-**Blackjack** (1-5 joueurs contre la banque), **Poker Texas Hold'em** (2-8 joueurs, tournoi No Limit)
+**Blackjack** (1-5 joueurs contre la banque), **Poker Texas Hold'em** (2-8 joueurs, tournoi No Limit),
+**Belote** (4 joueurs en équipes), **Président** (3-8 joueurs), **Rami 51** (2-6 joueurs)
 et **Les Profondeurs** (exploration de donjon coopérative aux dés, 1-4 joueurs).
 
 ## Démarrage
@@ -43,6 +44,9 @@ web-game/
 ├── games/                        ← UN DOSSIER = UN JEU
 │   ├── tarot/                    Tarot français (3-5 joueurs, appel au Roi à 5)
 │   ├── blackjack/                Blackjack (1-5 joueurs contre la banque)
+│   ├── belote/                   Belote classique (4 joueurs, 2 équipes)
+│   ├── president/                Président / Trouduc (3-8 joueurs)
+│   ├── rami/                     Rami 51 (2-6 joueurs, 2 jeux + 4 Jokers)
 │   ├── poker/                    Poker Texas Hold'em No Limit en tournoi (2-8 joueurs)
 │   ├── profondeurs/              Les Profondeurs (dés, 1-4 joueurs)
 │   │   ├── server/               moteur + contenu original (héros, salles, gardiens, boss)
@@ -152,9 +156,50 @@ Tarot français (règles FFT), 3 à 5 joueurs ; une partie = une donne par joueu
 - Après chaque main, n'importe quel joueur encore en jeu lance la suivante. Stats : score = adversaires battus.
 - Pas encore : actions anticipées, minuteur de parole, montrer ses cartes après une victoire sans abattage.
 
+## Belote — règles implémentées
+
+- Belote classique (pas la coinche), 4 joueurs : les joueurs 1 et 3 contre 2 et 4, partenaires face à face.
+- Réglages du salon : partie en 501 / 1001 / 1501 points ; annonces oui ou non.
+- 32 cartes ; mélangées une fois, puis les plis sont ramassés et le jeu est coupé, comme à une vraie table.
+  Donne 3 + 2, une carte retournée ; 1er tour : prendre la couleur retournée ou passer ; 2e tour : nommer une
+  autre couleur ; tout le monde passe deux fois = on redonne.
+- Jeu (règles FFB) : fournir ; sinon couper, sauf si le partenaire est maître ; monter si possible ; pisser
+  (sous-couper) seulement sans autre choix.
+- Belote-rebelote 20 (toujours gardée), dix de der 10, total 162 ; capot 252.
+- Annonces : tierce 20, cinquante 50, cent 100, carrés de Valets 200, de 9 150, d'As/10/Rois/Dames 100. Seule la
+  meilleure équipe marque, les cartes sont montrées au 2e pli.
+- Points réels, sans arrondi. Le preneur doit faire strictement plus que la défense, sinon il est dedans.
+  En cas de litige, ses points sont mis en attente pour la donne suivante.
+
+## Président — règles implémentées
+
+- 3 à 8 joueurs, un jeu de 52 cartes ; ordre 3 < 4 < … < R < As < 2.
+- Réglages du salon : 5 / 8 / 12 manches ; « le 2 ferme le pli » ou 2 normal ; révolution sur un carré (oui/non).
+- On pose 1 à 4 cartes de même valeur ; il faut le même nombre, strictement plus fort, ou passer. Passer
+  n'exclut pas du pli. Quand tout le monde a passé, le dernier à avoir joué entame.
+- Titres par ordre de sortie : Président, Vice-président, Neutre(s), Vice-trouduc, Trouduc (à 3 : Président,
+  Neutre, Trouduc). Points : 4 / 3 / 2 / 1 / 0.
+- Échange en début de manche : les 2 meilleures cartes du Trouduc vont au Président, qui en rend 2 de son choix
+  (1 carte entre Vice-trouduc et Vice-président dès 4 joueurs). Le Trouduc entame. Le plus haut total gagne.
+
+## Rami 51 — règles implémentées
+
+- 2 à 6 joueurs, 2 jeux + 4 Jokers (108 cartes), 13 cartes chacun ; une carte retournée commence la défausse.
+- Réglages du salon : ouverture à 51 ou 30 points ; 3 / 5 / 7 donnes.
+- Tour : piocher (talon ou défausse), poser, compléter, échanger un Joker, puis défausser. Une carte prise à la
+  défausse doit être posée dans le même tour.
+- Combinaisons : brelans/carrés de couleurs différentes, suites de 3+ cartes de même couleur (As en bas ou en haut,
+  jamais au milieu) ; un Joker au plus par combinaison.
+- Ouverture : 51 points (ou 30) en une fois avec ses propres combinaisons. Compléter et échanger un Joker :
+  seulement après avoir ouvert.
+- On sort en défaussant sa dernière carte ou en posant tout. « Rami » (ouvrir et sortir dans le même tour) double
+  les pénalités des autres.
+- Pénalités : cartes en main (Joker 20, As 11, figures 10). Le plus petit total gagne. Stats : « points d'avance »
+  (le Hub garde le meilleur score).
+
 ## Jeux de cartes — design
 
-La Chute des Rois, le Tarot, le Blackjack et le Poker utilisent le design system Claude Design **« Tapis »**
+Tous les jeux de cartes (Chute des Rois, Tarot, Blackjack, Poker, Belote, Président, Rami) utilisent le design system Claude Design **« Tapis »**
 (https://claude.ai/artifact/M8sPJm4BwpyyvVesz23YyD) : table « cour » (velours bleu nuit, or, parchemin) et table
 « salon » (feutre vert, laiton, ivoire), 130 cartes dessinées en code, PC 16:9 sans défilement et mobile en colonne,
 catalogue d'animations (distribution, pose, impact, K.O., carte déchirée, nouveau boss, pli ramassé, chien…).

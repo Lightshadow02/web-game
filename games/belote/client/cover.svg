@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 320 180" role="img" aria-label="Belote : le Valet, le 9, le Roi et la Dame d'atout à Cœur en éventail, et le médaillon d'atout">
+  <defs>
+    <radialGradient id="felt" cx="50%" cy="35%" r="90%">
+      <stop offset="0" stop-color="#2a6447"/><stop offset=".6" stop-color="#1c4632"/><stop offset="1" stop-color="#0d2419"/>
+    </radialGradient>
+    <linearGradient id="face" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbf7ec"/><stop offset="1" stop-color="#ece3cc"/></linearGradient>
+    <radialGradient id="medal" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#fbf7ec"/><stop offset="1" stop-color="#e5d3a6"/></radialGradient>
+    <filter id="sh" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000" flood-opacity=".45"/></filter>
+    <path id="heart" d="M0 9 C-3 6 -11 1 -11 -4.5 C-11 -9 -6 -11 -3 -9 C-1.6 -8 -.6 -6.6 0 -5.4 C.6 -6.6 1.6 -8 3 -9 C6 -11 11 -9 11 -4.5 C11 1 3 6 0 9 Z"/>
+    <path id="spade" d="M0 -11 C3 -6 11 -1.5 11 3.5 C11 7.5 7 9 4 7.5 C2.6 6.8 1.6 5.6 1 4.4 C1.4 7.5 2.6 9.6 4.4 11 L-4.4 11 C-2.6 9.6 -1.4 7.5 -1 4.4 C-1.6 5.6 -2.6 6.8 -4 7.5 C-7 9 -11 7.5 -11 3.5 C-11 -1.5 -3 -6 0 -11 Z"/>
+    <g id="card">
+      <rect x="-30" y="-46" width="60" height="92" rx="6" fill="url(#face)" stroke="#c9b893"/>
+      <rect x="-25" y="-41" width="50" height="82" rx="4" fill="none" stroke="#c9b893" stroke-opacity=".7"/>
+    </g>
+  </defs>
+  <rect width="320" height="180" fill="url(#felt)"/>
+  <ellipse cx="160" cy="92" rx="118" ry="70" fill="none" stroke="#dbb666" stroke-opacity=".22"/>
+  <ellipse cx="160" cy="176" rx="150" ry="22" fill="#000" opacity=".2"/>
+  <g filter="url(#sh)">
+    <!-- 9 de Cœur -->
+    <g transform="translate(160 210) rotate(-33) translate(0 -112)">
+      <use xlink:href="#card"/>
+      <text x="-23" y="-28" font-family="Georgia, serif" font-weight="700" font-size="15" fill="#b3263a">9</text>
+      <use xlink:href="#heart" transform="translate(-18 -16) scale(.42)" fill="#b3263a"/>
+      <use xlink:href="#heart" transform="translate(-10 -24) scale(.5)" fill="#b3263a"/>
+      <use xlink:href="#heart" transform="translate(-10 -9) scale(.5)" fill="#b3263a"/>
+      <use xlink:href="#heart" transform="translate(-10 9) scale(.5) rotate(180)" fill="#b3263a"/>
+      <use xlink:href="#heart" transform="translate(-10 24) scale(.5) rotate(180)" fill="#b3263a"/>
+      <use xlink:href="#heart" transform="translate(10 -24) scale(.5)" fill="#b3263a"/>
+      <use xlink:href="#heart" transform="translate(10 -9) scale(.5)" fill="#b3263a"/>
+      <use xlink:href="#heart" transform="translate(10 9) scale(.5) rotate(180)" fill="#b3263a"/>
+      <use xlink:href="#heart" transform="translate(10 24) scale(.5) rotate(180)" fill="#b3263a"/>
+      <use xlink:href="#heart" transform="translate(0 0) scale(.5)" fill="#b3263a"/>
+    </g>
+    <!-- Valet de Cœur, la plus forte carte d'atout -->
+    <g transform="translate(160 210) rotate(-11) translate(0 -112)">
+      <use xlink:href="#card"/>
+      <rect x="-27.5" y="-43.5" width="55" height="87" rx="5" fill="none" stroke="#d9a93a" stroke-width="1.6"/>
+      <text x="-23" y="-28" font-family="Georgia, serif" font-weight="700" font-size="15" fill="#b3263a">V</text>
+      <use xlink:href="#heart" transform="translate(-18 -16) scale(.42)" fill="#b3263a"/>
+      <path d="M-10 -14 L-10 -22 L0 -27 L10 -22 L10 -14 Z" fill="#1f4f8a" stroke="#14325a" stroke-width=".8"/>
+      <circle cx="0" cy="-6" r="8" fill="#f1cfa4" stroke="#8a5a2b" stroke-width=".8"/>
+      <path d="M-14 26 C-14 10 -8 3 0 3 C8 3 14 10 14 26 Z" fill="#b3263a"/>
+      <path d="M-14 26 L14 26" stroke="#d9a93a" stroke-width="2"/>
+      <use xlink:href="#heart" transform="translate(0 16) scale(.5)" fill="#d9a93a"/>
+    </g>
+    <!-- Roi de Cœur -->
+    <g transform="translate(160 210) rotate(11) translate(0 -112)">
+      <use xlink:href="#card"/>
+      <text x="-23" y="-28" font-family="Georgia, serif" font-weight="700" font-size="15" fill="#b3263a">R</text>
+      <use xlink:href="#heart" transform="translate(-18 -16) scale(.42)" fill="#b3263a"/>
+      <path d="M-12 -12 L-12 -24 L-6 -17 L0 -27 L6 -17 L12 -24 L12 -12 Z" fill="#d9a93a" stroke="#76520e" stroke-width=".8"/>
+      <circle cx="0" cy="-3" r="8" fill="#f1cfa4" stroke="#8a5a2b" stroke-width=".8"/>
+      <path d="M-6 3 C-5 10 5 10 6 3" fill="#e9e1cf" stroke="#8a7d63" stroke-width=".6"/>
+      <path d="M-15 30 C-15 14 -8 7 0 7 C8 7 15 14 15 30 Z" fill="#1f4f8a"/>
+      <use xlink:href="#heart" transform="translate(0 20) scale(.55)" fill="#b3263a"/>
+    </g>
+    <!-- Dame de Cœur -->
+    <g transform="translate(160 210) rotate(33) translate(0 -112)">
+      <use xlink:href="#card"/>
+      <text x="-23" y="-28" font-family="Georgia, serif" font-weight="700" font-size="15" fill="#b3263a">D</text>
+      <use xlink:href="#heart" transform="translate(-18 -16) scale(.42)" fill="#b3263a"/>
+      <path d="M-9 -13 L-9 -20 L-4.5 -16 L0 -23 L4.5 -16 L9 -20 L9 -13 Z" fill="#d9a93a" stroke="#76520e" stroke-width=".8"/>
+      <path d="M-11 -4 C-12 -14 12 -14 11 -4 L12 8 L-12 8 Z" fill="#6b3d1e"/>
+      <circle cx="0" cy="-4" r="7.5" fill="#f1cfa4" stroke="#8a5a2b" stroke-width=".8"/>
+      <path d="M-15 30 C-15 14 -8 7 0 7 C8 7 15 14 15 30 Z" fill="#b3263a"/>
+      <path d="M-6 9 L0 18 L6 9" fill="none" stroke="#d9a93a" stroke-width="1.6"/>
+      <use xlink:href="#heart" transform="translate(0 23) scale(.45)" fill="#f7f1e3"/>
+    </g>
+  </g>
+  <!-- médaillon d'atout -->
+  <g transform="translate(42 44)" filter="url(#sh)">
+    <circle r="19" fill="url(#medal)" stroke="#dbb666" stroke-width="2.5"/>
+    <circle r="14.5" fill="none" stroke="#9a6c1a" stroke-opacity=".5"/>
+    <use xlink:href="#heart" transform="scale(1.02) translate(0 1)" fill="#b3263a"/>
+  </g>
+  <text x="70" y="40" font-family="Georgia, serif" font-size="11" letter-spacing="3" fill="#dbb666" fill-opacity=".8">BELOTE</text>
+  <text x="70" y="55" font-family="Georgia, serif" font-style="italic" font-size="10" letter-spacing="1" fill="#dbb666" fill-opacity=".6">et rebelote</text>
+  <!-- un pique discret dans le coin -->
+  <use xlink:href="#spade" transform="translate(290 34) scale(.9)" fill="#0d2419" opacity=".55"/>
+</svg>

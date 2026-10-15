@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 320 180" role="img" aria-label="Président : une paire de 2 posée sur une paire de Rois, sous une couronne d'or">
+  <defs>
+    <radialGradient id="felt" cx="50%" cy="40%" r="90%">
+      <stop offset="0" stop-color="#2a6447"/><stop offset=".6" stop-color="#1c4632"/><stop offset="1" stop-color="#0d2419"/>
+    </radialGradient>
+    <linearGradient id="face" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbf7ec"/><stop offset="1" stop-color="#ece3cc"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6d98e"/><stop offset=".55" stop-color="#d9b65c"/><stop offset="1" stop-color="#9a6c1a"/></linearGradient>
+    <filter id="sh" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000" flood-opacity=".45"/></filter>
+    <filter id="blur"><feGaussianBlur stdDeviation="9"/></filter>
+    <path id="spade" d="M0 -11 C3 -6 11 -1.5 11 3.5 C11 7.5 7 9 4 7.5 C2.6 6.8 1.6 5.6 1 4.4 C1.4 7.5 2.6 9.6 4.4 11 L-4.4 11 C-2.6 9.6 -1.4 7.5 -1 4.4 C-1.6 5.6 -2.6 6.8 -4 7.5 C-7 9 -11 7.5 -11 3.5 C-11 -1.5 -3 -6 0 -11 Z"/>
+    <path id="heart" d="M0 9 C-3 6 -11 1 -11 -4.5 C-11 -9 -6 -11 -3 -9 C-1.6 -8 -.6 -6.6 0 -5.4 C.6 -6.6 1.6 -8 3 -9 C6 -11 11 -9 11 -4.5 C11 1 3 6 0 9 Z"/>
+    <path id="diamond" d="M0 -11 L8 0 L0 11 L-8 0 Z"/>
+    <g id="club"><circle cx="0" cy="-5.5" r="5"/><circle cx="-5.6" cy="2" r="5"/><circle cx="5.6" cy="2" r="5"/><path d="M-1 2 C-1.3 6 -2.6 9 -4.6 11 L4.6 11 C2.6 9 1.3 6 1 2 Z"/></g>
+    <rect id="card" x="-30" y="-42" width="60" height="84" rx="6" fill="url(#face)" stroke="#c9b893"/>
+    <path id="kcrown" d="M-11 -2 L-11 -10 L-5.5 -5 L0 -12 L5.5 -5 L11 -10 L11 -2 Z"/>
+    <g id="back">
+      <rect x="-19" y="-27" width="38" height="54" rx="4" fill="#7a1f2b" stroke="#dbb666" stroke-width="1"/>
+      <rect x="-14.5" y="-22.5" width="29" height="45" rx="2" fill="none" stroke="#dbb666" stroke-opacity=".7" stroke-width=".8"/>
+      <path d="M0 -10 L7 0 L0 10 L-7 0 Z" fill="none" stroke="#dbb666" stroke-width="1"/>
+    </g>
+  </defs>
+  <rect width="320" height="180" fill="url(#felt)"/>
+  <ellipse cx="170" cy="120" rx="118" ry="40" fill="#000" opacity=".22" filter="url(#blur)"/>
+  <ellipse cx="250" cy="46" rx="50" ry="22" fill="#f6d98e" opacity=".2" filter="url(#blur)"/>
+
+  <!-- la main du Trouduc, de dos -->
+  <g filter="url(#sh)" transform="translate(40 146)">
+    <use xlink:href="#back" transform="rotate(-24) translate(-6 0)"/>
+    <use xlink:href="#back" transform="rotate(-8)"/>
+    <use xlink:href="#back" transform="rotate(8) translate(6 2)"/>
+  </g>
+
+  <!-- la pile : une paire de Rois, puis une paire de 2 par-dessus -->
+  <g filter="url(#sh)">
+    <g transform="translate(112 104) rotate(-17)">
+      <use xlink:href="#card"/>
+      <text x="-23" y="-25" font-family="Georgia, serif" font-weight="700" font-size="15" fill="#1c1b22">R</text>
+      <use xlink:href="#club" transform="translate(-18 -13) scale(.42)" fill="#1c1b22"/>
+      <use xlink:href="#kcrown" transform="translate(0 0) scale(1.15)" fill="#d9a93a" stroke="#76520e" stroke-width=".7"/>
+      <use xlink:href="#club" transform="translate(0 18) scale(.9)" fill="#1c1b22"/>
+    </g>
+    <g transform="translate(140 98) rotate(-5)">
+      <use xlink:href="#card"/>
+      <text x="-23" y="-25" font-family="Georgia, serif" font-weight="700" font-size="15" fill="#b3263a">R</text>
+      <use xlink:href="#diamond" transform="translate(-18 -13) scale(.45)" fill="#b3263a"/>
+      <use xlink:href="#kcrown" transform="translate(0 0) scale(1.15)" fill="#d9a93a" stroke="#76520e" stroke-width=".7"/>
+      <use xlink:href="#diamond" transform="translate(0 18) scale(.9)" fill="#b3263a"/>
+    </g>
+    <g transform="translate(182 116) rotate(7)">
+      <use xlink:href="#card"/>
+      <text x="-23" y="-25" font-family="Georgia, serif" font-weight="700" font-size="15" fill="#1c1b22">2</text>
+      <use xlink:href="#spade" transform="translate(-18 -13) scale(.42)" fill="#1c1b22"/>
+      <use xlink:href="#spade" transform="translate(0 -14) scale(.95)" fill="#1c1b22"/>
+      <use xlink:href="#spade" transform="translate(0 22) rotate(180) scale(.95)" fill="#1c1b22"/>
+    </g>
+    <g transform="translate(226 124) rotate(19)">
+      <use xlink:href="#card"/>
+      <text x="-23" y="-25" font-family="Georgia, serif" font-weight="700" font-size="15" fill="#b3263a">2</text>
+      <use xlink:href="#heart" transform="translate(-18 -13) scale(.45)" fill="#b3263a"/>
+      <use xlink:href="#heart" transform="translate(0 -14) scale(.95)" fill="#b3263a"/>
+      <use xlink:href="#heart" transform="translate(0 22) rotate(180) scale(.95)" fill="#b3263a"/>
+    </g>
+  </g>
+
+  <!-- la couronne du Président -->
+  <g transform="translate(250 46) rotate(12) scale(.85)" filter="url(#sh)">
+    <path d="M-30 12 L-34 -14 L-17 -2 L0 -22 L17 -2 L34 -14 L30 12 Z" fill="url(#gold)" stroke="#76520e" stroke-width="1.4" stroke-linejoin="round"/>
+    <rect x="-31" y="11" width="62" height="9" rx="2" fill="url(#gold)" stroke="#76520e" stroke-width="1.4"/>
+    <circle cx="-34" cy="-15" r="3.4" fill="#f6d98e" stroke="#76520e"/>
+    <circle cx="0" cy="-23" r="3.8" fill="#f6d98e" stroke="#76520e"/>
+    <circle cx="34" cy="-15" r="3.4" fill="#f6d98e" stroke="#76520e"/>
+    <circle cx="0" cy="4" r="4" fill="#b3263a" stroke="#76520e"/>
+    <circle cx="-16" cy="15.5" r="2.2" fill="#2f4c8a"/>
+    <circle cx="16" cy="15.5" r="2.2" fill="#2f4c8a"/>
+  </g>
+  <g fill="#f6d98e">
+    <path d="M292 24 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2 Z"/>
+    <path d="M206 22 l1.4 3.6 3.6 1.4 -3.6 1.4 -1.4 3.6 -1.4 -3.6 -3.6 -1.4 3.6 -1.4 Z" opacity=".8"/>
+  </g>
+  <text x="22" y="34" font-family="Georgia, serif" font-size="12" letter-spacing="3" fill="#dbb666" fill-opacity=".7">PRÉSIDENT</text>
+</svg>

@@ -1,0 +1,326 @@
+/* Rami : intégration du design system « Tapis » (table « salon ») dans le Hub.
+   Cartes, sièges, boutons, statut, fenêtres : /vendor/tapis/tapis.css (chargé avant ce fichier).
+   Ici : la mise en place de la table (adversaires en haut, talon et défausse, combinaisons posées
+   par joueur, ma main) et ce que Tapis n'a pas (combinaisons serrées, Joker et sa carte remplacée,
+   pose préparée), dessinés avec les tokens du système. Sélecteurs .tp-scope.rm … : ils priment
+   quel que soit l'ordre de chargement. */
+
+/* Titres du Hub (h2 en capitales dorées) neutralisés ; spécificité minimale pour que les classes Tapis gardent la main. */
+:where(.tp-scope) :is(h1, h2, h3, h4) { margin: 0; font-size: inherit; letter-spacing: normal; text-transform: none; color: inherit; }
+
+/* La hauteur est posée en JS (fit) : la table tient dans la fenêtre, sous la barre du salon. */
+.tp-scope.rm { display: block; position: relative; }
+@media (min-width: 641px) { .tp-scope.rm { min-height: 560px; } } /* zone-min-h du design */
+.tp-scope.rm .tp-app { background: transparent; }
+.tp-scope.rm .tp-zone { margin: 0; } /* le Hub entoure déjà le jeu d'une marge */
+.tp-scope.rm .rm-layer { display: contents; }
+.tp-scope.rm .rm-loading { margin: 0; padding: 2rem; text-align: center; color: var(--muted); } /* avant Tapis : couleurs du Hub */
+.tp-scope.rm .tp-decor__ring { display: none; } /* l'anneau du pli : ici, les combinaisons occupent le centre */
+@container zone (max-width: 639px) { .tp-scope.rm .tp-decor svg, .tp-scope.rm .tp-decor > * { display: none; } }
+
+/* Pendant une transition ou une requête : pas de clic de jeu (outils, règles et interrupteur restent actifs). */
+.tp-scope.rm:is([data-animating], [data-busy]) :is(.tp-hand, .tp-actions, .rm-pick, .rm-meld, .rm-stage) { pointer-events: none; }
+.tp-scope.rm .rm-ghost { z-index: 90; pointer-events: none; }
+
+/* Écran tactile : le survol reste collé sur la dernière carte touchée ; pas de levée au survol. */
+@media (hover: none) {
+  .tp-scope.rm .tp-hand button.tp-card:hover:not([aria-disabled="true"]) { transform: none; z-index: auto; }
+  .tp-scope.rm .tp-hand button.tp-card[data-state~="selected"]:hover { transform: translateY(-15%); }
+}
+
+/* ------------------------------------------------------------------ la table */
+.tp-scope.rm .rm-table {
+  --rm-mc: clamp(46px, 11.2cqh, 124px);  /* cartes des combinaisons posées (peu de cartes sur la table) */
+  --rm-pile: clamp(70px, 14cqh, 150px);  /* talon et défausse */
+  grid-template-columns: minmax(170px, .95fr) minmax(0, 3.4fr) minmax(230px, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-areas: "seats seats seats" "piles melds melds" "me status actions" "hand hand hand";
+}
+.tp-scope.rm .rm-table[data-density="m"] { --rm-mc: clamp(44px, 9.4cqh, 104px); }
+.tp-scope.rm .rm-table[data-density="s"] { --rm-mc: clamp(42px, 8cqh, 88px); }
+.tp-scope.rm .rm-table[data-shape="square"] {
+  --rm-pile: clamp(60px, 11cqh, 104px);
+  grid-template-columns: minmax(176px, .8fr) minmax(0, 3fr) minmax(190px, 1fr);
+}
+.tp-scope.rm .rm-table[data-shape="square"][data-density="l"] { --rm-mc: clamp(44px, 9.6cqh, 96px); }
+.tp-scope.rm .rm-table[data-shape="square"]:not([data-density="l"]) { --rm-mc: clamp(42px, 8cqh, 80px); }
+.tp-scope.rm .rm-table[data-shape="square"] .rm-pick { padding: 4px; }
+.tp-scope.rm .rm-table[data-shape="square"][data-density="s"] { --rm-mc: clamp(40px, 7cqh, 72px); }
+.tp-scope.rm .rm-table[data-shape="square"] .rm-group__m { gap: 8px 10px; }
+.tp-scope.rm .rm-table[data-shape="square"] .rm-group { padding: 6px 8px 10px; }
+
+/* adversaires : une rangée en haut, à gauche des outils */
+.tp-scope.rm [data-area="seats"] { justify-content: center; min-height: 0; }
+.tp-scope.rm .rm-seats {
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: stretch; gap: clamp(8px, 1cqw, 18px);
+  width: 100%; padding: 0 196px;
+}
+.tp-scope.rm .rm-seats .tp-seat { flex: 0 1 250px; min-width: 0; }
+.tp-scope.rm .rm-table[data-shape="wide"] .rm-seats { flex-wrap: nowrap; } /* PC : une seule rangée, les sièges rétrécissent */
+.tp-scope.rm .rm-seats .tp-seat .tp-fan { align-self: center; }
+.tp-scope.rm .rm-seats .tp-seat__last { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tp-scope.rm .rm-table[data-shape="square"] .rm-seats { padding: 0 190px 0 0; justify-content: flex-start; }
+.tp-scope.rm .rm-table[data-shape="square"] .rm-seats .tp-seat { flex: 1 1 170px; max-width: 240px; }
+.tp-scope.rm .rm-table[data-shape="square"] .tp-seat__badges .tp-badge span { display: none; }
+.tp-scope.rm .rm-table[data-shape="square"] .tp-seat__badges .tp-badge { padding: 0 5px; }
+@container zone (max-height: 780px) {
+  .tp-scope.rm .rm-seats .tp-fan { display: none; }
+  .tp-scope.rm .rm-seats .tp-seat { padding: var(--space-2) var(--space-3); }
+  .tp-scope.rm .rm-seats .tp-seat__badges .tp-badge span { display: none; }
+  .tp-scope.rm .rm-seats .tp-seat__badges .tp-badge { padding: 0 5px; }
+  .tp-scope.rm .rm-seats .tp-seat__id { flex-wrap: nowrap; }
+}
+/* Sièges serrés (5-6 joueurs, écran moyen) : une ligne chacun, à hauteur de leur contenu. */
+.tp-scope.rm .rm-table[data-seats="dense"] .rm-seats { align-items: flex-start; row-gap: 6px; padding-left: 0; }
+.tp-scope.rm .rm-table[data-seats="dense"] .rm-seats .tp-seat[data-state="active"] { min-width: min(240px, 30%); }
+.tp-scope.rm .rm-table[data-seats="dense"] .rm-seats .tp-seat { padding: 6px 10px; gap: 2px; }
+.tp-scope.rm .rm-table[data-seats="dense"] .rm-seats .tp-seat__id { flex-wrap: nowrap; gap: 8px; }
+.tp-scope.rm .rm-table[data-seats="dense"] .rm-seats .tp-avatar { --av: 34px; }
+.tp-scope.rm .rm-table[data-seats="dense"] .rm-seats .tp-seat__badges { flex-wrap: nowrap; }
+.tp-scope.rm .rm-table[data-seats="dense"] .rm-seats .tp-seat__badges .tp-badge span { display: none; }
+.tp-scope.rm .rm-table[data-seats="dense"] .rm-seats .tp-seat__badges .tp-badge { padding: 0 5px; }
+.tp-scope.rm .rm-table[data-seats="dense"] .rm-seats .tp-seat__last { font-size: 13px; }
+/* Table chargée ou fenêtre basse (PC, écran moyen) : ma main un peu plus petite, la place va aux combinaisons.
+   (--card-md posé sur la main : chaque carte en reprend la hauteur) */
+@container zone (min-width: 640px) {
+  .tp-scope.rm .rm-table:not([data-density="l"]) [data-area="hand"] .tp-hand { --card-md: clamp(84px, 15cqh, 180px); }
+}
+@container zone (min-width: 640px) and (max-height: 800px) {
+  .tp-scope.rm .rm-table [data-area="hand"] .tp-hand { --card-md: clamp(84px, 16cqh, 180px); }
+  .tp-scope.rm .rm-table:not([data-density="l"]) [data-area="hand"] .tp-hand { --card-md: clamp(80px, 14.5cqh, 160px); }
+  /* PC bas (1366 × 768, 1280 × 720) : mon siège et les actions encadrent statut et main, sans rangée perdue */
+  .tp-scope.rm .rm-table:is([data-shape="wide"], [data-shape="square"]) {
+    grid-template-areas: "seats seats seats" "piles melds melds" "me status actions" "me hand actions";
+  }
+  .tp-scope.rm .rm-table:is([data-shape="wide"], [data-shape="square"]) [data-area="me"] { justify-content: center; }
+  .tp-scope.rm .rm-table:is([data-shape="wide"], [data-shape="square"]) [data-area="actions"] { align-self: center; }
+  .tp-scope.rm .rm-table[data-density="s"] { --rm-mc: clamp(42px, 7.4cqh, 88px); }
+}
+.tp-scope.rm .rm-seats .tp-seat__txt { min-width: 0; }
+.tp-scope.rm .rm-seats .tp-seat__meta { overflow: hidden; text-overflow: ellipsis; }
+
+/* talon et défausse */
+  grid-template-columns: minmax(170px, .95fr) minmax(0, 3.4fr) minmax(230px, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-areas: "seats seats seats" "piles melds melds" "me status actions" "hand hand hand";
+}
+.tp-scope.rm .rm-table[data-density="m"] { --rm-mc: clamp(44px, 9.4cqh, 104px); }
+.tp-scope.rm .rm-table[data-density="s"] { --rm-mc: clamp(42px, 8cqh, 88px); }
+.tp-scope.rm .rm-table[data-shape="square"] {
+  --rm-pile: clamp(60px, 11cqh, 104px);
+  grid-template-columns: minmax(176px, .8fr) minmax(0, 3fr) minmax(190px, 1fr);
+}
+.tp-scope.rm .rm-table[data-shape="square"][data-density="l"] { --rm-mc: clamp(44px, 9.6cqh, 96px); }
+.tp-scope.rm .rm-table[data-shape="square"]:not([data-density="l"]) { --rm-mc: clamp(42px, 8cqh, 80px); }
+.tp-scope.rm .rm-table[data-shape="square"] .rm-pick { padding: 4px; }
+.tp-scope.rm .rm-table[data-shape="square"][data-density="s"] { --rm-mc: clamp(40px, 7cqh, 72px); }
+.tp-scope.rm .rm-table[data-shape="square"] .rm-group__m { gap: 8px 10px; }
+.tp-scope.rm .rm-table[data-shape="square"] .rm-group { padding: 6px 8px 10px; }
+
+/* adversaires : une rangée en haut, à gauche des outils */
+.tp-scope.rm [data-area="seats"] { justify-content: center; min-height: 0; }
+.tp-scope.rm .rm-seats {
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: stretch; gap: clamp(8px, 1cqw, 18px);
+  width: 100%; padding: 0 196px;
+}
+.tp-scope.rm .rm-seats .tp-seat { flex: 0 1 250px; min-width: 0; }
+.tp-scope.rm .rm-table[data-shape="wide"] .rm-seats { flex-wrap: nowrap; } /* PC : une seule rangée, les sièges rétrécissent */
+.tp-scope.rm .rm-seats .tp-seat .tp-fan { align-self: center; }
+.tp-scope.rm .rm-seats .tp-seat__last { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tp-scope.rm .rm-table[data-shape="square"] .rm-seats { padding: 0 190px 0 0; justify-content: flex-start; }
+.tp-scope.rm .rm-table[data-shape="square"] .rm-seats .tp-seat { flex: 1 1 170px; max-width: 240px; }
+.tp-scope.rm .rm-table[data-shape="square"] .tp-seat__badges .tp-badge span { display: none; }
+.tp-scope.rm .rm-table[data-shape="square"] .tp-seat__badges .tp-badge { padding: 0 5px; }
+@container zone (max-height: 780px) {
+  .tp-scope.rm .rm-seats .tp-fan { display: none; }
+  .tp-scope.rm .rm-seats .tp-seat { padding: var(--space-2) var(--space-3); }
+  .tp-scope.rm .rm-seats .tp-seat__badges .tp-badge span { display: none; }
+  .tp-scope.rm .rm-seats .tp-seat__badges .tp-badge { padding: 0 5px; }
+  .tp-scope.rm .rm-seats .tp-seat__id { flex-wrap: nowrap; }
+}
+/* Sièges serrés (5-6 joueurs, écran moyen) : une ligne chacun, à hauteur de leur contenu. */
+.tp-scope.rm .rm-table[data-seats="dense"] .rm-seats { align-items: flex-start; row-gap: 6px; padding-left: 0; }
+.tp-scope.rm .rm-table[data-seats="dense"] .rm-seats .tp-seat[data-state="active"] { min-width: min(240px, 30%); }
+.tp-scope.rm .rm-table[data-seats="dense"] .rm-seats .tp-seat { padding: 6px 10px; gap: 2px; }
+.tp-scope.rm .rm-table[data-seats="dense"] .rm-seats .tp-seat__id { flex-wrap: nowrap; gap: 8px; }
+.tp-scope.rm .rm-table[data-seats="dense"] .rm-seats .tp-avatar { --av: 34px; }
+.tp-scope.rm .rm-table[data-seats="dense"] .rm-seats .tp-seat__badges { flex-wrap: nowrap; }
+.tp-scope.rm .rm-table[data-seats="dense"] .rm-seats .tp-seat__badges .tp-badge span { display: none; }
+.tp-scope.rm .rm-table[data-seats="dense"] .rm-seats .tp-seat__badges .tp-badge { padding: 0 5px; }
+.tp-scope.rm .rm-table[data-seats="dense"] .rm-seats .tp-seat__last { font-size: 13px; }
+/* Table chargée ou fenêtre basse (PC, écran moyen) : ma main un peu plus petite, la place va aux combinaisons. */
+@container zone (min-width: 640px) {
+  .tp-scope.rm .rm-table:not([data-density="l"]) [data-area="hand"] .tp-hand { --ch: clamp(84px, 14.5cqh, 180px); }
+}
+@container zone (min-width: 640px) and (max-height: 800px) {
+  .tp-scope.rm .rm-table [data-area="hand"] .tp-hand { --ch: clamp(84px, 15.5cqh, 180px); }
+  .tp-scope.rm .rm-table:not([data-density="l"]) [data-area="hand"] .tp-hand { --ch: clamp(80px, 14cqh, 160px); }
+}
+
+/* talon et défausse */
+.tp-scope.rm [data-area="piles"] { flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3); }
+.tp-scope.rm .rm-piles { display: flex; gap: clamp(10px, 1.4cqw, 26px); align-items: flex-start; justify-content: center; }
+.tp-scope.rm .rm-piles .tp-card { --ch: var(--rm-pile); }
+.tp-scope.rm .rm-pick { border-radius: var(--radius-md); padding: 6px; outline: none; }
+.tp-scope.rm .rm-pick:not([aria-disabled="true"]) { cursor: pointer; }
+.tp-scope.rm .rm-pick:not([aria-disabled="true"]) .tp-pile__stack { border-radius: var(--radius-card); box-shadow: 0 0 0 2px var(--accent), var(--glow-turn); transition: transform .18s var(--ease-out, ease-out); }
+.tp-scope.rm .rm-pick:not([aria-disabled="true"]):hover .tp-pile__stack { transform: translateY(-4%); }
+.tp-scope.rm .rm-pick:not([aria-disabled="true"]) .tp-pile__cap { color: var(--accent-bright); }
+.tp-scope.rm .rm-pick:focus-visible { box-shadow: var(--focus-ring); }
+.tp-scope.rm :is(.tp-status__d, .tp-seat__last, .tp-preview__d) .tp-ic--inline { width: .95em; height: .95em; }
+.tp-scope.rm .rm-round { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
+.tp-scope.rm .rm-round .label { color: var(--accent-bright); }
+.tp-scope.rm .rm-round .caption { color: var(--text-muted); }
+
+/* combinaisons posées, regroupées par joueur */
+.tp-scope.rm [data-area="melds"] { flex-direction: column; gap: var(--space-2); }
+.tp-scope.rm .rm-board {
+  flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain;
+  display: flex; flex-wrap: wrap; align-content: flex-start; align-items: flex-start; gap: var(--space-3);
+  padding: var(--space-3); border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--table-deep) 34%, transparent); box-shadow: var(--shadow-well);
+  scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--accent) 40%, transparent) transparent;
+}
+.tp-scope.rm .rm-group {
+  display: flex; flex-direction: column; gap: 6px; min-width: 0; max-width: 100%;
+  padding: 8px 12px 12px; border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--panel) 58%, transparent); border: 1px solid var(--line);
+}
+.tp-scope.rm .rm-group[data-me] { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.tp-scope.rm .rm-group__h { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.tp-scope.rm .rm-group__h .tp-avatar { --av: 26px; }
+.tp-scope.rm .rm-group__h .label { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tp-scope.rm .rm-group__h .caption { color: var(--text-muted); white-space: nowrap; }
+.tp-scope.rm .rm-group__m { display: flex; flex-wrap: wrap; gap: 10px 14px; }
+.tp-scope.rm .rm-meld {
+  display: inline-flex; align-items: flex-end; padding: 4px 6px 8px; margin: 0; border-radius: var(--radius-md);
+  border: 1px solid transparent; background: none; color: inherit; font: inherit;
+}
+.tp-scope.rm .rm-meld .tp-card { --ch: var(--rm-mc); flex: none; }
+.tp-scope.rm .rm-meld > * + * { margin-left: calc(var(--rm-mc) * var(--rm-ov, -.43)); }
+.tp-scope.rm .rm-table[data-density="l"] .rm-meld { --rm-ov: -.38; }
+.tp-scope.rm .rm-table[data-density="s"] .rm-meld { --rm-ov: -.46; }
+.tp-scope.rm button.rm-meld { cursor: pointer; transition: border-color .15s, background-color .15s; }
+.tp-scope.rm button.rm-meld:hover { border-color: color-mix(in srgb, var(--accent) 55%, transparent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.tp-scope.rm button.rm-meld:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.tp-scope.rm button.rm-meld[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); box-shadow: var(--glow-select); }
+.tp-scope.rm .rm-jk { position: relative; display: inline-flex; flex: none; }
+.tp-scope.rm .rm-as {
+  position: absolute; left: 50%; bottom: -7px; translate: -50% 0; z-index: 2;
+  display: inline-flex; align-items: center; gap: 1px; padding: 0 5px; border-radius: var(--radius-xs); white-space: nowrap;
+  background: var(--panel); color: var(--accent-bright); border: 1px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  font-weight: 700; font-size: 12px; line-height: 16px;
+}
+.tp-scope.rm .rm-as .tp-ic { width: 11px; height: 11px; }
+.tp-scope.rm .rm-board__empty { margin: auto; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; color: var(--text-muted); max-width: 46ch; }
+.tp-scope.rm .rm-board__empty .tp-ic { width: 28px; height: 28px; color: var(--accent); opacity: .7; }
+.tp-scope.rm .rm-board__empty .body { color: var(--text); }
+
+/* pose préparée (ouverture en plusieurs combinaisons) */
+.tp-scope.rm .rm-stage { flex: none; gap: var(--space-2); padding: var(--space-2) var(--space-4); }
+.tp-scope.rm .rm-stage .tp-panel__h { align-items: center; }
+.tp-scope.rm .rm-stage .tp-gauge { flex: 1 1 200px; max-width: 360px; }
+.tp-scope.rm .rm-stage__l { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
+.tp-scope.rm .rm-stage__m { display: inline-flex; align-items: center; gap: 8px; }
+.tp-scope.rm .rm-stage__m .tp-card + .tp-card { margin-left: calc(var(--card-xs) * -.35); }
+.tp-scope.rm .rm-stage__m .caption { color: var(--text-muted); white-space: nowrap; }
+
+/* bas de table : moi, statut et aperçu, actions */
+.tp-scope.rm [data-area="me"] { flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: var(--space-2); }
+.tp-scope.rm [data-area="me"] .tp-seat { max-width: 100%; }
+.tp-scope.rm .rm-sort { display: flex; gap: 4px; }
+.tp-scope.rm .rm-sort .tp-btn { min-height: 34px; padding: 0 10px; font-size: 14px; }
+.tp-scope.rm [data-area="me"] .tp-seat__id { flex-wrap: nowrap; }
+.tp-scope.rm .rm-sort .tp-btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent-bright); }
+.tp-scope.rm [data-area="status"] { justify-content: center; align-items: center; gap: var(--space-2) var(--space-3); flex-wrap: wrap; }
+.tp-scope.rm [data-area="actions"] { justify-content: flex-end; align-items: center; }
+.tp-scope.rm [data-area="actions"] .tp-actions__row { flex-wrap: wrap; justify-content: flex-end; }
+.tp-scope.rm [data-area="hand"] { justify-content: center; }
+.tp-scope.rm .rm-table[data-shape="square"] [data-area="status"] { flex-direction: column; }
+
+/* Portable (zone basse) : statut et aperçu sur une ligne plus serrée. */
+@container zone (max-height: 700px) {
+  .tp-scope.rm .rm-sort .tp-btn { min-height: 32px; }
+  .tp-scope.rm .tp-seat__last { display: none; }
+  .tp-scope.rm .rm-board { padding: var(--space-2); gap: var(--space-2); }
+  .tp-scope.rm .rm-group { padding: 6px 10px 10px; }
+}
+
+/* ------------------------------------------------------------------ téléphone : la table passe en colonne */
+@container zone (max-width: 639px) {
+  .tp-scope.rm .rm-table { --rm-mc: clamp(44px, 13cqw, 64px); --rm-pile: clamp(56px, 16cqw, 84px); overflow-x: hidden; }
+  /* la table défile sous la rangée des outils (journal, scores, règles) au lieu de passer dessous */
+  .tp-scope.rm .rm-table { padding-top: var(--space-1); margin-top: 56px; height: calc(100% - 56px); }
+  .tp-scope.rm .tp-area[data-area="seats"] { order: 1; }
+  .tp-scope.rm .tp-area[data-area="piles"] { order: 2; flex-direction: row; justify-content: center; gap: var(--space-4); }
+  .tp-scope.rm .tp-area[data-area="melds"] { order: 3; }
+  .tp-scope.rm .tp-area[data-area="status"] { order: 4; flex-direction: column; }
+  .tp-scope.rm [data-area="status"] .tp-status { width: 100%; flex-wrap: wrap; justify-content: center; row-gap: 2px; text-align: center; }
+  .tp-scope.rm [data-area="status"] .tp-status__t { white-space: nowrap; }
+  .tp-scope.rm [data-area="status"] .tp-status__d { flex-basis: 100%; }
+  .tp-scope.rm [data-area="status"] .tp-preview { max-width: 100%; flex-wrap: wrap; justify-content: center; text-align: center; }
+  .tp-scope.rm .tp-area[data-area="hand"] { order: 5; padding-top: calc(var(--card-md) * .3); }
+  .tp-scope.rm .tp-area[data-area="me"] { order: 6; flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+  .tp-scope.rm .tp-area[data-area="actions"]:empty { display: none; } /* pas de barre collée vide */
+  .tp-scope.rm .rm-seats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 0; }
+  .tp-scope.rm .rm-seats .tp-seat { width: 100%; flex-direction: row; align-items: center; padding: 6px 8px; }
+  .tp-scope.rm .rm-seats .tp-seat__last, .tp-scope.rm .rm-seats .tp-fan { display: none; }
+  .tp-scope.rm .rm-seats .tp-badge span { display: none; }
+  .tp-scope.rm .rm-seats .tp-badge { padding: 0 5px; }
+  .tp-scope.rm .rm-round { flex-direction: column; align-items: flex-start; }
+  .tp-scope.rm .rm-board { overflow: visible; min-height: 0; padding: var(--space-2); }
+  .tp-scope.rm .rm-group { width: 100%; }
+  .tp-scope.rm .rm-group__m { gap: 8px 10px; }
+  .tp-scope.rm .rm-board__empty { padding: var(--space-3) 0; }
+  .tp-scope.rm .rm-stage__m .caption { white-space: normal; }
+}
+
+/* ------------------------------------------------------------------ fenêtres */
+/* Résumé de donne : les cartes restées sous chaque joueur */
+.tp-scope.rm .rm-pen { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.tp-scope.rm .rm-pen li { flex-wrap: wrap; align-items: center; }
+.tp-scope.rm .rm-pen li .body { flex: 1 1 0; }
+.tp-scope.rm .rm-left { order: 5; flex-basis: 100%; display: flex; flex-wrap: wrap; padding-left: 4px; }
+.tp-scope.rm .rm-left { row-gap: 4px; }
+.tp-scope.rm .rm-left .tp-card { --ch: clamp(36px, 6.6cqh, 64px); }
+.tp-scope.rm .rm-left .tp-card + .tp-card { margin-left: calc(clamp(36px, 6.6cqh, 64px) * -.32); }
+.tp-scope.rm .rm-deal[data-made="false"] .tp-deal__verdict { color: var(--text); }
+
+/* Feuille de scores */
+.tp-scope.rm .rm-ss td, .tp-scope.rm .rm-ss td:nth-child(-n+3) { text-align: center; }
+.tp-scope.rm .rm-ss thead th:not(:first-child) { text-align: center; }
+.tp-scope.rm .rm-ss td[data-out] { color: var(--positive); font-weight: 700; }
+.tp-scope.rm .rm-ss td[data-out] .tp-ic { width: 14px; height: 14px; vertical-align: -2px; margin-right: 3px; }
+.tp-scope.rm .rm-ss tfoot td { color: var(--text); }
+.tp-scope.rm .rm-ss__note, .tp-scope.rm .rm-empty { margin: var(--space-3) 0 0; color: var(--text-muted); }
+
+/* Écran de fin : la carte et sa feuille de scores tiennent dans la zone (défilement interne au besoin). */
+.tp-scope.rm .tp-end { grid-template-columns: minmax(0, 1fr); place-items: safe center; }
+.tp-scope.rm .tp-end__card { width: min(760px, 100%); min-width: 0; max-width: 100%; }
+.tp-scope.rm .rm-end-sheet { width: 100%; text-align: left; max-height: 30cqh; overflow: auto; }
+@container zone (max-height: 760px) {
+  .tp-scope.rm .tp-end__card { width: min(620px, 100%); padding: var(--space-5) var(--space-6); gap: var(--space-3); }
+  .tp-scope.rm .tp-end__emblem { width: 48px; height: 48px; }
+  .tp-scope.rm .tp-end__emblem .tp-ic { width: 26px; height: 26px; }
+  .tp-scope.rm .rm-end-sheet { display: none; } /* zone basse : la feuille reste dans le tiroir « Feuille de scores » */
+}
+@container zone (max-width: 639px) { .tp-scope.rm .rm-end-sheet { display: none; } }
+/* « ex aequo » sur la ligne du nom (Tapis le met dessous) */
+.tp-scope.rm .tp-rank__r { grid-template-columns: 28px auto auto 1fr auto; }
+.tp-scope.rm .tp-rank__note { grid-row: 1; grid-column: 4; }
+.tp-scope.rm .tp-rank__s { grid-column: 5; }
+.tp-scope.rm .rm-end-note { flex-basis: 100%; margin: 0; text-align: center; color: var(--text-muted); }
+.tp-scope.rm .tp-end__act { flex-wrap: wrap; justify-content: center; }
+
+/* Règles */
+.tp-scope.rm .rm-rules__h { margin: var(--space-5) 0 var(--space-2); color: var(--accent); }
+.tp-scope.rm .rm-rules__boxes { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: var(--space-2); margin: var(--space-2) 0 var(--space-4); }
+.tp-scope.rm .rm-rules__box { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-md); background: var(--panel-raised); border: 1px solid var(--line); }
+.tp-scope.rm .rm-rules__box .caption { color: var(--text-muted); }
+.tp-scope.rm .rm-rules__cards .tp-card + .tp-card { margin-left: calc(var(--card-sm) * -.3); }
+.tp-scope.rm .rm-rt { margin: var(--space-2) 0 var(--space-4); }
+.tp-scope.rm .rm-rt :is(td, th) { text-align: left; white-space: normal; padding: 8px 10px; }
+
+/* Bulle de sortie (« Fini ! », « Rami ! ») : sous les sièges du haut, au-dessus du mien. */
+.tp-scope.rm .rm-seats .tp-seat > .tp-bubble { top: auto; bottom: 0; transform: translate(-50%, calc(100% + 10px)); }
+.tp-scope.rm .rm-seats .tp-seat > .tp-bubble::after { bottom: auto; top: -6px; }

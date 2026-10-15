@@ -177,7 +177,7 @@ function renderRoom() {
   // Jeu en cours affiché dans la barre du salon
   const current = playing ? gameById(room.gameId) : null;
   $('#room-game').classList.toggle('hidden', !current);
-  $('#room-game').replaceChildren(...(current ? [current.cover && el('img', { src: current.cover, alt: '' }), el('span', {}, current.name)] : []));
+  $('#room-game').replaceChildren(...(current ? [current.cover && el('img', { src: current.cover, alt: '' }), el('span', {}, current.name)].filter(Boolean) : []));
 
   // Joueurs (+ places libres jusqu'au maximum du jeu choisi)
   const seats = Math.min(room.maxPlayers, selected?.maxPlayers ?? room.maxPlayers);

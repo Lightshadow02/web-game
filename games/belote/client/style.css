@@ -1,0 +1,314 @@
+/* Belote : intégration du design system « Tapis » (table « salon ») dans le Hub.
+   Cartes, sièges, boutons, statut, fenêtres : /vendor/tapis/tapis.css (chargé avant ce fichier).
+   Ici : la mise en place, et ce que Tapis n'a pas (tableau des scores Nous / Eux, couleurs d'équipe,
+   médaillon d'atout, talon et retournée, panneaux d'annonces), dessinés avec les tokens du système.
+   Sélecteurs .tp-scope.blt … : ils priment quel que soit l'ordre de chargement. */
+
+/* Titres du Hub (h2 en capitales dorées) neutralisés ; spécificité minimale pour que les classes Tapis gardent la main. */
+:where(.tp-scope) :is(h1, h2, h3, h4) { margin: 0; font-size: inherit; letter-spacing: normal; text-transform: none; color: inherit; }
+
+/* La hauteur est posée en JS (fit) : la table tient dans la fenêtre, sous la barre du salon. */
+.tp-scope.blt { display: block; position: relative; }
+@media (min-width: 641px) { .tp-scope.blt { min-height: 560px; } } /* zone-min-h du design */
+.tp-scope.blt .tp-app { background: transparent; }
+.tp-scope.blt .tp-zone { margin: 0; } /* le Hub entoure déjà le jeu d'une marge */
+.tp-scope.blt .blt-layer { display: contents; }
+.tp-scope.blt .blt-loading { margin: 0; padding: 2rem; text-align: center; color: var(--muted); } /* avant Tapis : couleurs du Hub */
+
+/* Couleurs d'équipe : « Nous » en bleu (le partenaire, comme le badge Partenaire), « Eux » en terre cuite.
+   Elles ne sont jamais seules : « Nous », « Eux » et « Partenaire » sont toujours écrits. */
+.tp-scope.blt { --blt-nous: var(--positive); --blt-eux: color-mix(in srgb, var(--danger) 72%, var(--accent)); }
+.tp-scope.blt [data-team="nous"] { --team: var(--blt-nous); }
+.tp-scope.blt [data-team="eux"] { --team: var(--blt-eux); }
+
+/* Pendant une transition ou une requête : pas de clic de jeu (outils, règles et interrupteur restent actifs). */
+.tp-scope.blt:is([data-animating], [data-busy]) :is(.tp-hand, .tp-actions, .tp-overpanel) { pointer-events: none; }
+
+/* Pendant la donne : le panneau d'enchères attend que les cartes soient distribuées */
+.tp-scope.blt[data-dealing] .tp-overpanel { visibility: hidden; }
+
+/* Écran tactile : pas de levée au survol (elle resterait collée sous le doigt). */
+@media (hover: none) {
+  .tp-scope.blt .tp-hand button.tp-card:hover:not([aria-disabled="true"]) { transform: none; z-index: auto; }
+}
+
+/* ------------------------------------------------------------------ sièges : filet de couleur d'équipe */
+.tp-scope.blt .tp-seat[data-team] { position: relative; }
+.tp-scope.blt .tp-seat[data-team]::before {
+  content: ""; position: absolute; left: 18px; right: 18px; top: -1px; height: 3px; border-radius: 0 0 3px 3px;
+  background: var(--team); opacity: .9; pointer-events: none;
+}
+.tp-scope.blt .tp-seat[data-team] .tp-avatar { box-shadow: 0 0 0 2px color-mix(in srgb, var(--team) 70%, transparent); }
+.tp-scope.blt .tp-seat[data-team] .tp-avatar[data-state="active"] { box-shadow: 0 0 0 2px var(--accent); }
+
+/* 4 joueurs : les coins du haut sont libres ; le tableau des scores prend celui de gauche. */
+.tp-scope.blt .tp-table--salon [data-area="s-tl"] { padding-top: 0; align-items: flex-start; }
+
+/* ------------------------------------------------------------------ tableau des scores (Nous / Eux) */
+.tp-scope.blt .blt-board {
+  display: flex; flex-direction: column; gap: 6px; width: min(260px, 100%); padding: 10px 14px 8px;
+  border-radius: var(--radius-lg); background: color-mix(in srgb, var(--panel) 82%, transparent);
+  border: 1px solid var(--line); box-shadow: var(--shadow-panel);
+}
+.tp-scope.blt .blt-board__h { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); color: var(--text-muted); }
+.tp-scope.blt .blt-board__h .label { color: var(--accent); }
+.tp-scope.blt .blt-board__t { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.tp-scope.blt .blt-board__r {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; column-gap: 8px; row-gap: 4px;
+  padding: 6px 8px 7px 10px; border-radius: var(--radius-md); background: color-mix(in srgb, var(--table-deep) 70%, transparent);
+  box-shadow: inset 3px 0 0 var(--team);
+}
+.tp-scope.blt .blt-board__k { color: var(--team); }
+.tp-scope.blt .blt-board__p { color: var(--text-muted); min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.tp-scope.blt .blt-board__s { color: var(--text); }
+.tp-scope.blt .blt-board__g {
+  grid-column: 1 / -1; height: 3px; border-radius: 3px; background: color-mix(in srgb, var(--text) 10%, transparent); position: relative; overflow: hidden;
+}
+.tp-scope.blt .blt-board__g::after { content: ""; position: absolute; inset: 0 auto 0 0; width: calc(var(--p) * 100%); background: var(--team); border-radius: inherit; }
+.tp-scope.blt .blt-board__lit { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--accent-bright); }
+.tp-scope.blt .blt-board__lit .tp-ic { width: 14px; height: 14px; }
+.tp-scope.blt .blt-board__b { align-self: flex-start; min-height: 32px; padding: 0 8px; margin-left: -8px; font-size: 14px; }
+.tp-scope.blt .blt-board__b .tp-ic { width: 16px; height: 16px; }
+
+/* ------------------------------------------------------------------ bandeau d'atout et médaillon */
+.tp-scope.blt .blt-contract .tp-contract__p .tp-ic { color: var(--accent); }
+.tp-scope.blt .blt-trump {
+  display: inline-grid; place-items: center; width: 30px; height: 30px; margin: -4px 0 -4px -6px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, var(--card-face), var(--card-trump)); box-shadow: 0 0 0 2px var(--accent), 0 2px 6px rgba(0, 0, 0, .45);
+  color: var(--card-ink);
+}
+.tp-scope.blt .blt-trump .tp-ic { width: 18px; height: 18px; color: var(--card-ink); }
+.tp-scope.blt .blt-trump:is([data-suit="coeur"], [data-suit="carreau"]) .tp-ic { color: var(--card-red); }
+.tp-scope.blt .blt-contract .tp-suit-coeur,
+.tp-scope.blt .blt-contract .tp-suit-carreau { color: var(--danger); }
+
+/* ------------------------------------------------------------------ talon et carte retournée */
+.tp-scope.blt .blt-deck .tp-chien__c { align-items: flex-end; gap: clamp(14px, 2cqw, 32px); }
+.tp-scope.blt .blt-deck .tp-pile__cap { display: none; } /* le libellé est dessous, avec la retournée */
+.tp-scope.blt .blt-turned { position: relative; }
+.tp-scope.blt .blt-turned .tp-card { box-shadow: var(--shadow-card-lift), 0 0 0 2px color-mix(in srgb, var(--accent) 60%, transparent); }
+.tp-scope.blt .blt-deck .tp-chien__l { color: var(--text); }
+
+/* ------------------------------------------------------------------ panneaux */
+.tp-scope.blt .blt-bids { max-width: min(980px, 100%); padding: var(--space-3) var(--space-4); }
+.tp-scope.blt .blt-bids__in { display: flex; align-items: center; gap: var(--space-3) var(--space-5); flex-wrap: wrap; }
+.tp-scope.blt .blt-bids__h { display: flex; flex-direction: column; gap: 2px; flex: 1 1 220px; max-width: 320px; }
+.tp-scope.blt .blt-bids__h .caption { color: var(--text-muted); }
+.tp-scope.blt .blt-bids .tp-bids__row { justify-content: center; }
+.tp-scope.blt .blt-bids .tp-btn { min-width: 140px; }
+.tp-scope.blt .tp-btn--primary .tp-ic:is(.tp-suit-coeur, .tp-suit-carreau) { color: var(--danger-fill); }
+.tp-scope.blt .tp-btn--primary .tp-ic:is(.tp-suit-pique, .tp-suit-trefle) { color: var(--on-accent); }
+.tp-scope.blt .blt-bids .tp-btn .tp-ic[class*="tp-suit-"] { width: 1.1em; height: 1.1em; }
+.tp-scope.blt .blt-bids .tp-btn--secondary :is(.tp-suit-coeur, .tp-suit-carreau) { color: var(--danger); }
+
+.tp-scope.blt .blt-ann { max-width: min(860px, 100%); padding: var(--space-3) var(--space-4); gap: var(--space-2); }
+.tp-scope.blt .blt-ann .tp-panel__h { flex-wrap: wrap; row-gap: 2px; }
+.tp-scope.blt .blt-ann__row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-4); }
+.tp-scope.blt .blt-ann__l { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
+.tp-scope.blt .blt-ann__i { display: flex; align-items: center; gap: var(--space-3); }
+.tp-scope.blt .blt-ann__t { display: flex; flex-direction: column; gap: 2px; min-width: 10em; }
+.tp-scope.blt .blt-ann__i .stat { color: var(--accent-bright); }
+.tp-scope.blt .blt-ann__act { display: flex; flex-direction: row-reverse; align-items: center; gap: var(--space-2); margin-left: auto; }
+
+/* Annonces montrées au deuxième pli : coin haut droit, sous les outils, sans cacher le pli */
+.tp-scope.blt .tp-table--salon [data-area="s-tr"] { padding: 0; position: relative; }
+.tp-scope.blt .blt-annshow {
+  position: absolute; top: calc(var(--touch-min) + 18px); right: 0; z-index: 4; width: min(390px, 100%);
+  padding: var(--space-3) var(--space-4); gap: var(--space-2);
+}
+.tp-scope.blt .blt-annshow__h { display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: var(--space-2); }
+.tp-scope.blt .blt-annshow__h .label { color: var(--accent); }
+.tp-scope.blt .blt-annshow__h .title-sm { grid-column: 1; }
+.tp-scope.blt .blt-x { grid-row: 1 / span 2; grid-column: 2; margin: -6px -8px -6px 0; }
+.tp-scope.blt .blt-annshow__l { display: flex; flex-direction: column; gap: var(--space-2); }
+.tp-scope.blt .blt-annshow__i { margin: 0; display: flex; align-items: center; gap: var(--space-3); }
+.tp-scope.blt .blt-annshow__c { display: flex; gap: 3px; flex: none; }
+.tp-scope.blt .blt-annshow__i .caption { color: var(--text); }
+.tp-scope.blt .blt-annshow__lost { margin: 0; color: var(--text-muted); }
+
+/* Fin de donne : le verdict au centre du tapis */
+.tp-scope.blt .blt-verdict {
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-2); margin: auto 0; padding: var(--space-4) var(--space-6);
+  border-radius: var(--radius-lg); background: color-mix(in srgb, var(--panel) 80%, transparent); border: 1px solid var(--line);
+}
+.tp-scope.blt .blt-verdict > .label { color: var(--text-muted); }
+.tp-scope.blt .blt-verdict__t { display: flex; align-items: center; gap: var(--space-2); margin: 0; color: var(--positive); }
+.tp-scope.blt .blt-verdict:not([data-result="made"]) .blt-verdict__t { color: var(--danger); }
+.tp-scope.blt .blt-verdict__s { list-style: none; margin: 0; padding: 0; display: flex; gap: var(--space-6); }
+.tp-scope.blt .blt-verdict__s li { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.tp-scope.blt .blt-verdict__s .label { color: var(--team); }
+.tp-scope.blt .blt-verdict__s .stat { color: var(--team); font-size: 30px; line-height: 34px; }
+.tp-scope.blt .blt-verdict__s .caption { color: var(--text-muted); }
+
+/* Le nom du joueur d'en face, au-dessus de sa carte, ne passe pas sous le bandeau d'atout */
+.tp-scope.blt .tp-table--salon [data-area="trick"] > .tp-felt-top { margin-bottom: 22px; }
+
+
+/* Plus de place pour l'info du pli à 4 boutons */
+.tp-scope.blt .tp-trickinfo .tp-btn { white-space: nowrap; }
+
+/* ------------------------------------------------------------------ résumé de donne */
+.tp-scope.blt .blt-n { color: var(--team); font-weight: 700; white-space: nowrap; }
+.tp-scope.blt .blt-deal .tp-deal__gains li { box-shadow: inset 4px 0 0 var(--team); }
+.tp-scope.blt .blt-deal .tp-deal__gains li[data-me] { box-shadow: inset 4px 0 0 var(--team), inset 0 0 0 2px var(--accent); }
+.tp-scope.blt .blt-deal .tp-deal__gains li[data-sign="+"] b { color: var(--team); }
+.tp-scope.blt .blt-deal__tot { margin: 0; color: var(--text-muted); text-align: right; }
+.tp-scope.blt .blt-dot { display: none; }
+
+/* ------------------------------------------------------------------ feuille de scores */
+.tp-scope.blt .blt-ss thead th[data-team] { color: var(--team); }
+.tp-scope.blt .blt-ss td[data-team] { line-height: 1.15; }
+.tp-scope.blt .blt-ss__run { display: block; color: var(--text-muted); font-size: 12px; }
+.tp-scope.blt .blt-ss tfoot td[data-team] { color: var(--team); }
+.tp-scope.blt .blt-ss__who { margin: 0 0 var(--space-2); color: var(--text-muted); }
+.tp-scope.blt .blt-empty { margin: var(--space-3) 0 0; color: var(--text-muted); }
+
+/* ------------------------------------------------------------------ fin de partie */
+.tp-scope.blt .tp-end { grid-template-columns: minmax(0, 1fr); place-items: safe center; }
+.tp-scope.blt .tp-end__card { width: min(720px, 100%); min-width: 0; max-width: 100%; }
+.tp-scope.blt .blt-end-sheet { width: 100%; text-align: left; max-height: 30cqh; overflow: auto; }
+.tp-scope.blt .tp-rank__r { grid-template-columns: 28px auto auto 1fr auto; }
+.tp-scope.blt .tp-rank__note { grid-row: 1; grid-column: 4; color: var(--text-muted); }
+.tp-scope.blt .tp-rank__s { grid-column: 5; }
+.tp-scope.blt .blt-end-note { flex-basis: 100%; margin: 0; text-align: center; color: var(--text-muted); }
+.tp-scope.blt .tp-end__act { flex-wrap: wrap; justify-content: center; }
+@container zone (max-height: 760px) {
+  .tp-scope.blt .tp-end__card { width: min(620px, 100%); padding: var(--space-5) var(--space-6); gap: var(--space-3); }
+  .tp-scope.blt .tp-end__emblem { width: 48px; height: 48px; }
+  .tp-scope.blt .tp-end__emblem .tp-ic { width: 26px; height: 26px; }
+  .tp-scope.blt .blt-end-sheet { display: none; } /* zone basse : la feuille reste dans le tiroir « Feuille de scores » */
+}
+
+/* ------------------------------------------------------------------ règles */
+.tp-scope.blt .blt-rules__h { margin: var(--space-5) 0 var(--space-2); color: var(--accent); }
+.tp-scope.blt .blt-rules__boxes { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--space-2); margin: var(--space-2) 0 var(--space-4); }
+.tp-scope.blt .blt-rules__box { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-md); background: var(--panel-raised); border: 1px solid var(--line); }
+.tp-scope.blt .blt-rules__box .caption { color: var(--text-muted); }
+.tp-scope.blt .blt-rt { margin: var(--space-2) 0 var(--space-4); }
+.tp-scope.blt .blt-rt :is(td, th) { text-align: center; white-space: normal; padding: 8px 10px; }
+.tp-scope.blt .blt-rt :is(td, th):first-child { text-align: left; }
+
+/* ------------------------------------------------------------------ portable (zone basse) */
+@container zone (max-height: 780px) {
+  /* le pli à 4 (une carte en haut, deux au milieu, une en bas) et le talon tiennent sous le bandeau d'atout */
+  .tp-scope.blt .tp-table--salon [data-area="trick"] { --card-md: clamp(64px, 15cqh, 200px); }
+  .tp-scope.blt .tp-table--salon [data-area="trick"] > .tp-felt-top { margin-bottom: 16px; }
+}
+@container zone (max-height: 700px) {
+  .tp-scope.blt .tp-trickinfo .tp-btn span { display: none; }
+  .tp-scope.blt .tp-trickinfo .tp-btn { width: var(--touch-min); padding: 0; justify-content: center; }
+  .tp-scope.blt .blt-board { padding: 8px 12px 6px; gap: 4px; }
+  .tp-scope.blt .blt-board__r { padding: 4px 8px 5px 10px; }
+  .tp-scope.blt .blt-board .stat { font-size: 19px; line-height: 21px; }
+}
+
+/* ------------------------------------------------------------------ tablette (640 à 1100 px) */
+@container zone (min-width: 640px) and (max-width: 1100px) {
+  .tp-scope.blt .tp-table--salon { grid-template-columns: minmax(170px, 1fr) minmax(0, 2.2fr) minmax(170px, 1fr); }
+  .tp-scope.blt .tp-table--salon .tp-seat { min-width: 0; max-width: 100%; }
+  .tp-scope.blt .tp-table--salon [data-area="s-tr"] { padding-right: 0; }
+  .tp-scope.blt .blt-board { width: 100%; }
+  .tp-scope.blt .blt-board__b span { display: none; }
+  .tp-scope.blt .tp-trickinfo .tp-btn span { display: none; }
+  .tp-scope.blt .tp-trickinfo .tp-btn { width: var(--touch-min); padding: 0; justify-content: center; }
+  .tp-scope.blt .blt-annshow { width: 100%; min-width: 220px; }
+  .tp-scope.blt .blt-ann .tp-panel__h .caption { display: none; }
+  .tp-scope.blt .tp-table--salon .tp-seat .tp-fan { display: none; } /* sièges compacts : le centre garde la place du pli */
+  .tp-scope.blt .blt-annshow__i { flex-direction: column; align-items: flex-start; gap: 4px; }
+}
+
+/* ------------------------------------------------------------------ téléphone
+   Une grille qui tient dans la hauteur, sans défilement : scores (à côté des outils), les trois autres joueurs
+   sur une ligne, le pli qui prend la place restante, puis mon siège et le statut côte à côte, ma main.
+   Les panneaux (enchères, annonces, dernier pli) et les annonces montrées se posent sur le pli. */
+@container zone (max-width: 639px) {
+  .tp-scope.blt .tp-decor > * { display: none; }
+  .tp-scope.blt .tp-table {
+    display: grid; overflow-x: hidden; padding: var(--space-2) var(--space-3) var(--space-2); gap: var(--space-2) 6px;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto auto;
+    grid-template-areas:
+      "s-tl s-tl s-tl s-tl s-tl s-tl"
+      "s-left s-left s-top s-top s-right s-right"
+      "trick trick trick trick trick trick"
+      "me me status status status status"
+      "hand hand hand hand hand hand"
+      "actions actions actions actions actions actions";
+  }
+  .tp-scope.blt .tp-table > .tp-area { min-width: 0; min-height: 0; }
+  .tp-scope.blt .tp-area[data-area="actions"]:empty { display: none; } /* pas de barre collée vide */
+  .tp-scope.blt .tp-area[data-area="actions"] { margin: 0 calc(var(--space-3) * -1) calc(var(--space-2) * -1); }
+
+  /* scores : une ligne par équipe, à gauche des outils */
+  .tp-scope.blt .tp-area[data-area="s-tl"] { min-height: var(--touch-min); align-items: center; }
+  .tp-scope.blt .blt-board { width: calc(100% - 186px); min-width: 132px; padding: 3px 8px; gap: 2px; box-shadow: none; }
+  .tp-scope.blt .blt-board__h, .tp-scope.blt .blt-board__g, .tp-scope.blt .blt-board__p, .tp-scope.blt .blt-board__b { display: none; }
+  .tp-scope.blt .blt-board__t { grid-template-columns: 1fr; gap: 2px; }
+  .tp-scope.blt .blt-board__r { grid-template-columns: auto 1fr; padding: 1px 6px 1px 9px; }
+  .tp-scope.blt .blt-board__s { justify-self: end; font-size: 16px; line-height: 18px; }
+  .tp-scope.blt .blt-board__lit { flex-basis: 100%; font-size: 12px; }
+
+  /* les trois autres joueurs, compacts, sur une ligne (gauche, partenaire, droite) */
+  .tp-scope.blt .tp-table--salon [data-area^="s-"] { overflow: visible; }
+  .tp-scope.blt .tp-table--salon .tp-seat { position: relative; flex-wrap: wrap; align-content: center; gap: 2px 5px; padding: 5px 6px; min-height: 50px; height: 100%; }
+  .tp-scope.blt .tp-table--salon .tp-seat :is(.tp-seat__id, .tp-seat__txt) { display: contents; }
+  .tp-scope.blt .tp-table--salon .tp-seat .tp-avatar { --av: 22px; order: 0; }
+  .tp-scope.blt .tp-table--salon .tp-seat__name { order: 1; flex: 1 1 calc(100% - 30px); min-width: 0; font-size: 14px; line-height: 17px; }
+  .tp-scope.blt .tp-table--salon .tp-seat__meta { order: 2; flex: 1 1 0; min-width: 0; font-size: 11px; line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tp-scope.blt .tp-table--salon .tp-seat__meta .tp-ic { width: 12px; height: 12px; }
+  .tp-scope.blt .tp-table--salon .tp-seat__badges { order: 3; flex: none; margin-left: 0; gap: 2px; flex-wrap: nowrap; }
+  .tp-scope.blt .tp-table--salon .tp-seat .tp-badge { min-height: 20px; padding: 0 3px; }
+  .tp-scope.blt .tp-table--salon .tp-seat .tp-badge .tp-ic { width: 14px; height: 14px; }
+  /* bulle (Passe, Prend, Belote !, annonces) : posée sur le bord bas du siège */
+  .tp-scope.blt .tp-table--salon .tp-seat > .tp-bubble {
+    position: absolute; left: 50%; top: auto; bottom: -10px; transform: translateX(-50%); z-index: 4; margin: 0; padding: 1px 8px;
+    max-width: calc(100% + 8px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; line-height: 16px;
+  }
+  .tp-scope.blt .tp-table--salon [data-area="me"] .tp-seat > .tp-bubble { bottom: auto; top: -12px; }
+  .tp-scope.blt .tp-seat[data-team]::before { left: 8px; right: auto; width: 32px; }
+
+  /* le pli prend la place qui reste ; les cartes suivent la hauteur disponible */
+  .tp-scope.blt .tp-table--salon [data-area="trick"] {
+    position: relative; justify-content: center; --card-md: clamp(48px, min(19cqw, 11cqh), 110px);
+  }
+  .tp-scope.blt .tp-felt-top { margin-bottom: var(--space-2); }
+  .tp-scope.blt .tp-table--salon [data-area="trick"] > .tp-felt-top { margin-bottom: 18px; }
+  .tp-scope.blt .tp-trick { flex: 0 1 auto; min-height: calc(var(--card-md) * 2.25 + 24px); }
+  .tp-scope.blt .tp-trickinfo { position: absolute; right: 0; bottom: 0; width: auto; margin: 0; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .tp-scope.blt .blt-verdict { padding: var(--space-3) var(--space-4); }
+
+  /* panneaux et annonces montrées : posés en bas du pli, au-dessus de ma main */
+  .tp-scope.blt .tp-overpanel { position: absolute; left: 0; right: 0; bottom: 0; width: auto; margin: 0; max-height: 100%; overflow-y: auto; }
+  .tp-scope.blt .tp-area[data-area="s-tr"] { grid-area: trick !important; align-self: end; z-index: 7; padding: 0; }
+  .tp-scope.blt .tp-area[data-area="s-tr"]:empty { display: none; }
+  .tp-scope.blt .blt-annshow { position: static; width: 100%; max-height: 100%; overflow-y: auto; }
+  .tp-scope.blt .tp-panel { box-shadow: var(--shadow-panel); }
+  .tp-scope.blt .blt-bids .tp-btn, .tp-scope.blt .blt-ann .tp-btn { min-width: 0; }
+  .tp-scope.blt .blt-bids__h .caption, .tp-scope.blt .blt-ann .tp-panel__h .caption { display: none; }
+  .tp-scope.blt .blt-bids__in { gap: var(--space-2); }
+  .tp-scope.blt .blt-bids__h { flex-basis: 100%; max-width: none; }
+  .tp-scope.blt .blt-bids .tp-bids__row { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+  .tp-scope.blt .blt-ann { width: 100%; }
+  .tp-scope.blt .blt-ann__row { flex-direction: column; align-items: stretch; gap: var(--space-2); }
+  .tp-scope.blt .blt-ann__i { flex-wrap: wrap; gap: 4px var(--space-3); }
+  .tp-scope.blt .blt-ann__t { min-width: 0; flex-direction: row; align-items: baseline; gap: var(--space-2); }
+  .tp-scope.blt .blt-ann__act { flex-direction: column; align-items: stretch; gap: 4px; margin-left: 0; }
+  .tp-scope.blt .blt-ann__act .tp-btn--ghost { min-height: 36px; }
+  .tp-scope.blt .blt-ann .title-md, .tp-scope.blt .blt-bids .title-md { font-size: 18px; line-height: 22px; }
+
+  /* mon siège (avatar et badges) à côté du statut */
+  .tp-scope.blt .tp-table--salon [data-area="me"] { align-items: stretch; }
+  .tp-scope.blt .tp-table--salon .tp-seat__you { font-size: 11px; }
+  .tp-scope.blt .tp-area[data-area="status"] { align-items: stretch; }
+  .tp-scope.blt .tp-status { flex: 1; flex-wrap: wrap; justify-content: center; align-content: center; row-gap: 0; padding: 4px 10px; }
+  .tp-scope.blt .tp-status__t { white-space: nowrap; }
+
+  /* ma main : sur deux rangs, à la taille que permet la hauteur */
+  .tp-scope.blt .tp-area[data-area="hand"] { --card-md: clamp(52px, min(21cqw, 11cqh), 120px); }
+
+  .tp-scope.blt .blt-end-sheet { display: none; }
+}
+
+/* Glyphe d'atout dans un badge laiton (Preneur ♥) : lisible sur l'aplat */
+.tp-scope.blt .tp-badge--accent .tp-ic:is(.tp-suit-coeur, .tp-suit-carreau) { color: var(--danger-fill); }
+.tp-scope.blt .tp-badge--accent .tp-ic:is(.tp-suit-pique, .tp-suit-trefle) { color: var(--on-accent); }

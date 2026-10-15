@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 320 180" role="img" aria-label="Rami : une suite 7-8-9 de Cœur et un brelan de Dames complété par le Joker, posés sur le tapis">
+  <defs>
+    <radialGradient id="felt" cx="50%" cy="35%" r="90%">
+      <stop offset="0" stop-color="#2a6447"/><stop offset=".6" stop-color="#1c4632"/><stop offset="1" stop-color="#0d2419"/>
+    </radialGradient>
+    <linearGradient id="face" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbf7ec"/><stop offset="1" stop-color="#ece3cc"/></linearGradient>
+    <linearGradient id="trump" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6ecd0"/><stop offset="1" stop-color="#e5d3a6"/></linearGradient>
+    <linearGradient id="back" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7a1f2b"/><stop offset="1" stop-color="#4c1119"/></linearGradient>
+    <filter id="sh" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000" flood-opacity=".45"/></filter>
+    <path id="heart" d="M0 9 C-3 6 -11 1 -11 -4.5 C-11 -9 -6 -11 -3 -9 C-1.6 -8 -.6 -6.6 0 -5.4 C.6 -6.6 1.6 -8 3 -9 C6 -11 11 -9 11 -4.5 C11 1 3 6 0 9 Z"/>
+    <path id="spade" d="M0 -11 C3 -6 11 -1.5 11 3.5 C11 7.5 7 9 4 7.5 C2.6 6.8 1.6 5.6 1 4.4 C1.4 7.5 2.6 9.6 4.4 11 L-4.4 11 C-2.6 9.6 -1.4 7.5 -1 4.4 C-1.6 5.6 -2.6 6.8 -4 7.5 C-7 9 -11 7.5 -11 3.5 C-11 -1.5 -3 -6 0 -11 Z"/>
+    <g id="club"><circle cx="0" cy="-5.5" r="5"/><circle cx="-5.6" cy="2" r="5"/><circle cx="5.6" cy="2" r="5"/><path d="M-1 2 C-1.3 6 -2.6 9 -4.6 11 L4.6 11 C2.6 9 1.3 6 1 2 Z"/></g>
+    <path id="star" d="M0 -12 L3 -3.5 L12 -3.5 L5 2 L7.5 11 L0 5.5 L-7.5 11 L-5 2 L-12 -3.5 L-3 -3.5 Z"/>
+    <rect id="card" x="-25" y="-36" width="50" height="72" rx="5" fill="url(#face)" stroke="#c9b893"/>
+  </defs>
+  <rect width="320" height="180" fill="url(#felt)"/>
+  <ellipse cx="160" cy="96" rx="150" ry="62" fill="none" stroke="#dbb666" stroke-opacity=".22"/>
+  <ellipse cx="160" cy="170" rx="150" ry="20" fill="#000" opacity=".2"/>
+
+  <!-- talon (dos bordeaux) -->
+  <g filter="url(#sh)" transform="translate(160 40)">
+    <rect x="-17" y="-24" width="34" height="48" rx="4" fill="url(#back)" stroke="#dbb666" stroke-opacity=".6" transform="translate(3 -3)"/>
+    <rect x="-17" y="-24" width="34" height="48" rx="4" fill="url(#back)" stroke="#dbb666" stroke-opacity=".8"/>
+    <rect x="-12" y="-19" width="24" height="38" rx="2" fill="none" stroke="#dbb666" stroke-opacity=".55"/>
+    <path d="M0 -10 L7 0 L0 10 L-7 0 Z" fill="none" stroke="#dbb666" stroke-opacity=".7"/>
+  </g>
+
+  <!-- suite 7-8-9 de Cœur -->
+  <g filter="url(#sh)">
+    <g transform="translate(58 112) rotate(-4)">
+      <use xlink:href="#card"/>
+      <text x="-19" y="-20" font-family="Georgia, serif" font-weight="700" font-size="13" fill="#b3263a">7</text>
+      <use xlink:href="#heart" transform="translate(-15 -9) scale(.42)" fill="#b3263a"/>
+      <use xlink:href="#heart" transform="translate(4 10) scale(1)" fill="#b3263a"/>
+    </g>
+    <g transform="translate(82 111) rotate(-1)">
+      <use xlink:href="#card"/>
+      <text x="-19" y="-20" font-family="Georgia, serif" font-weight="700" font-size="13" fill="#b3263a">8</text>
+      <use xlink:href="#heart" transform="translate(-15 -9) scale(.42)" fill="#b3263a"/>
+      <use xlink:href="#heart" transform="translate(4 10) scale(1)" fill="#b3263a"/>
+    </g>
+    <g transform="translate(106 110) rotate(2)">
+      <use xlink:href="#card"/>
+      <text x="-19" y="-20" font-family="Georgia, serif" font-weight="700" font-size="13" fill="#b3263a">9</text>
+      <use xlink:href="#heart" transform="translate(-15 -9) scale(.42)" fill="#b3263a"/>
+      <use xlink:href="#heart" transform="translate(4 8) scale(1.2)" fill="#b3263a"/>
+    </g>
+  </g>
+
+  <!-- brelan de Dames + Joker -->
+  <g filter="url(#sh)">
+    <g transform="translate(196 110) rotate(-2)">
+      <use xlink:href="#card"/>
+      <text x="-19" y="-20" font-family="Georgia, serif" font-weight="700" font-size="13" fill="#1c1b22">D</text>
+      <use xlink:href="#spade" transform="translate(-15 -9) scale(.42)" fill="#1c1b22"/>
+      <use xlink:href="#spade" transform="translate(4 10) scale(1)" fill="#1c1b22"/>
+    </g>
+    <g transform="translate(220 110)">
+      <use xlink:href="#card"/>
+      <text x="-19" y="-20" font-family="Georgia, serif" font-weight="700" font-size="13" fill="#b3263a">D</text>
+      <use xlink:href="#heart" transform="translate(-15 -9) scale(.42)" fill="#b3263a"/>
+      <use xlink:href="#heart" transform="translate(4 10) scale(1)" fill="#b3263a"/>
+    </g>
+    <g transform="translate(244 110) rotate(2)">
+      <use xlink:href="#card"/>
+      <text x="-19" y="-20" font-family="Georgia, serif" font-weight="700" font-size="13" fill="#1c1b22">D</text>
+      <use xlink:href="#club" transform="translate(-15 -9) scale(.42)" fill="#1c1b22"/>
+      <use xlink:href="#club" transform="translate(4 10) scale(1)" fill="#1c1b22"/>
+    </g>
+    <g transform="translate(268 106) rotate(7)">
+      <rect x="-25" y="-36" width="50" height="72" rx="5" fill="url(#trump)" stroke="#9a6c1a"/>
+      <rect x="-21" y="-32" width="42" height="64" rx="3" fill="none" stroke="#9a6c1a" stroke-opacity=".6"/>
+      <circle cx="0" cy="-2" r="13" fill="#d9a93a" opacity=".22"/>
+      <use xlink:href="#star" transform="translate(0 -2) scale(1.05)" fill="#d9a93a" stroke="#76520e" stroke-width=".7"/>
+      <text x="0" y="26" text-anchor="middle" font-family="Georgia, serif" font-size="7" letter-spacing="1" fill="#76520e">JOKER</text>
+    </g>
+  </g>
+
+  <text x="22" y="34" font-family="Georgia, serif" font-size="12" letter-spacing="3" fill="#dbb666" fill-opacity=".75">RAMI 51</text>
+</svg>

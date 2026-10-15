@@ -51,7 +51,7 @@ Toute évolution doit préserver cette extensibilité :
   (https://claude.ai/artifact/M8sPJm4BwpyyvVesz23YyD)**, partagé par tous les jeux de cartes, importé dans
   `public/vendor/tapis/` (servi sur `/vendor/tapis/`) par `node scripts/vendor-design.mjs tapis <dossier project>`
   (ne pas éditer à la main). Conteneur `.tp-scope` avec `data-table`/`data-theme` = `cour` (Chute des Rois) ou
-  `salon` (Tarot, Blackjack, Poker) et `data-motion-host` ; préférence d'animation partagée `tapis.motion` (sans choix : le réglage
+  `salon` (Tarot, Blackjack, Poker, Belote, Président, Rami) et `data-motion-host` ; préférence d'animation partagée `tapis.motion` (sans choix : le réglage
   « animations réduites » du système). Pas de LobbyBar Tapis : la barre du Hub reste. Chaque client : `index.js`
   (chargement, file d'états animée façon Profondeurs) + `view.js` (rendu Tapis). Bugs du bundle contournés côté
   client (à corriger dans Claude Design puis ré-importer) : « Bouclier {pique} » littéral, accords « annulé » /
@@ -77,7 +77,16 @@ Toute évolution doit préserver cette extensibilité :
   (1000/2000/5000) et `blinds` (rapide/normale/lente). Moteur games/poker/server/Poker.js (blindes, relances, pots
   annexes, éliminations) + evaluator.js (noms français). Trois mises en page : `wide` (PC), `square` (640-1100 px),
   `tall` (téléphone). Pas encore : actions anticipées, minuteur de parole.
-- Limite commune (Tarot, Blackjack, Poker) : un joueur absent bloque la table jusqu'à ce que le Core le retire ;
+- `belote` — Belote classique (4 joueurs, équipes 1+3 contre 2+4), table « salon ». Options `target` (501/1001/1501)
+  et `announces` (oui/non). Moteur games/belote/server/Belote.js (enchères en 2 tours, règles FFB, belote-rebelote,
+  annonces, dedans, litige reporté, capot, coupe du jeu entre les donnes). Pas de coinche.
+- `president` — Président / Trouduc (3-8 joueurs, un jeu de 52), table « salon ». Options `rounds` (5/8/12),
+  `twoCloses` (ferme/normal), `revolution` (non/oui). Moteur games/president/server/President.js (règle simple :
+  strictement plus fort, pas de « ou rien » ; échanges de cartes ; points 4/3/2/1/0).
+- `rami` — Rami 51 (2-6 joueurs, 108 cartes), table « salon ». Options `opening` (51/30) et `rounds` (3/5/7). Moteur
+  games/rami/server/Rami.js + validation des combinaisons (Joker : Excuse Tapis via `jk()` comme Chute des Rois).
+  Score des stats = « points d'avance » (le Hub garde le MAX). Pas de pénalité de 100 pour qui n'a pas ouvert.
+- Limite commune (Tarot, Blackjack, Poker, Belote, Président, Rami) : un joueur absent bloque la table jusqu'à ce que le Core le retire ;
   piste Core : signal de déconnexion / minuteur générique.
 - `profondeurs` — Les Profondeurs (coopératif 1-4 joueurs, jeu de dés façon « One Deck Dungeon », contenu original,
   boss à 3-4 joueurs). Moteur + contenu + équilibrage faits (games/profondeurs/server/, BALANCE dans Profondeurs.js).
@@ -112,9 +121,9 @@ Toute évolution doit préserver cette extensibilité :
   classement). Salon : places libres, code d'invitation, tuiles de jeux, fiche du jeu choisi avec options et « Lancer »
   (fixé en bas sur téléphone). Barre du salon d'une seule ligne et 53 px de haut (les jeux s'y fient), jeu en cours
   affiché au centre. Notifications en haut. Textes du Hub au tutoiement, comme les jeux.
-- **Joker dans La Chute des Rois : FAIT** (voir Jeux existants). **Blackjack et Poker : FAITS** (demandés par le
-  propriétaire).
+- **Joker dans La Chute des Rois : FAIT** (voir Jeux existants). **Blackjack, Poker, Belote, Président, Rami : FAITS**
+  (demandés par le propriétaire). Piste : variante Coinche pour la Belote.
 - Améliorations proposées au propriétaire (à discuter, non commencées) : notifications Discord (webhook) des
   demandes d'accès et des salons ; invitations/salons privés ; mode spectateur ; revanche en un clic ; succès/badges
-  et profils ; nouveaux jeux (Président, Belote/Coinche, Loup-garou, Uno-like...) ; report du design Claude Design ;
+  et profils ; nouveaux jeux (Coinche, Loup-garou, Uno-like...) ; report du design Claude Design ;
   PWA mobile ; sauvegarde des parties en cours (survit aux redémarrages) ; outils admin (bannir, fermer un salon).

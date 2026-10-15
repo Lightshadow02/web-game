@@ -1,0 +1,406 @@
+/* Président : intégration du design system « Tapis » (table « salon ») dans le Hub.
+   Cartes, plaques, boutons, statut, fenêtres : /vendor/tapis/tapis.css (chargé avant ce fichier).
+   Ici : la table ovale (jusqu'à 8 joueurs), la pile du pli, l'échange de cartes et la mise en page
+   PC / tablette / téléphone, avec les tokens du système. Sélecteurs .tp-scope.pr … : ils priment
+   quel que soit l'ordre de chargement. */
+
+/* Titres du Hub (h2 en capitales dorées) neutralisés ; spécificité minimale pour que les classes Tapis gardent la main. */
+:where(.tp-scope) :is(h1, h2, h3, h4) { margin: 0; font-size: inherit; letter-spacing: normal; text-transform: none; color: inherit; }
+
+/* La hauteur est posée en JS (fit) : la table tient dans la fenêtre, sous la barre du salon. */
+.tp-scope.pr { display: block; position: relative; }
+@media (min-width: 641px) { .tp-scope.pr { min-height: 560px; } } /* zone-min-h du design */
+.tp-scope.pr .tp-app { background: transparent; }
+.tp-scope.pr .tp-zone { margin: 0; } /* le Hub entoure déjà le jeu d'une marge */
+.tp-scope.pr .pr-layer { display: contents; }
+.tp-scope.pr .pr-loading { margin: 0; padding: 2rem; text-align: center; color: var(--muted); } /* avant Tapis : couleurs du Hub */
+.tp-scope.pr .tp-decor__ring { display: none; } /* l'anneau du pli : ici la table ovale le remplace */
+@container zone (max-width: 639px) { .tp-scope.pr .tp-decor svg, .tp-scope.pr .tp-decor > * { display: none; } }
+
+/* Pendant une transition ou une requête : pas de clic de jeu (outils, règles et interrupteur restent actifs). */
+.tp-scope.pr:is([data-animating], [data-busy]) :is(.pr-hand, .pr-actions) { pointer-events: none; }
+.tp-scope.pr[data-busy] .pr-actions .tp-actions { opacity: .7; }
+
+/* ------------------------------------------------------------------ la table */
+.tp-scope.pr .pr-table {
+  --plate-w: clamp(176px, 12.6cqw, 248px);
+  --pile-h: var(--card-md);
+  --pile-w: calc(var(--pile-h) * 5 / 7);
+  position: absolute; inset: 0; z-index: 1; overflow: hidden;
+  display: flex; flex-direction: column;
+  /* la salle autour de la table s'assombrit vers les coins */
+  background: radial-gradient(ellipse 70% 72% at 50% 38%, transparent 55%, rgba(0, 0, 0, .3) 100%);
+}
+.tp-scope.pr .pr-table[data-shape="square"] { --plate-w: clamp(132px, 17.5cqw, 200px); --pile-h: min(var(--card-md), 17cqh); }
+.tp-scope.pr .pr-table[data-players="8"][data-shape="wide"] { --plate-w: clamp(168px, 12cqw, 236px); }
+
+.tp-scope.pr .pr-arena { position: relative; flex: 1 1 auto; min-height: 0; }
+
+/* Le plateau : un rail de cuir cerclé de laiton, le feutre au centre. */
+.tp-scope.pr .pr-felt {
+  position: absolute; left: 50%; top: 54%; width: 62%; height: 76%; translate: -50% -50%;
+  border-radius: 50%; pointer-events: none;
+  background: linear-gradient(170deg, color-mix(in srgb, var(--rim) 70%, #000), var(--rim) 45%, color-mix(in srgb, var(--rim) 80%, #000));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 45%, var(--rim)), 0 18px 50px rgba(0, 0, 0, .55), inset 0 2px 0 rgba(255, 236, 200, .08);
+}
+.tp-scope.pr .pr-felt__cloth {
+  position: absolute; inset: clamp(9px, 2cqh, 20px); border-radius: 50%;
+  background: radial-gradient(ellipse 60% 55% at 50% 42%, color-mix(in srgb, var(--table-glow) 100%, #fff 4%), var(--table) 72%, var(--table-deep) 100%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent), inset 0 6px 26px rgba(0, 0, 0, .55);
+  transition: background .6s;
+}
+.tp-scope.pr .pr-felt__cloth::after { /* filet intérieur */
+  content: ""; position: absolute; inset: 11%; border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+}
+/* révolution : le feutre prend une teinte bordeaux, le filet s'allume */
+.tp-scope.pr .pr-table[data-rev] .pr-felt__cloth {
+  background: radial-gradient(ellipse 60% 55% at 50% 42%, color-mix(in srgb, var(--back) 55%, var(--table-glow)), color-mix(in srgb, var(--back) 35%, var(--table)) 72%, var(--table-deep) 100%);
+}
+.tp-scope.pr .pr-table[data-rev] .pr-felt__cloth::after { border-color: color-mix(in srgb, var(--accent-bright) 55%, transparent); border-style: dashed; }
+.tp-scope.pr .pr-table[data-shape="square"] .pr-felt { width: 72%; height: 70%; }
+
+/* ------------------------------------------------------------------ sièges autour de la table */
+.tp-scope.pr .pr-seats { position: absolute; inset: 0; pointer-events: none; }
+.tp-scope.pr .pr-spot {
+  position: absolute; left: calc(var(--x) * 1%); top: calc(var(--y) * 1%); translate: -50% -50%; z-index: 4;
+  width: var(--plate-w); pointer-events: auto;
+}
+/* l'éventail de dos, glissé derrière la plaque : dessus, ou dessous pour les sièges du haut (vers le tapis) */
+.tp-scope.pr .pr-fan { position: absolute; left: 50%; bottom: calc(100% - 14px); translate: -50% 0; z-index: 0; pointer-events: none; }
+.tp-scope.pr .pr-spot[data-side="top"] .pr-fan { bottom: auto; top: calc(100% - 14px); }
+.tp-scope.pr .pr-spot[data-side="top"] .pr-fan .tp-fan__c { transform: rotate(calc((var(--i) - var(--m)) * -6deg)); transform-origin: 50% -40%; }
+/* sièges de côté : l'éventail sort de la plaque vers le tapis (deux sièges l'un au-dessus de l'autre ne se gênent pas) */
+.tp-scope.pr .pr-spot[data-side="side"][data-lr="left"] .pr-fan { left: calc(100% - 16px); bottom: auto; top: 50%; translate: 0 -50%; }
+.tp-scope.pr .pr-spot[data-side="side"][data-lr="right"] .pr-fan { left: auto; right: calc(100% - 16px); bottom: auto; top: 50%; translate: 0 -50%; }
+.tp-scope.pr .pr-fan .tp-fan { padding-left: 0; }
+
+.tp-scope.pr .pr-plate {
+  position: relative; z-index: 1; width: 100%; display: flex; flex-direction: row; align-items: center; gap: 10px;
+  padding: 8px 12px 8px 8px; border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--panel) 88%, transparent); border: 1px solid var(--line-strong);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .4);
+  transition: opacity .3s, filter .3s, border-color .3s;
+}
+.tp-scope.pr .pr-plate[data-state="active"] { border-color: var(--accent); box-shadow: var(--glow-turn); }
+.tp-scope.pr .pr-plate[data-state="offline"] { border-style: dashed; opacity: .8; }
+.tp-scope.pr .pr-plate[data-done] { border-color: color-mix(in srgb, var(--accent) 55%, var(--line-strong)); }
+.tp-scope.pr .pr-plate .tp-avatar { --av: clamp(32px, 4.6cqh, 44px); flex: none; }
+.tp-scope.pr .pr-plate__t { display: flex; flex-direction: column; min-width: 0; gap: 1px; flex: 1; }
+.tp-scope.pr .pr-plate__n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: clamp(13px, 1.7cqh, 15px); line-height: 1.2; }
+.tp-scope.pr .pr-plate__m { color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.tp-scope.pr .pr-plate__st { display: inline-flex; align-items: center; gap: 3px; font: 600 12px/15px var(--font-text); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tp-scope.pr .pr-plate__st .tp-ic { width: 13px; height: 13px; flex: none; }
+.tp-scope.pr .pr-plate__st[data-tone="off"] { color: var(--danger); font-weight: 700; }
+.tp-scope.pr .pr-plate__st[data-tone="done"] { color: var(--accent-bright); font-weight: 700; }
+.tp-scope.pr .pr-plate__st[data-tone="pass"] { font-style: italic; }
+/* titre de la manche précédente et place : rubans posés sur le bord haut de la plaque */
+.tp-scope.pr .pr-plate__b { position: absolute; top: 0; right: 10px; translate: 0 calc(-100% + 4px); display: flex; gap: 3px; z-index: 2; }
+.tp-scope.pr .pr-plate__b .tp-badge { height: 20px; padding: 0 7px; font-size: 10px; box-shadow: 0 2px 6px rgba(0, 0, 0, .45); }
+.tp-scope.pr .pr-plate__b .tp-badge .tp-ic { width: 12px; height: 12px; }
+.tp-scope.pr .pr-plate__b .tp-badge:not(.tp-badge--accent) { background: var(--panel-raised); }
+
+/* « Passe » : une bulle au-dessus de la plaque ; à côté (vers le centre) pour les sièges du haut */
+.tp-scope.pr .pr-plate > .tp-bubble { z-index: 6; font-size: 14px; padding: 4px 10px; }
+.tp-scope.pr .pr-spot[data-side="top"] .pr-plate > .tp-bubble { top: 50%; left: 100%; transform: translate(10px, -50%); }
+.tp-scope.pr .pr-spot[data-side="top"] .pr-plate > .tp-bubble::after { display: block; left: -4px; top: 50%; bottom: auto; transform: translateY(-50%) rotate(45deg); }
+.tp-scope.pr .pr-spot[data-side="top"][data-lr="right"] .pr-plate > .tp-bubble { left: auto; right: 100%; transform: translate(-10px, -50%); }
+.tp-scope.pr .pr-spot[data-side="top"][data-lr="right"] .pr-plate > .tp-bubble::after { left: auto; right: -4px; }
+.tp-scope.pr .pr-spot[data-side="side"] .pr-plate > .tp-bubble::after { display: block; }
+.tp-scope.pr .pr-plate:has(.pr-plate__b) > .tp-bubble { left: 30%; }
+
+/* ------------------------------------------------------------------ centre : la pile du pli */
+.tp-scope.pr .pr-center {
+  position: absolute; left: 50%; top: 54%; translate: -50% -50%; z-index: 3;
+  display: flex; flex-direction: column; align-items: center; gap: clamp(4px, .8cqh, 10px);
+  max-width: 58%;
+}
+.tp-scope.pr .pr-info { color: var(--text-muted); white-space: nowrap; }
+.tp-scope.pr .pr-rev {
+  margin: 0; display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--back) 80%, transparent); color: var(--accent-bright);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent); font: 700 13px/18px var(--font-text);
+}
+.tp-scope.pr .pr-rev .tp-ic { width: 15px; height: 15px; }
+.tp-scope.pr .pr-stack { position: relative; }
+.tp-scope.pr .pr-pile { position: relative; width: calc(var(--pile-w) * 2.75); height: calc(var(--pile-h) * 1.16); }
+.tp-scope.pr .pr-play {
+  position: absolute; left: 50%; top: 50%; display: flex;
+  translate: calc(-50% + var(--dx) * var(--pile-w)) calc(-50% + var(--dy) * var(--pile-h)); rotate: var(--r);
+  transition: filter .35s;
+}
+.tp-scope.pr .pr-play .tp-card { --ch: var(--pile-h); flex: none; }
+.tp-scope.pr .pr-play .tp-card + .tp-card { margin-left: calc(var(--pile-w) * -.46); }
+.tp-scope.pr .pr-play[data-depth="1"] { filter: brightness(.8) saturate(.85); }
+.tp-scope.pr .pr-play[data-depth="2"] { filter: brightness(.68) saturate(.75); }
+.tp-scope.pr .pr-play[data-depth="3"] { filter: brightness(.58) saturate(.7); }
+.tp-scope.pr .pr-play[data-depth="4"] { filter: brightness(.5) saturate(.6); }
+.tp-scope.pr .pr-play[data-depth="0"] .tp-card { box-shadow: var(--shadow-card-lift); }
+.tp-scope.pr .pr-pile__empty { position: absolute; inset: 0; display: grid; place-items: center; }
+.tp-scope.pr .pr-pile__empty .tp-card { --ch: var(--pile-h); opacity: .6; }
+.tp-scope.pr .pr-discard { position: absolute; left: 100%; top: 50%; translate: clamp(8px, 1.2cqw, 24px) -50%; }
+.tp-scope.pr .pr-discard .tp-pile__cap { white-space: nowrap; }
+.tp-scope.pr .pr-cap {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 3px 14px 3px 4px; border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--panel) 82%, transparent); border: 1px solid var(--line); white-space: nowrap; max-width: 100%;
+}
+.tp-scope.pr .pr-cap .tp-avatar { --av: 26px; }
+.tp-scope.pr .pr-cap .caption { color: var(--text-muted); }
+.tp-scope.pr .pr-cap[data-empty] { visibility: hidden; }
+.tp-scope.pr .pr-need { margin: 0; color: var(--text-muted); text-align: center; }
+
+/* paquet posé au centre le temps du mélange et de la donne ; cartes d'un échange en vol */
+.tp-scope.pr .pr-deck { pointer-events: none; }
+.tp-scope.pr .pr-ghost { z-index: 2; pointer-events: none; }
+.tp-scope.pr .pr-revfx {
+  position: absolute; z-index: 3; white-space: nowrap; pointer-events: none;
+  color: var(--accent-bright); -webkit-text-stroke: 2px color-mix(in srgb, var(--back) 80%, #000); paint-order: stroke fill;
+  text-shadow: 0 0 24px color-mix(in srgb, var(--accent) 70%, transparent), 0 4px 18px rgba(0, 0, 0, .8);
+}
+
+/* ------------------------------------------------------------------ échange de cartes (au centre) */
+.tp-scope.pr .pr-x {
+  display: flex; flex-direction: column; gap: clamp(6px, 1.2cqh, 12px); width: min(620px, 100%); padding: clamp(10px, 1.8cqh, 18px) clamp(12px, 1.6cqw, 22px);
+  border-radius: var(--radius-lg); background: color-mix(in srgb, var(--panel) 90%, transparent); border: 1px solid var(--line-strong); box-shadow: var(--shadow-panel);
+}
+.tp-scope.pr .pr-table[data-shape="wide"] .pr-center:has(.pr-x) { max-width: min(640px, 52%); width: 100%; }
+.tp-scope.pr .pr-x__h { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.tp-scope.pr .pr-x__h .label { color: var(--text-muted); }
+.tp-scope.pr .pr-x__pairs { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.tp-scope.pr .pr-x__pair {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  padding: 6px 10px; border-radius: var(--radius-md); background: var(--panel-raised); border: 1px solid var(--line);
+}
+.tp-scope.pr .pr-x__pair[data-done] { border-color: color-mix(in srgb, var(--positive) 50%, var(--line)); }
+.tp-scope.pr .pr-x__who { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.tp-scope.pr .pr-x__who > span { display: flex; flex-direction: column; min-width: 0; }
+.tp-scope.pr .pr-x__who b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tp-scope.pr .pr-x__who .caption { color: var(--text-muted); }
+.tp-scope.pr .pr-x__arrow { display: flex; flex-direction: column; align-items: center; color: var(--accent); }
+.tp-scope.pr .pr-x__arrow .caption { color: var(--text-muted); white-space: nowrap; }
+.tp-scope.pr .pr-x__st { display: inline-flex; align-items: center; gap: 4px; color: var(--text-muted); white-space: nowrap; }
+.tp-scope.pr .pr-x__pair[data-done] .pr-x__st { color: var(--positive); }
+.tp-scope.pr .pr-x__st .tp-ic { width: 14px; height: 14px; }
+.tp-scope.pr .pr-x__mine { display: flex; align-items: center; gap: 14px; padding: 8px 10px; border-radius: var(--radius-md); border: 1px dashed var(--line-strong); }
+.tp-scope.pr .pr-x__mine b { color: var(--accent-bright); }
+.tp-scope.pr .pr-x__cards { display: flex; flex: none; }
+.tp-scope.pr .pr-x__cards .tp-card { --ch: clamp(56px, 10cqh, 104px); }
+.tp-scope.pr .pr-x__cards .tp-card + .tp-card { margin-left: calc(clamp(56px, 10cqh, 104px) * -.3); }
+
+/* ------------------------------------------------------------------ bas : ma plaque, le statut, les actions, ma main */
+.tp-scope.pr .pr-bottom {
+  flex: none; position: relative; z-index: 5;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); grid-template-areas: "me status actions" "hand hand hand";
+  align-items: end; column-gap: 16px; row-gap: 2px; padding: 0 var(--pad) calc(var(--pad) - 4px);
+}
+.tp-scope.pr .pr-me { grid-area: me; justify-self: start; width: min(290px, 100%); }
+.tp-scope.pr .pr-status { grid-area: status; justify-self: center; min-width: 0; max-width: min(640px, 46cqw); }
+.tp-scope.pr .pr-status .tp-status { max-width: 100%; }
+.tp-scope.pr .pr-status .tp-status__d { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tp-scope.pr .pr-actions { grid-area: actions; justify-self: end; min-width: 0; }
+.tp-scope.pr .pr-actions .tp-actions { align-items: flex-end; }
+.tp-scope.pr .pr-actions .tp-actions__row { flex-wrap: nowrap; justify-content: flex-end; }
+.tp-scope.pr .pr-actions .tp-btnwrap { align-items: flex-end; text-align: right; max-width: 300px; }
+.tp-scope.pr .pr-hand { grid-area: hand; min-width: 0; }
+.tp-scope.pr .pr-hand .tp-hand__grid { padding-top: calc(var(--ch) * .17); }
+.tp-scope.pr .pr-hand--empty { display: grid; place-items: center; min-height: calc(var(--card-md) * .6); }
+.tp-scope.pr .pr-hand--empty .caption { color: var(--text-muted); font-style: italic; }
+.tp-scope.pr .pr-me .pr-plate { padding: 6px 12px 6px 6px; }
+
+/* Écran tactile : le survol reste collé sur la dernière carte touchée ; pas de levée au survol, la sélection garde la sienne. */
+@media (hover: none) {
+  .tp-scope.pr .tp-hand button.tp-card:hover:not([aria-disabled="true"]) { transform: none; z-index: auto; }
+  .tp-scope.pr .tp-hand button.tp-card[data-state~="selected"]:hover { transform: translateY(-15%); }
+}
+
+/* ------------------------------------------------------------------ fenêtres : résumé, dernier pli, scores, fin, règles */
+.tp-scope.pr .pr-deal .tp-deal__lines { grid-template-columns: minmax(0, 1fr); }
+.tp-scope.pr .pr-deal .tp-deal__gains { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.tp-scope.pr .pr-deal .tp-deal__gains li { align-items: center; gap: var(--space-3); padding: 6px 12px 6px 8px; }
+.tp-scope.pr .pr-deal__place { width: 2.2em; text-align: center; color: var(--accent); flex: none; font-size: 18px; }
+.tp-scope.pr .pr-deal .tp-deal__gains .body { gap: 3px; }
+.tp-scope.pr .pr-deal__name { overflow: hidden; text-overflow: ellipsis; font-weight: 700; }
+.tp-scope.pr .pr-deal__sub { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; }
+.tp-scope.pr .pr-deal__sub .tp-badge { height: 18px; padding: 0 6px; font-size: 10px; }
+.tp-scope.pr .pr-deal .tp-deal__gains b { font-size: 22px; }
+@container zone (max-width: 760px) { .tp-scope.pr .pr-deal .tp-deal__gains { grid-template-columns: minmax(0, 1fr); } }
+@container zone (max-height: 700px) { .tp-scope.pr .pr-deal .tp-deal__gains li { padding-block: 3px; } .tp-scope.pr .pr-deal { gap: var(--space-3); } }
+.tp-scope.pr .pr-lt { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.tp-scope.pr .pr-lt li { display: flex; align-items: center; gap: var(--space-3); padding: 6px 10px; border-radius: var(--radius-md); background: var(--panel-raised); border: 1px solid var(--line); }
+.tp-scope.pr .pr-lt li[data-win] { border-color: var(--accent); }
+.tp-scope.pr .pr-lt__n { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.tp-scope.pr .pr-lt__n .caption, .tp-scope.pr .pr-lt__why { color: var(--text-muted); }
+.tp-scope.pr .pr-lt__why { margin: 0 0 var(--space-2); }
+.tp-scope.pr .pr-lt__c { display: flex; }
+.tp-scope.pr .pr-lt__c .tp-card { --ch: clamp(48px, 8cqh, 80px); }
+.tp-scope.pr .pr-lt__c .tp-card + .tp-card { margin-left: calc(clamp(48px, 8cqh, 80px) * -.3); }
+.tp-scope.pr .pr-ss-wrap { overflow-x: auto; }
+.tp-scope.pr .pr-ss td { text-align: center !important; }
+.tp-scope.pr .pr-ss :is(th, td) { padding: 7px 8px; }
+.tp-scope.pr .pr-ss td .caption { display: block; font-size: 11px; line-height: 13px; }
+.tp-scope.pr .pr-ss td .caption[data-title="president"] { color: var(--accent-bright); }
+.tp-scope.pr .pr-ss td .caption[data-title="trouduc"] { color: var(--danger); }
+.tp-scope.pr .pr-ss tfoot :is(th, td) { border-top: 2px solid var(--line-strong); font-weight: 700; }
+.tp-scope.pr .pr-ss tfoot td b { font: 700 17px/1.2 var(--font-display); color: var(--accent-bright); }
+.tp-scope.pr .pr-empty { margin: var(--space-3) 0 0; color: var(--text-muted); }
+
+.tp-scope.pr .tp-end { grid-template-columns: minmax(0, 1fr); place-items: safe center; }
+.tp-scope.pr .tp-end__card { width: min(760px, 100%); min-width: 0; max-width: 100%; }
+.tp-scope.pr .pr-end-sheet { width: 100%; text-align: left; max-height: 30cqh; overflow: auto; }
+.tp-scope.pr .tp-end__act { flex-wrap: wrap; justify-content: center; }
+.tp-scope.pr .pr-end-note { flex-basis: 100%; margin: 0; text-align: center; color: var(--text-muted); }
+.tp-scope.pr .tp-rank__r { grid-template-columns: 28px auto auto 1fr auto; }
+.tp-scope.pr .tp-rank__note { grid-row: 1; grid-column: 4; }
+.tp-scope.pr .tp-rank__s { grid-column: 5; white-space: nowrap; }
+@container zone (max-height: 760px) {
+  .tp-scope.pr .tp-end__card { width: min(620px, 100%); padding: var(--space-5) var(--space-6); gap: var(--space-3); }
+  .tp-scope.pr .tp-end__emblem { width: 48px; height: 48px; }
+  .tp-scope.pr .tp-end__emblem .tp-ic { width: 26px; height: 26px; }
+  .tp-scope.pr .pr-end-sheet { display: none; } /* zone basse : la feuille reste dans le tiroir « Feuille de scores » */
+  .tp-scope.pr .tp-end { overflow-y: auto; }
+  .tp-scope.pr .tp-end h2 { font-size: 40px; line-height: 44px; }
+  .tp-scope.pr .tp-rank { gap: 4px; }
+  .tp-scope.pr .tp-rank__r { padding-block: 3px; min-height: 0; }
+  .tp-scope.pr .tp-rank__r .tp-avatar { --av: 28px; }
+}
+
+.tp-scope.pr .pr-rules__h { margin: var(--space-5) 0 var(--space-2); color: var(--accent); }
+.tp-scope.pr .pr-rules__boxes { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--space-2); margin: var(--space-2) 0 var(--space-4); }
+.tp-scope.pr .pr-rules__box { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-md); background: var(--panel-raised); border: 1px solid var(--line); }
+.tp-scope.pr .pr-rules__box .caption { color: var(--text-muted); }
+.tp-scope.pr .pr-rules__cards { justify-content: flex-start; margin: 0; flex-wrap: wrap; gap: 4px; }
+.tp-scope.pr .pr-rules__t { margin: var(--space-2) 0 var(--space-4); }
+.tp-scope.pr .pr-rules__t :is(td, th) { text-align: left; white-space: normal; padding: 8px 10px; }
+.tp-scope.pr .tp-log__e--hand { color: var(--text); font-weight: 700; border-top: 1px solid var(--line-strong); }
+.tp-scope.pr .tp-log__e--hand .body { font-weight: 700; }
+
+/* ------------------------------------------------------------------ zone basse (portable 1366 × 768) */
+@container zone (max-height: 700px) {
+  .tp-scope.pr .pr-plate { padding: 5px 10px 5px 6px; gap: 8px; }
+  .tp-scope.pr .pr-plate__st { font-size: 11px; line-height: 13px; }
+  .tp-scope.pr .pr-plate__m { font-size: 12px; line-height: 15px; }
+  .tp-scope.pr .pr-table { --pile-h: min(var(--card-md), 16.5cqh); }
+  .tp-scope.pr .pr-info { font-size: 10px; }
+  .tp-scope.pr .pr-cap { min-height: 30px; }
+  .tp-scope.pr .pr-x__mine .body { font-size: 14px; line-height: 19px; }
+}
+
+/* ------------------------------------------------------------------ tablette, petite fenêtre (640 à ~1100 px) */
+.tp-scope.pr .pr-table[data-shape="square"] .pr-center { top: 55%; max-width: 64%; }
+.tp-scope.pr .pr-table[data-shape="square"] .pr-plate .tp-avatar { --av: 32px; }
+.tp-scope.pr .pr-table[data-shape="square"] .pr-plate { gap: 7px; padding: 5px 8px 5px 5px; }
+.tp-scope.pr .pr-table[data-shape="square"] .pr-plate__n { font-size: 13px; }
+.tp-scope.pr .pr-table[data-shape="square"] .pr-plate__m { font-size: 12px; }
+.tp-scope.pr .pr-table[data-shape="square"] .pr-fan .tp-fan { --card-xs: clamp(26px, 4.6cqh, 44px); }
+.tp-scope.pr .pr-table[data-shape="square"] .pr-bottom { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "me actions" "status status" "hand hand"; row-gap: 6px; }
+.tp-scope.pr .pr-table[data-shape="square"] .pr-status { max-width: 100%; }
+.tp-scope.pr .pr-table[data-shape="square"] .pr-x__pair { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+.tp-scope.pr .pr-table[data-shape="square"] .pr-x__st { grid-column: 1 / -1; justify-self: center; }
+.tp-scope.pr .pr-table[data-shape="square"] .pr-discard .tp-pile__cap span { display: none; }
+
+/* ------------------------------------------------------------------ téléphone : la table passe en colonne */
+.tp-scope.pr .pr-table[data-shape="tall"] {
+  /* tailles de cartes du téléphone (Tapis les pose sur .tp-table ; notre table est .pr-table) */
+  --card-xs: clamp(22px, 6.4cqw, 40px); --card-sm: clamp(48px, 15cqw, 80px); --card-md: clamp(64px, 21cqw, 120px);
+  --pile-h: var(--card-md);
+  overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+}
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-arena { flex: 1 0 auto; display: flex; flex-direction: column; gap: 8px; padding: 60px 8px 8px; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-felt { display: none; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-seats { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 6px; pointer-events: auto; }
+.tp-scope.pr .pr-table[data-shape="tall"][data-players="3"] .pr-seats,
+.tp-scope.pr .pr-table[data-shape="tall"][data-players="4"] .pr-seats { padding-top: 4px; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-spot { position: relative; left: auto; top: auto; translate: none; width: auto; min-width: 0; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-fan { display: none; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-plate { padding: 7px 8px 5px 5px; gap: 6px; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-plate .tp-avatar { --av: 28px; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-plate__n { font-size: 13px; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-plate__m { font-size: 11px; line-height: 14px; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-plate__st { font-size: 11px; line-height: 13px; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-plate__b { right: 6px; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-plate__b .tp-badge { height: 16px; padding: 0 5px; font-size: 9px; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-plate > .tp-bubble { display: none; } /* la ligne d'état de la plaque suffit */
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-center {
+  position: relative; left: auto; top: auto; translate: none; max-width: none; width: 100%; margin-block: auto;
+  padding: 10px 8px 12px; border-radius: var(--radius-lg);
+  background: radial-gradient(ellipse 80% 70% at 50% 40%, var(--table-glow), var(--table) 75%, var(--table-deep));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent), inset 0 4px 18px rgba(0, 0, 0, .5);
+}
+.tp-scope.pr .pr-table[data-shape="tall"][data-rev] .pr-center { background: radial-gradient(ellipse 80% 70% at 50% 40%, color-mix(in srgb, var(--back) 55%, var(--table-glow)), color-mix(in srgb, var(--back) 35%, var(--table)) 75%, var(--table-deep)); }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-pile { width: calc(var(--pile-w) * 2.75); }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-discard { translate: 6px -50%; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-discard .tp-pile__cap span { display: none; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-stack { translate: -18px 0; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-x { width: 100%; padding: 8px; box-shadow: none; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-center:has(.pr-x) { padding: 0; background: none; box-shadow: none; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-x__pair { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 6px; padding: 6px; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-x__st { grid-column: 1 / -1; justify-self: center; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-x__who .tp-avatar { display: none; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-x__mine { flex-direction: column; text-align: center; gap: 8px; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-bottom {
+  grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "me status" "hand hand" "actions actions";
+  column-gap: 8px; row-gap: 6px; padding: 0 8px; align-items: center;
+}
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-me { width: auto; max-width: 46cqw; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-me .pr-plate__st,
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-me .pr-plate__b { display: none; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-status { justify-self: stretch; max-width: none; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-status .tp-status { padding: 4px 10px; min-height: 0; justify-content: flex-start; flex-wrap: wrap; row-gap: 0; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-status .tp-status__t { font-size: 15px; line-height: 19px; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-status .tp-status__d { white-space: normal; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-actions {
+  position: sticky; bottom: 0; justify-self: stretch; margin: 0 -8px; padding: 8px;
+  background: color-mix(in srgb, var(--panel) 94%, transparent); border-top: 1px solid var(--line); border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-actions:empty { display: none; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-actions .tp-actions,
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-actions .tp-actions__row { align-items: stretch; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-actions .tp-actions__row > * { flex: 1 1 0; min-width: 0; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-actions .tp-actions__row > .tp-btnwrap > .tp-btn,
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-actions .tp-actions__row > .tp-btn { width: 100%; min-height: 44px; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-actions .tp-btnwrap { max-width: none; align-items: stretch; text-align: center; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-hand { padding-bottom: 4px; }
+/* main sur deux rangs : la première rangée dépasse de sa ligne (cartes alignées en bas) ; on lui fait la place */
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-hand .tp-hand:not([data-few]) .tp-hand__grid { padding-top: calc(var(--ch) * .58); }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-actions { z-index: 12; }
+@container zone (max-width: 639px) {
+  .tp-scope.pr .tp-end h2 { font-size: 30px; line-height: 34px; }
+  .tp-scope.pr .tp-end__card { padding: var(--space-5) var(--space-4); gap: var(--space-3); }
+  .tp-scope.pr .pr-end-sheet { display: none; }
+  .tp-scope.pr .pr-revfx { font-size: 34px; }
+}
+.tp-scope.pr .pr-ss thead th:not(:first-child) { text-align: center; }
+/* raison d'une carte injouable : aux bords de la main, la bulle reste dans la zone */
+.tp-scope.pr .pr-hand .tp-hand__slot:first-child .tp-card__why,
+.tp-scope.pr .pr-hand .tp-hand__slot:nth-child(2) .tp-card__why { left: 0; transform: translate(0, -100%); }
+.tp-scope.pr .pr-hand .tp-hand__slot:last-child .tp-card__why { left: auto; right: 0; transform: translate(0, -100%); }
+/* téléphone, 6 joueurs et plus : trois plaques par rangée, sans avatar */
+.tp-scope.pr .pr-table[data-shape="tall"]:is([data-players="6"], [data-players="7"], [data-players="8"]) .pr-seats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 4px; }
+.tp-scope.pr .pr-table[data-shape="tall"]:is([data-players="6"], [data-players="7"], [data-players="8"]) .pr-spot .pr-plate .tp-avatar { display: none; }
+.tp-scope.pr .pr-table[data-shape="tall"]:is([data-players="6"], [data-players="7"], [data-players="8"]) .pr-spot .pr-plate { padding: 7px 6px 4px; }
+/* un ruban sur le bord haut : la plaque lui laisse la place au-dessus du nom */
+.tp-scope.pr .pr-plate:has(> .pr-plate__b) { padding-top: 11px; }
+
+/* téléphone : la table commence sous les outils (ils ne recouvrent jamais les plaques, même quand la table défile) */
+.tp-scope.pr .pr-table[data-shape="tall"] { top: 58px; }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-arena { padding-top: 12px; }
+/* téléphone, 6 joueurs et plus : quatre plaques par rangée, nombre de cartes seul (les points sont dans la feuille de scores) */
+.tp-scope.pr .pr-table[data-shape="tall"]:is([data-players="6"], [data-players="7"], [data-players="8"]) .pr-seats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 4px; }
+.tp-scope.pr .pr-table[data-shape="tall"]:is([data-players="6"], [data-players="7"], [data-players="8"]) .pr-spot .pr-plate { padding: 9px 5px 4px; }
+.tp-scope.pr .pr-table[data-shape="tall"]:is([data-players="6"], [data-players="7"], [data-players="8"]) .pr-spot .pr-plate__n { font-size: 12px; }
+.tp-scope.pr .pr-table[data-shape="tall"]:is([data-players="6"], [data-players="7"], [data-players="8"]) .pr-spot .pr-plate__pts { display: none; }
+.tp-scope.pr .pr-table[data-shape="tall"]:is([data-players="6"], [data-players="7"], [data-players="8"]) .pr-spot :is(.pr-plate__n, .pr-plate__m, .pr-plate__st) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* main sur deux rangs ou cartes levées : la sélection ne recouvre pas ma plaque ni le statut */
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-hand .tp-hand__grid { padding-top: calc(var(--ch) * .18 + 4px); }
+.tp-scope.pr .pr-table[data-shape="tall"] .pr-hand .tp-hand:not([data-few]) .tp-hand__grid { padding-top: calc(var(--ch) * .76 + 4px); }
+/* petit téléphone (hauteur) : pile plus basse, sans la ligne « Pour suivre » (le statut la donne déjà) */
+@container zone (max-height: 600px) {
+  .tp-scope.pr .pr-table[data-shape="tall"] { --pile-h: min(var(--card-md), 60px); }
+  .tp-scope.pr .pr-table[data-shape="tall"] .pr-center { padding-block: 6px 8px; }
+  .tp-scope.pr .pr-table[data-shape="tall"] .pr-need { display: none; }
+  .tp-scope.pr .pr-table[data-shape="tall"] .pr-arena { gap: 6px; }
+}
+/* plaques étroites (quatre par rangée) : le ruban du titre reste dans la plaque */
+.tp-scope.pr .pr-table[data-shape="tall"]:is([data-players="6"], [data-players="7"], [data-players="8"]) .pr-spot .pr-plate__b { left: 3px; right: 3px; justify-content: flex-end; }
+.tp-scope.pr .pr-table[data-shape="tall"]:is([data-players="6"], [data-players="7"], [data-players="8"]) .pr-spot .pr-plate__b .tp-badge { min-width: 0; max-width: 100%; padding: 0 4px; font-size: 8px; overflow: hidden; }
+.tp-scope.pr .pr-table[data-shape="tall"]:is([data-players="6"], [data-players="7"], [data-players="8"]) .pr-spot .pr-plate__b .tp-badge .tp-ic { display: none; }
